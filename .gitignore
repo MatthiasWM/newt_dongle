@@ -31,8 +31,16 @@
 *.out
 *.app
 
-# CMake build paths
+# CMake build paths and build components
+
 /PiPico/build/
+
 /EspressifESP/build/
-EspressifESP/managed_components/**
+/EspressifESP/managed_components/**
+
+/EspressifESPS3/managed_components/**
+/EspressifESPS3/build/
+
+/EspressifESPC6/build/
+/EspressifESPC6/managed_components/**
 

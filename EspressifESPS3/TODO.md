@@ -4,7 +4,11 @@
 ## Initial steps:
 
  - [ ] List the SP devices that we want to support (Internal, Debugging, Dongle board)
- - [ ] Make it easy to switch between devices (lcan we do CDC/MSC on all devices?)
+   - Jake: ESP32-S3-Mini-1u (CDC/MSC)
+   - Debug: ESP32-S3-Wroom-1
+   - Dongle: Ordered a XIAO ESP32-C6 for testing (no MSC! See S3, C3 for CDC/MSC, but builtin antenna)
+   - [ ] Check if we must create different folders for different CPUs and/or modules
+ - [ ] Make it easy to switch between devices
  - [ ] Check if the current Workspace compiles and debugs on our current hardware
  - [ ] Change install type to RAM (ESP?)
  - [ ] Implement the base classes in `common/` for USB to Serial (also in PiPico)
@@ -22,4 +26,9 @@
  - [ ] add modem endpoint basics
  - [ ] add BLE endpoint basics
  - [ ] add Wifi endpoint basics
+
+
+## Notes
+
+ - ESP-C6 USB port is hardwired for JTAG/CDC, but not for MSC!
 

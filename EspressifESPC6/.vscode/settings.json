@@ -1,0 +1,6 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "idf.espIdfPath": "/Users/matt/esp/esp-idf",
+    "idf.toolsPath": "/Users/matt/.espressif",
+    "idf.pythonInstallPath": "/usr/bin/python3"
+}
