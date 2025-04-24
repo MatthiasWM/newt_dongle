@@ -104,22 +104,22 @@ int PicoCDCEndpoint::task() {
 
 
 // Invoked when cdc when line state changed e.g connected/disconnected
-void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
-  (void)itf;
-  (void)rts;
+// void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
+//   (void)itf;
+//   (void)rts;
 
-  // TODO set some indicator
-  if (dtr) {
-    // Terminal connected
-    puts("CDC Terminal Connected\n");
-  } else {
-    // Terminal disconnected
-    puts("CDC Terminal Disconnected\n");
-  }
-}
+//   // TODO set some indicator
+//   if (dtr) {
+//     // Terminal connected
+//     puts("CDC Terminal Connected\n");
+//   } else {
+//     // Terminal disconnected
+//     puts("CDC Terminal Disconnected\n");
+//   }
+// }
 
 // Invoked when CDC interface received data from host
-void tud_cdc_rx_cb(uint8_t itf) {
-    puts("CDC RX\n");
-  (void)itf;
-}
+// void tud_cdc_rx_cb(uint8_t itf) {
+//     puts("CDC RX\n");
+//   (void)itf;
+// }
