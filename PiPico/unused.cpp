@@ -1,4 +1,8 @@
 
+
+// pico_time timestamp to delay serial transmissions
+//
+
 // =============================================================================
 // SPI:
 
@@ -108,3 +112,26 @@ void tud_resume_cb(void) {
 }
 
 
+// =============================================================================
+// USB CDC Set Descriptor:
+
+static char usbd_serial_str[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2 + 1];
+
+static const char *const usbd_desc_str[] = {
+    [USBD_STR_MANUF] = "Raspberry Pi",
+    [USBD_STR_PRODUCT] = "Pico",
+    [USBD_STR_SERIAL] = usbd_serial_str,
+    [USBD_STR_CDC] = "Board CDC",
+#if PICO_STDIO_USB_ENABLE_RESET_VIA_VENDOR_INTERFACE
+    [USBD_STR_RPI_RESET] = "Reset",
+#endif
+};
+...
+const uint16_t *tud_descriptor_string_cb(uint8_t index, __unused uint16_t langid) {
+...
+    // Assign the SN using the unique flash id
+    if (!usbd_serial_str[0]) {
+        pico_get_unique_board_id_string(usbd_serial_str, sizeof(usbd_serial_str));
+    }
+...
+}

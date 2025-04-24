@@ -8,7 +8,7 @@
 ## My TODO List for PiPico
 
  - [x] Check if the current Workspace compiles and debugs on our current hardware
- - [x]] Change install type to RAM
+ - [x] Change install type to RAM
  - [x] Implement the base classes in `common/`
  - [x] Implement the derived classes for the Pico
  - [x] Implement pipes for data and control
@@ -25,4 +25,6 @@
 
  - In `CMakeLists.txt`, we set `pico_set_binary_type(newt_dongle no_flash)`. 
     Delete this line to permanetly flash devices.
-
+ - Set HSKO to 29 on XIAO, and to 22 on PiPico)
+ - Apply for a USB Vendor ID: https://github.com/raspberrypi/usb-pid
+ - Change USB Port name: https://sourcevu.sysprogs.com/rp2040/picosdk/files/src/rp2_common/pico_stdio_usb/stdio_usb_descriptors.c#tok356

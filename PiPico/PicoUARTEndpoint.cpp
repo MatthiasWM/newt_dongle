@@ -21,6 +21,10 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 
+// \todo Hardware flow control: void uart_set_hw_flow (uart_inst_t * uart, bool cts, bool rts)
+// Built-in hardware flow control is on ports 2 and 3, but we use those for SPI.
+// We can emulate RTS and CTS using HSKI (28) and HSKO (29 on XIAO, 22 PiPico)
+
 using namespace nd;
 
 PicoUARTEndpoint::PicoUARTEndpoint() {
@@ -42,6 +46,16 @@ int PicoUARTEndpoint::init() {
     uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
     uart_set_translate_crlf(UART_ID, false);
     // Set the TX and RX pins by using the function select on the GPIO
+    // Some notes for hardware flow control:
+    // HSKI (28) and HSKO (29 on XIAO, 22 PiPico)
+        // void gpio_init (uint gpio) // Set function SIO
+        // void gpio_set_input_enabled (uint gpio, bool enabled)
+        // void gpio_set_function (uint gpio, gpio_function_t fn)
+        // void gpio_pull_up (uint gpio)
+        // void gpio_disable_pulls (uint gpio)
+        // bool gpio_get (uint gpio)
+        // void gpio_put (uint gpio, bool value)
+        // void gpio_set_dir (uint gpio, bool out)
     // For debugging, note that we are alive
     //uart_puts(UART_ID, "Hello, Pico UART!\a\a\a\r\n");
     //printf("Pico UART Endpoint initialized.\n");

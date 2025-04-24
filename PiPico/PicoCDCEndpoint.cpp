@@ -102,6 +102,11 @@ int PicoCDCEndpoint::task() {
 // //                          device will send a break until another SendBreak request is received with value 0000h.
 // TU_ATTR_WEAK void tud_cdc_send_break_cb(uint8_t itf, uint16_t duration_ms);
 
+// We can use hardware spin locks for interrupt handling:
+// void spin_lock_claim (uint lock_num)
+// void spin_lock_unclaim (uint lock_num)
+// spin_lock_t * spin_lock_init (uint lock_num)
+// Higher level pico_sync functions: critical section, mutex, etc.
 
 // Invoked when cdc when line state changed e.g connected/disconnected
 // void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
