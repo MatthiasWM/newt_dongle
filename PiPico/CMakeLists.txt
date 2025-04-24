@@ -42,15 +42,15 @@ pico_sdk_init()
 add_executable(newt_dongle 
         newt_dongle.cpp 
         usb_descriptors.c
-        common/Endpoint.h
-        common/Endpoint.cpp
+        PicoUARTEndpoint.cpp
+        PicoUARTEndpoint.h
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")
 pico_set_program_version(newt_dongle "0.1")
 
 # no_flash means the target is to run from RAM
-#pico_set_binary_type(newt_dongle no_flash)
+pico_set_binary_type(newt_dongle no_flash)
 
 # Generate PIO header
 pico_generate_pio_header(newt_dongle ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
@@ -81,6 +81,8 @@ target_link_libraries(newt_dongle
         tinyusb_device
         tinyusb_board
         )
+
+add_subdirectory(common)
 
 pico_add_extra_outputs(newt_dongle)
 

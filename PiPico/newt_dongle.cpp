@@ -8,7 +8,12 @@
 #include "bsp/board_api.h"
 #include "tusb.h"
 
-#include "common/Endpoint.h"
+#include "PicoUARTEndpoint.h"
+#include "common/Pipe.h"
+
+nd::PicoUARTEndpoint uart_endpoint;
+nd::Pipe uart_test_pipe;
+
 
 void cdc_task(void);
 
@@ -41,15 +46,15 @@ int64_t alarm_callback(alarm_id_t id, void *user_data) {
 }
 #endif
 
-// UART defines
-// By default the stdout UART is `uart0`, so we will use the second one
-#define UART_ID uart0
-#define BAUD_RATE 19200
+// // UART defines
+// // By default the stdout UART is `uart0`, so we will use the second one
+// #define UART_ID uart0
+// #define BAUD_RATE 19200
 
-// Use pins 4 and 5 for UART1
-// Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
-#define UART_TX_PIN 0
-#define UART_RX_PIN 1
+// // Use pins 4 and 5 for UART1
+// // Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
+// #define UART_TX_PIN 0
+// #define UART_RX_PIN 1
 
 void init_tusb() {
     tusb_rhport_init_t dev_init = {
@@ -103,18 +108,55 @@ int main()
     printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
     // For more examples of clocks use see https://github.com/raspberrypi/pico-examples/tree/master/clocks
 
-    // Set up our UART
-    uart_init(UART_ID, BAUD_RATE);
-    // Set the TX and RX pins by using the function select on the GPIO
-    // Set datasheet for more information on function select
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+    uart_endpoint.init();
+    uart_test_pipe.connect_from(uart_endpoint).connect_to(uart_endpoint);
+
+    // uart_test_pipe.putc('a');
+    // uart_test_pipe.putc('b');
+    // uart_test_pipe.putc('c');
+    // uart_test_pipe.putc('d');
+    // uart_test_pipe.putc('e');
+    // uart_test_pipe.put_ctrl(1, 4711, 1501);
+    // uart_test_pipe.putc('f');
+    // uart_test_pipe.putc('g');
+    // uart_test_pipe.putc('h');
+    // uart_test_pipe.putc('i');
+    // uart_test_pipe.put_ctrl(2, 4711, 1501);
+    // uart_test_pipe.put_ctrl(3, 4711, 1501);
+    // uart_test_pipe.putc('j');
+    // uart_test_pipe.putc('k');
+    // uart_test_pipe.putc('l');
+    // uart_test_pipe.putc('m');
+    // uart_test_pipe.putc('n');
+    // uart_test_pipe.putc('o');
+    // uart_test_pipe.putc('p');
+    // uart_test_pipe.putc('q');
+    // uart_test_pipe.putc('r');
+
+    // for (;;) {
+    //     if (uart_test_pipe.data_available() > 0) {
+    //         char c = uart_test_pipe.getc();
+    //         printf("Rcvd: %c\n", c);
+    //     }
+    //     if (uart_test_pipe.ctrl_available() > 0) {
+    //         nd::CtrlBlock *ctrl_block = uart_test_pipe.peek_ctrl();
+    //         printf("Ctrl: %d %d %d %d %d\n", ctrl_block->cmd(), ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
+    //         uart_test_pipe.pop_ctrl();
+    //     }
+    // }
+
+    // // Set up our UART
+    // uart_init(UART_ID, BAUD_RATE);
+    // // Set the TX and RX pins by using the function select on the GPIO
+    // // Set datasheet for more information on function select
+    // gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+    // gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
     
     // Use some the various UART functions to send out data
     // In a default system, printf will also output via the default UART
     
     // Send out a string, with CR/LF conversions
-    uart_puts(UART_ID, " Hello, UART!\n");
+    // uart_puts(UART_ID, " Hello, UART!\n");
     
     // For more examples of UART use see https://github.com/raspberrypi/pico-examples/tree/master/uart
 
@@ -125,6 +167,7 @@ int main()
         #elif 1
         tud_task(); // tinyusb device task    
         cdc_task();
+        uart_endpoint.task();
         #else
         char c = uart_getc(uart0);
         printf("Rcvd: %c\n", c);
