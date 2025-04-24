@@ -1,3 +1,7 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Matthias Melcher, robowerk.de
+//
 
 #ifndef ND_PIPE_H
 #define ND_PIPE_H

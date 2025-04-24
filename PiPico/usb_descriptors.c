@@ -36,7 +36,7 @@
  #define USB_PID           (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
                             _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
  
- #define USB_VID   0xCafe
+ #define USB_VID   0xbeef
  #define USB_BCD   0x0200
  
  //--------------------------------------------------------------------+
@@ -126,9 +126,9 @@
  #endif
  
  #if CFG_TUD_MSC
- #define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN)
- #else
  #define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_MSC_DESC_LEN)
+ #else
+ #define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN)
  #endif
 
  // full speed configuration

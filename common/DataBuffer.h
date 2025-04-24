@@ -1,4 +1,7 @@
-
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Matthias Melcher, robowerk.de
+//
 
 #ifndef ND_DATA_BUFFER_H
 #define ND_DATA_BUFFER_H

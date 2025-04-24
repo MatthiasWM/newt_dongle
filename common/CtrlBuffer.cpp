@@ -1,3 +1,7 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Matthias Melcher, robowerk.de
+//
 
 #include "CtrlBuffer.h"
 #include "Pipe.h"

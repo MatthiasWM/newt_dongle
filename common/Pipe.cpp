@@ -1,3 +1,7 @@
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Matthias Melcher, robowerk.de
+//
 
 #include "Pipe.h"
 #include "Endpoint.h"
@@ -232,3 +236,40 @@ int Pipe::pop_ctrl() {
     }
 }
 
+#if OLD_PIPE_TEST
+
+    // uart_test_pipe.putc('a');
+    // uart_test_pipe.putc('b');
+    // uart_test_pipe.putc('c');
+    // uart_test_pipe.putc('d');
+    // uart_test_pipe.putc('e');
+    // uart_test_pipe.put_ctrl(1, 4711, 1501);
+    // uart_test_pipe.putc('f');
+    // uart_test_pipe.putc('g');
+    // uart_test_pipe.putc('h');
+    // uart_test_pipe.putc('i');
+    // uart_test_pipe.put_ctrl(2, 4711, 1501);
+    // uart_test_pipe.put_ctrl(3, 4711, 1501);
+    // uart_test_pipe.putc('j');
+    // uart_test_pipe.putc('k');
+    // uart_test_pipe.putc('l');
+    // uart_test_pipe.putc('m');
+    // uart_test_pipe.putc('n');
+    // uart_test_pipe.putc('o');
+    // uart_test_pipe.putc('p');
+    // uart_test_pipe.putc('q');
+    // uart_test_pipe.putc('r');
+
+    // for (;;) {
+    //     if (uart_test_pipe.data_available() > 0) {
+    //         char c = uart_test_pipe.getc();
+    //         printf("Rcvd: %c\n", c);
+    //     }
+    //     if (uart_test_pipe.ctrl_available() > 0) {
+    //         nd::CtrlBlock *ctrl_block = uart_test_pipe.peek_ctrl();
+    //         printf("Ctrl: %d %d %d %d %d\n", ctrl_block->cmd(), ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
+    //         uart_test_pipe.pop_ctrl();
+    //     }
+    // }
+
+#endif // OLD_PIPE_TEST

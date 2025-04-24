@@ -1,11 +1,14 @@
-
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Matthias Melcher, robowerk.de
+//
 
 #include "PicoUARTEndpoint.h"
-
-#include "hardware/uart.h"
 #include "common/Pipe.h"
 
+#include "hardware/uart.h"
 #include "pico/stdlib.h"
+
 #include <stdio.h>
 
 // UART defines
@@ -40,37 +43,43 @@ int PicoUARTEndpoint::init() {
     uart_set_translate_crlf(UART_ID, false);
     // Set the TX and RX pins by using the function select on the GPIO
     // For debugging, note that we are alive
-    uart_puts(UART_ID, "Hello, Pico UART!\a\a\a\r\n");
-    printf("Pico UART Endpoint initialized.\n");
+    //uart_puts(UART_ID, "Hello, Pico UART!\a\a\a\r\n");
+    //printf("Pico UART Endpoint initialized.\n");
     // No error
     return 0;
 }
 
 int PicoUARTEndpoint::task() {
-    // TODO: interleave send, ctrl, and receive, set a maximum of iterations
-    for (;;) {
-        if (!uart_is_readable(UART_ID)) break;
-        Pipe *out_pipe = out();
-        if ((out_pipe == nullptr) || (!out_pipe->is_writable())) break;
-        char c = uart_getc(UART_ID);
-        printf("Received: %c\n", c);
-        out_pipe->putc(c);
-    }
-    for (;;) {
+    // The score ensures that we don't get stuck in an infinite loop
+    int score = 1000;
+    bool busy = true;
+    while (busy && (score > 0)) {
+        busy = false;
+        while ((score > 0) && uart_is_readable(UART_ID)) {
+            busy = true;
+            char c = uart_getc(UART_ID);
+            printf("Received: %c\n", c);
+            Pipe *out_pipe = out();
+            if ((out_pipe == nullptr) || (!out_pipe->is_writable())) break;
+            out_pipe->putc(c);
+            score--;
+        }
         Pipe *in_pipe = in();
-        if ((in_pipe == nullptr) || (!in_pipe->data_available()>0)) break;
-        // TODO: if cmd avaialble, interprete it
-        char c = in_pipe->getc();
-        printf("Sending: %c\n", c);
-        uart_putc(UART_ID, c);
+        while ((score > 0) && (in_pipe) && (in_pipe->data_available()>0)) {
+            busy = true;
+            char c = in_pipe->getc();
+            printf("Sending: %c\n", c);
+            uart_putc(UART_ID, c);
+            score--;
+        }
+        while ((score > 0) && in_pipe->ctrl_available()) {
+            busy = true;
+            CtrlBlock *ctrl_block = in_pipe->peek_ctrl();
+            printf("Ctrl: %d %d %d %d %d\n", ctrl_block->cmd(), ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
+            in_pipe->pop_ctrl();
+            score -= 100;
+        }
     }
-
-
-    // while (uart_is_readable(UART_ID)) {
-    //     char c = uart_getc(UART_ID);
-    //     printf("Received: %c\n", c);
-    //     // Echo the character back
-    //     uart_putc(UART_ID, c);
-    // }    
     return 0;
 }
+
