@@ -21,10 +21,13 @@ class Pipe {
     Endpoint *source_ = nullptr;
     Endpoint *sink_ = nullptr;
 
-    DataBufferPool data_buffer_pool_;
-    CtrlBufferPool ctrl_buffer_pool_;
+    DataBufferPool data_buffer_pool_ { 32, 32 };
+    CtrlBufferPool ctrl_buffer_pool_ { 32 };
     Buffer *first_buffer_ = nullptr;
     Buffer *last_buffer_ = nullptr;
+
+    void unlink_first(Buffer *buffer);
+    void enqueue_last(Buffer *buffer);
 
 public:
     Pipe();
@@ -41,7 +44,7 @@ public:
     int getc();
 
 
-    int put_ctrl(uint8_t cmd, int32_t data0=0, int32_t data1=0, int32_t data2=0, int32_t data3=0);
+    int put_ctrl(Cmd cmd, int32_t data0=0, int32_t data1=0, int32_t data2=0, int32_t data3=0);
 
     int ctrl_available();
     CtrlBlock *peek_ctrl();

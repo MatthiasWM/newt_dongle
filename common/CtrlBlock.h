@@ -10,15 +10,20 @@
 
 namespace nd {
 
+enum class Cmd {
+    NONE = 0,
+    SET_BITRATE,
+};
+
 class CtrlBlock {
-    uint8_t cmd_ = 0;
+    Cmd cmd_ = Cmd::NONE;
     int32_t data_[4] = {0, 0, 0, 0};
 public:
     CtrlBlock() = default;
     ~CtrlBlock() = default;
 
-    void cmd(uint8_t cmd);
-    uint8_t cmd();
+    void cmd(Cmd cmd);
+    Cmd cmd();
 
     void data(int32_t data1, int32_t data2=0, int32_t data3=0, int32_t data4=0);
     int32_t *data();

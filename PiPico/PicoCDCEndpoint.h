@@ -8,15 +8,20 @@
 
 #include "common/Endpoints/CDCEndpoint.h"
 
+#include <cstdint>
+
 namespace nd {
 
 class PicoCDCEndpoint : public CDCEndpoint {
+    static PicoCDCEndpoint *list_[4];
+    uint32_t index_ = 0;
 public:
-    PicoCDCEndpoint();
+    static PicoCDCEndpoint *instance(uint32_t index);
+    PicoCDCEndpoint(uint32_t index);
     ~PicoCDCEndpoint();
-
     int init() override;
     int task() override;
+    void host_set_bitrate(uint32_t new_bitrate);
 };
 
 } // namespace nd

@@ -7,11 +7,11 @@
 
 using namespace nd;
 
-void CtrlBlock::cmd(uint8_t cmd) { 
+void CtrlBlock::cmd(Cmd cmd) { 
     cmd_ = cmd; 
 }
 
-uint8_t CtrlBlock::cmd() { 
+Cmd CtrlBlock::cmd() { 
     return cmd_; 
 }
 

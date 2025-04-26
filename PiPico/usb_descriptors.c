@@ -156,9 +156,11 @@
      // Interface number, string index, EP notification address and size, EP data address (out, in) and size.
      TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 512),
  
+#if CFG_TUD_MSC
      // Interface number, string index, EP Out & EP In address, EP size
      TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, 5, EPNUM_MSC_OUT, EPNUM_MSC_IN, 512),
- };
+#endif     
+};
  
  // other speed configuration
  uint8_t desc_other_speed_config[CONFIG_TOTAL_LEN];

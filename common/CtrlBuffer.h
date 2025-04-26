@@ -11,19 +11,25 @@
 
 namespace nd {
 
+/* ---- CtrlBuffer ---------------------------------------------------------- */
+
 class CtrlBuffer : public Buffer{
     CtrlBlock ctrl_block_;
 public:
     CtrlBuffer();
     ~CtrlBuffer();
+    void reset() override;
     CtrlBlock *ctrl_block() { return &ctrl_block_; }
 };
 
-class CtrlBufferPool : public BufferPool {
-public:
-    CtrlBufferPool() = default;
-    ~CtrlBufferPool() = default;
+/* ---- CtrlBufferPool ------------------------------------------------------ */
 
+class CtrlBufferPool : public BufferPool {
+protected:
+    Buffer *new_buffer(uint32_t buffer_size) override;
+public:
+    CtrlBufferPool(uint32_t num_buffers = 32);
+    ~CtrlBufferPool() override = default;
     CtrlBuffer *get_buffer();
 };
 

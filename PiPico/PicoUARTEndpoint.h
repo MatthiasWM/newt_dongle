@@ -8,15 +8,23 @@
 
 #include "common/Endpoints/UARTEndpoint.h"
 
+#include <cstdint>
+
 namespace nd {
 
+class CtrlBlock;
+
 class PicoUARTEndpoint : public UARTEndpoint {
+    uint32_t bitrate_ = 38400; // Default to 38400
 public:
     PicoUARTEndpoint();
     ~PicoUARTEndpoint();
 
     int init() override;
     int task() override;
+
+    int handle(CtrlBlock *ctrl_block);
+    void set_bitrate(uint32_t new_bitrate);
 };
 
 } // namespace nd

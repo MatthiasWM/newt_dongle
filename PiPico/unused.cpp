@@ -1,7 +1,22 @@
 
 
 // pico_time timestamp to delay serial transmissions
-//
+
+// --- Cross platform serial port library for host:
+// https://github.com/thuanalg/libserialmodule : multithreaded, no device enum
+// https://github.com/GCY/SerialPortLibrary : no Linux, very primitive
+// https://github.com/wjwwood/serial : huge dependencies, >1000 stars
+// https://github.com/alextoind/serial : library above refactored for C++20(?)
+// https://github.com/JonathSpirit/serial : two above, but less dependencies!
+
+// https://github.com/andreyplus/SerIO : great looking serial terminal
+
+// --- MNP options:
+// Newton Framework : huge, difficult to compile, base of NCX (Simon Bell)
+// DYneTK : old, not much testing (Matt)
+// DCL
+// Escale: huge, quality, complete, no Windows support (Paul Guyot, search for TDCLCTBMNPSerial.cpp)
+
 
 // =============================================================================
 // SPI:

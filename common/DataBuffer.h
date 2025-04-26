@@ -10,27 +10,32 @@
 
 namespace nd {
 
+/* ---- DataBuffer ---------------------------------------------------------- */
+
 class DataBuffer : public Buffer {    
-    static constexpr int max_size_ = 4;    // \todo Set thsi higher after debugging
-    uint8_t data_[max_size_];
-    int head_ = 0;
-    int tail_ = 0;
+    uint8_t *data_ = nullptr;
+    uint32_t size_ = 0;
+    uint32_t head_ = 0;
+    uint32_t tail_ = 0;
 public:
-    static constexpr int max_size = 256;
-    DataBuffer();
+    DataBuffer(uint32_t size);
     ~DataBuffer();
-    bool is_full() { return (head_ >= max_size_); }
+    void reset() override;
+    bool is_full() { return (head_ >= size_); }
     int append(uint8_t c);
     int available() { return (head_ - tail_); }
     int getc();
     bool done();
 };
 
-class DataBufferPool : public BufferPool {
-public:
-    DataBufferPool() = default;
-    ~DataBufferPool() = default;
+/* ---- DataBufferPool ------------------------------------------------------ */
 
+class DataBufferPool : public BufferPool {
+protected:
+    Buffer *new_buffer(uint32_t buffer_size) override;
+public:
+    DataBufferPool(uint32_t num_buffers = 32, uint32_t buffer_size = 32);
+    ~DataBufferPool() override = default;
     DataBuffer *get_buffer();
 };
 

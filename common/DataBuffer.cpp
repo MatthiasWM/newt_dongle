@@ -8,6 +8,8 @@
 
 using namespace nd;
 
+/* ---- DataBuffer ---------------------------------------------------------- */
+
 /**
  * \class DataBuffer
  * 
@@ -21,7 +23,11 @@ using namespace nd;
 /**
  * \brief Constructor
  */
-DataBuffer::DataBuffer() {
+DataBuffer::DataBuffer(uint32_t size) 
+:   Buffer(),
+    data_(new uint8_t[size]),
+    size_(size)
+{
     type_ = 1;
 }
 
@@ -29,7 +35,15 @@ DataBuffer::DataBuffer() {
  * \brief Destructor
  */
 DataBuffer::~DataBuffer() {
-    // Destructor implementation
+    delete[] data_;
+}
+
+/**
+ * Prepare for reuse.
+ */
+void DataBuffer::reset() { 
+    head_ = 0; 
+    tail_ = 0; 
 }
 
 /**
@@ -74,16 +88,34 @@ bool DataBuffer::done() {
     if (next()) {
         return (head_ == tail_);
     } else {
-        return (head_ == max_size_);
+        return (tail_ == size_);
     }
 }
 
+/* ---- DataBufferPool ------------------------------------------------------ */
 
+/**
+ * Allocate a pool of data buffers.
+ * 
+ * \param num_buffers Number of buffers to pre-allocate
+ * \param buffer_size Size of each buffer in bytes
+ */
+DataBufferPool::DataBufferPool(uint32_t num_buffers, uint32_t buffer_size)
+:   BufferPool(num_buffers, buffer_size) 
+{
+}
+
+/**
+ * Allocate a new buffer of the required type
+ */
+Buffer *DataBufferPool::new_buffer(uint32_t buffer_size)
+{
+    return new DataBuffer(buffer_size);
+}
 
 /**
  * Get a buffer from the pool.
  */
 DataBuffer *DataBufferPool::get_buffer() {
-    // Get a buffer implementation
-    return new DataBuffer();
+    return static_cast<DataBuffer*>(get_buffer_());
 }
