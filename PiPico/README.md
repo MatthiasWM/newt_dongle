@@ -13,7 +13,7 @@
  - [x] Implement the derived classes for the Pico
  - [x] Implement pipes for data and control
  - [x] Get a minimal serial port forwader running
- - [ ] Test the serial port forwarder
+ - [x] Test the serial port forwarder
  - [ ] Implement data vs. command mode and a few AT commands in `common`
  - [ ] Test with script
  - [ ] Implement statistics

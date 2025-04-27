@@ -23,7 +23,7 @@ public:
     int init() override;
     int task() override;
 
-    int handle(CtrlBlock *ctrl_block);
+    int handle(Event event);
     void set_bitrate(uint32_t new_bitrate);
 };
 

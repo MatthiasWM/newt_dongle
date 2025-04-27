@@ -6,6 +6,8 @@
 #ifndef ND_ENDPOINT_H
 #define ND_ENDPOINT_H
 
+#include "Event.h"
+
 namespace nd {
 
 class Pipe;
@@ -25,6 +27,9 @@ public:
     Pipe *in() const { return in_pipe_; }
     Pipe *out() const { return out_pipe_; }
 };
+
+uint32_t id_to_bitrate(uint8_t);
+uint8_t bitrate_to_id(uint32_t);
 
 
 } // namespace nd

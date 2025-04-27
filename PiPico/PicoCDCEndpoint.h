@@ -22,6 +22,8 @@ public:
     int init() override;
     int task() override;
     void host_set_bitrate(uint32_t new_bitrate);
+
+    int handle(Event event);
 };
 
 } // namespace nd

@@ -84,57 +84,65 @@ int PicoUARTEndpoint::init() {
 int PicoUARTEndpoint::task() {
     uint32_t i;
 
-    // Read all data from the fifo and put it into out pipe
+    // Read all data from the FIFO and put it into out pipe
     Pipe *out_pipe = out();
     if (out_pipe) {
-        for (i=32; i>0; --i) {
-            if (out_pipe->is_writable() && uart_is_readable(UART_ID)) {
+        // Handle a bunch of DATA events.
+        for (i=cfgMaxBurstRead; i>0; --i) {
+            if ((out_pipe->num_free() > 0) && uart_is_readable(UART_ID)) {
                 uint8_t c = uart_getc(UART_ID);
                 //printf("[%02x]", c);
-                out_pipe->putc(c);
+                out_pipe->write(make_event(Type::DATA, c));
             } else {
                 break;
             }
-        }    
+        }
+        // Clear the handshake pin if we run out of buffer capacity.
+        if (out_pipe->reached_high_water()) {
+            gpio_put(UART_HSKI_PIN, 0);
+        } else {
+            gpio_put(UART_HSKI_PIN, 1);
+        }
     }
 
+    // Read all data from the in pipe and send it to the device
     Pipe *in_pipe = in();
     if (in_pipe) {
-        // Read all data from the in pipe and send it to the USB
-        for (i=32; i>0; --i) {
+        Event ev = in_pipe->peek();
+        // Handle a bunch of DATA events first.
+        for (i=cfgMaxBurstWrite; i>0; --i) {
             bool cts = gpio_get(UART_HSKO_PIN);
-            if (cts && in_pipe->data_available() && uart_is_writable(UART_ID)) {
-                char c = in_pipe->getc();
+            if (cts && (event_type(ev) == Type::DATA) && uart_is_writable(UART_ID)) {
+                uint8_t c = event_data(ev);
+                //printf("<%02x>", c);
                 uart_putc_raw(UART_ID, c);
+                in_pipe->pop();
+                ev = in_pipe->peek();
             } else {
                 break;
             }
         }
-
-        // Now check if there are any control blocks pending (handle one at a time)
-        if (in_pipe->ctrl_available()) {
-            CtrlBlock *ctrl_block = in_pipe->peek_ctrl();
-            handle(ctrl_block);
-            //printf("UART Ctrl: %d %d %d %d %d\n", ctrl_block->cmd(), ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
-            in_pipe->pop_ctrl();
+        // Now handle one control event if available.
+        if ((event_type(ev) != Type::ERROR) && (event_type(ev) != Type::DATA)) {
+            handle(ev);
+            in_pipe->pop();
         }
+        // Note that ERROR events must never be popped from the pipe.
     }
     return 0;
 }
 
-int PicoUARTEndpoint::handle(CtrlBlock *ctrl_block) {
-    if (ctrl_block == nullptr) {
-        puts("**** ERROR **** in PicoUARTEndpoint::handle() - no control block");
-        return -1;
-    }
-    switch (ctrl_block->cmd()) {
-        case Cmd::SET_BITRATE:
-            set_bitrate(ctrl_block->d0());
-            return 1;
+int PicoUARTEndpoint::handle(Event event) {
+    switch (event_type(event)) {
+        case Type::SET_BITRATE: {
+            uint8_t data = event_data(event);
+            uint32_t new_bitrate = id_to_bitrate(data);
+            set_bitrate(new_bitrate);
+            return 1; }
         default:
-            printf("**** ERROR ****: UART: Unknown command %d ( %d %d %d %d )\n", 
-                ctrl_block->cmd(), 
-                ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
+            printf("**** WARNING ****: UART: Unknown command %d ( %d )\n", 
+                static_cast<int>(event_type(event)),
+                event_data(event));
             return -1;
     }
     return -1;

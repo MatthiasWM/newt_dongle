@@ -5,7 +5,6 @@
 
 #include "PicoCDCEndpoint.h"
 #include "common/Pipe.h"
-#include "common/CtrlBlock.h"
 
 #include "pico/stdlib.h"
 #include "bsp/board_api.h"
@@ -54,53 +53,67 @@ int PicoCDCEndpoint::init() {
 }
 
 int PicoCDCEndpoint::task() {
-    // \todo tud_cdc_ready
-    // \todo tud_cdc_connected
     uint32_t i;
 
-    // Read all data from the fifo and put it into out pipe
+    // Read all data from the FIFO and put it into out pipe
     Pipe *out_pipe = out();
     if (out_pipe) {
-        for (i=32; i>0; --i) {
-            if (out_pipe->is_writable() && tud_cdc_available()) {
-                char c = tud_cdc_read_char();
-                out_pipe->putc(c);
+        // Handle a bunch of DATA events.
+        for (i=cfgMaxBurstRead; i>0; --i) {
+            if ((out_pipe->num_free() > 0) && tud_cdc_available()) {
+                uint8_t c = tud_cdc_read_char();
+                //printf("[%02x]", c);
+                out_pipe->write(make_event(Type::DATA, c));
             } else {
                 break;
             }
         }
     }
 
+    // Read all data from the in pipe and send it to the device
     Pipe *in_pipe = in();
     if (in_pipe) {
+        Event ev = in_pipe->peek();
+        // Handle a bunch of DATA events first.
         bool flush = false;
-        // Read all data from the in pipe and send it to the USB
-        for (i=32; i>0; --i) {
-            if (in_pipe->data_available() /* && tud_cdc_connected()*/) {
-                char c = in_pipe->getc();
+        for (i=cfgMaxBurstWrite; i>0; --i) {
+            if ((event_type(ev) == Type::DATA) /* && tud_cdc_connected()*/) {
+                uint8_t c = event_data(ev);
                 //printf("<%02x>", c);
                 tud_cdc_write_char(c);
+                in_pipe->pop();
                 flush = true;
+                ev = in_pipe->peek();
             } else {
                 break;
             }
         }
-
         // Flush the data to the USB 
         // \todo This should be on a timer so we don't flush too often
         if (flush) {
             tud_cdc_write_flush();
         }
-
-        // Now check if there are any control blocks pending (handle one at a time)
-        if (in_pipe->ctrl_available()) {
-            CtrlBlock *ctrl_block = in_pipe->peek_ctrl();
-            //printf("CDC Ctrl: %d %d %d %d %d\n", ctrl_block->cmd(), ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
-            in_pipe->pop_ctrl();
+        // Now handle one control event if available.
+        if ((event_type(ev) != Type::ERROR) && (event_type(ev) != Type::DATA)) {
+            handle(ev);
+            in_pipe->pop();
         }
+        // Note that ERROR events must never be popped from the pipe.
     }
     return 0;
 }
+
+int PicoCDCEndpoint::handle(Event event) {
+    switch (event_type(event)) {
+        default:
+            printf("**** WARNING ****: CDC: Unknown command %d ( %d )\n", 
+                static_cast<int>(event_type(event)),
+                event_data(event));
+            return -1;
+    }
+    return -1;
+}
+
 
 /**
  * Tell our client that the host has changed the bitrate.
@@ -108,7 +121,9 @@ int PicoCDCEndpoint::task() {
 void PicoCDCEndpoint::host_set_bitrate(uint32_t new_bitrate) {
     Pipe *out_pipe = out();
     if (out_pipe) {
-       out_pipe->put_ctrl(Cmd::SET_BITRATE, new_bitrate, 0, 0, 0);
+        uint8_t bitrate_id = bitrate_to_id(new_bitrate);
+        Event ev = make_event(Type::SET_BITRATE, bitrate_id);
+        out_pipe->write(ev);
     }
 }
 
