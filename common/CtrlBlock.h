@@ -13,6 +13,7 @@ namespace nd {
 enum class Cmd {
     NONE = 0,
     SET_BITRATE,
+    AFTER_RESET,
 };
 
 class CtrlBlock {

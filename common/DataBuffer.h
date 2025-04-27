@@ -36,7 +36,7 @@ protected:
 public:
     DataBufferPool(uint32_t num_buffers = 32, uint32_t buffer_size = 32);
     ~DataBufferPool() override = default;
-    DataBuffer *get_buffer();
+    DataBuffer *claim_buffer();
 };
 
 } // namespace nd

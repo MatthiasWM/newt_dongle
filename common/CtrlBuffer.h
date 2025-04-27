@@ -30,7 +30,7 @@ protected:
 public:
     CtrlBufferPool(uint32_t num_buffers = 32);
     ~CtrlBufferPool() override = default;
-    CtrlBuffer *get_buffer();
+    CtrlBuffer *claim_buffer();
 };
 
 } // namespace nd    

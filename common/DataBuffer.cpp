@@ -24,11 +24,10 @@ using namespace nd;
  * \brief Constructor
  */
 DataBuffer::DataBuffer(uint32_t size) 
-:   Buffer(),
+:   Buffer(Type::DATA),
     data_(new uint8_t[size]),
     size_(size)
 {
-    type_ = 1;
 }
 
 /**
@@ -101,7 +100,7 @@ bool DataBuffer::done() {
  * \param buffer_size Size of each buffer in bytes
  */
 DataBufferPool::DataBufferPool(uint32_t num_buffers, uint32_t buffer_size)
-:   BufferPool(num_buffers, buffer_size) 
+:   BufferPool(Buffer::Type::DATA, num_buffers, buffer_size) 
 {
 }
 
@@ -116,6 +115,6 @@ Buffer *DataBufferPool::new_buffer(uint32_t buffer_size)
 /**
  * Get a buffer from the pool.
  */
-DataBuffer *DataBufferPool::get_buffer() {
-    return static_cast<DataBuffer*>(get_buffer_());
+DataBuffer *DataBufferPool::claim_buffer() {
+    return static_cast<DataBuffer*>(claim_buffer_());
 }

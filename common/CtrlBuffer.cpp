@@ -11,8 +11,8 @@ using namespace nd;
 /* ---- CtrlBuffer ---------------------------------------------------------- */
 
 CtrlBuffer::CtrlBuffer() 
+:   Buffer(Type::CTRL)
 {
-    type_ = 2;
 }
 
 CtrlBuffer::~CtrlBuffer() {
@@ -22,7 +22,7 @@ CtrlBuffer::~CtrlBuffer() {
  * Prepare for reuse.
  */
 void CtrlBuffer::reset() {
-    ctrl_block_.cmd(Cmd::NONE);
+    ctrl_block_.cmd(Cmd::AFTER_RESET);
 }
 
 /* ---- CtrlBufferPool ------------------------------------------------------ */
@@ -34,7 +34,7 @@ void CtrlBuffer::reset() {
  * \param buffer_size Size of each buffer in bytes
  */
 CtrlBufferPool::CtrlBufferPool(uint32_t num_buffers)
-:   BufferPool(num_buffers, 0) 
+:   BufferPool(Buffer::Type::CTRL, num_buffers, 0) 
 {
 }
 
@@ -50,6 +50,6 @@ Buffer *CtrlBufferPool::new_buffer(uint32_t buffer_size)
 /**
  * Get a buffer from the pool.
  */
-CtrlBuffer *CtrlBufferPool::get_buffer() {
-    return static_cast<CtrlBuffer*>(get_buffer_());
+CtrlBuffer *CtrlBufferPool::claim_buffer() {
+    return static_cast<CtrlBuffer*>(claim_buffer_());
 }

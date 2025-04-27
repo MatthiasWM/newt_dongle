@@ -12,17 +12,27 @@ using namespace nd;
 
 /* ---- Buffer -------------------------------------------------------------- */
 
-Buffer::Buffer() {
-    // Constructor implementation
+Buffer::Buffer(Buffer::Type the_type) 
+:   type_ { the_type }
+{
 }
 
 Buffer::~Buffer() {
     // Destructor implementation
 }
 
-uint8_t Buffer::type() { 
+Buffer::Type Buffer::type() const { 
     return type_; 
 }
+
+void Buffer::next(Buffer *aNext) { 
+    next_ = aNext; 
+}
+
+Buffer *Buffer::next() const { 
+    return next_; 
+}
+
 
 /* ---- BufferPool ---------------------------------------------------------- */
 
@@ -32,9 +42,10 @@ uint8_t Buffer::type() {
  * \param num_buffers Number of buffers to pre-allocate
  * \param buffer_size Size of each buffer in bytes
  */
-BufferPool::BufferPool(uint32_t num_buffers, uint32_t buffer_size) 
+BufferPool::BufferPool(Buffer::Type the_type, uint32_t num_buffers, uint32_t buffer_size) 
 :   num_buffers_ { num_buffers },
-    buffer_size_ { buffer_size }
+    buffer_size_ { buffer_size },
+    type_ { the_type }
 {
 }
 
@@ -70,17 +81,17 @@ void BufferPool::allocate_buffers() {
  * 
  * \return Pointer to the buffer, or nullptr if no buffers are available
  */
-Buffer *BufferPool::get_buffer_() {
+Buffer *BufferPool::claim_buffer_() {
     assert(buffer_. "Call allocate_buffers() before using the buffer pool");
     if (free_list_ == nullptr) {
-        puts("**** ERROR **** in BufferPool::get_buffer_() - no buffer available");
+        puts("**** ERROR **** in BufferPool::claim_buffer_() - no buffer available");
         return nullptr;
     }
     Buffer *buffer = free_list_;
     free_list_ = buffer->next();
     buffer->next(nullptr);
     free_list_size_--;
-    // printf("BufferPool::get_buffer_() %d buffers still available\n", free_list_size_);
+    // printf("BufferPool::claim_buffer_() %d buffers still available\n", free_list_size_);
     return buffer;
 }
 

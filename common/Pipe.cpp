@@ -61,9 +61,9 @@ void Pipe::unlink_first(Buffer *buffer) {
     }
     first_buffer_ = buffer->next();
     if (first_buffer_ == nullptr) last_buffer_ = nullptr;
-    if (buffer->type() == 1) {
+    if (buffer->type() == Buffer::Type::DATA) {
         data_buffer_pool_.release_buffer(buffer);
-    } else if (buffer->type() == 2) {
+    } else if (buffer->type() == Buffer::Type::CTRL) {
         ctrl_buffer_pool_.release_buffer(buffer);
     } else {
         puts("**** ERROR **** in Pipe::unlink_first() - buffer is not a data or control buffer");
@@ -76,7 +76,7 @@ void Pipe::unlink_first(Buffer *buffer) {
 void Pipe::enqueue_last(Buffer *buffer) {
     buffer->next(nullptr);
     // Make sure that partially used data buffers are purged before we add a new buffer
-    if (last_buffer_ && (last_buffer_ == first_buffer_) && (last_buffer_->type() == 1)) {
+    if (last_buffer_ && (last_buffer_ == first_buffer_) && (last_buffer_->type() == Buffer::Type::DATA)) {
         DataBuffer *data_buffer = static_cast<DataBuffer*>(last_buffer_);
         data_buffer->next(buffer);
         if (data_buffer->done())
@@ -155,16 +155,16 @@ int Pipe::putc(uint8_t c) {
     if (last_buffer_ == nullptr) {
         // No buffer yet, we must add one
         add_buffer = true;
-    } else if (last_buffer_->type() != 1) {
+    } else if (last_buffer_->type() != Buffer::Type::DATA) {
         // The last buffer is not a data buffer, we must add one
         add_buffer = true;
-    } else if ((last_buffer_->type()==1) && static_cast<DataBuffer*>(last_buffer_)->is_full()) {
+    } else if ((last_buffer_->type()==Buffer::Type::DATA) && static_cast<DataBuffer*>(last_buffer_)->is_full()) {
         // The last buffer is full, we must add one
         add_buffer = true;
     }
     // Append a bufffer to the linked list of buffers
     if (add_buffer) {
-        Buffer *new_buffer = data_buffer_pool_.get_buffer();
+        Buffer *new_buffer = data_buffer_pool_.claim_buffer();
         if (new_buffer == nullptr) {
             puts("**** ERROR **** in Pipe::putc() - no data buffer available");
             return -1;
@@ -184,7 +184,7 @@ int Pipe::putc(uint8_t c) {
  * \return the number of bytes available in the pipe
  */
 int Pipe::data_available() {
-    if (first_buffer_ && first_buffer_->type() == 1) {
+    if (first_buffer_ && first_buffer_->type() == Buffer::Type::DATA) {
         DataBuffer *data_buffer = static_cast<DataBuffer*>(first_buffer_);
         return data_buffer->available();
     }
@@ -200,7 +200,7 @@ int Pipe::data_available() {
  * \return the byte received, or a negative integer if an rerror occured
  */
 int Pipe::getc() {
-    if (first_buffer_ && first_buffer_->type() == 1) {
+    if (first_buffer_ && first_buffer_->type() == Buffer::Type::DATA) {
         DataBuffer *data_buffer = static_cast<DataBuffer*>(first_buffer_);
         int c = data_buffer->getc();
         if (data_buffer->done())
@@ -219,7 +219,7 @@ int Pipe::getc() {
  * \return the number of control blocks sent, or a negative integer if an rerror occured
  */
 int Pipe::put_ctrl(Cmd cmd, int32_t data0, int32_t data1, int32_t data2, int32_t data3) {
-    CtrlBuffer *new_buffer = ctrl_buffer_pool_.get_buffer();
+    CtrlBuffer *new_buffer = ctrl_buffer_pool_.claim_buffer();
     if (new_buffer == nullptr) {
         puts("**** ERROR **** in Pipe::put_ctrl() - no ctrl buffer available");
         return -1;
@@ -235,7 +235,7 @@ int Pipe::put_ctrl(Cmd cmd, int32_t data0, int32_t data1, int32_t data2, int32_t
  * \return 1 if a control block is available next
  */
 int Pipe::ctrl_available() {
-    if (first_buffer_ && first_buffer_->type() == 2) {
+    if (first_buffer_ && first_buffer_->type() == Buffer::Type::CTRL) {
         return 1;
     } else {
         return 0;
@@ -250,7 +250,7 @@ int Pipe::ctrl_available() {
  * \return a pointer to the control block, or nullptr if an error occured
  */
 CtrlBlock *Pipe::peek_ctrl() {
-    if (first_buffer_ && first_buffer_->type() == 2) {
+    if (first_buffer_ && first_buffer_->type() == Buffer::Type::CTRL) {
         CtrlBuffer *ctrl_buffer = static_cast<CtrlBuffer*>(first_buffer_);
         return ctrl_buffer->ctrl_block();
     }
@@ -263,7 +263,7 @@ CtrlBlock *Pipe::peek_ctrl() {
  * be removed from the pipe.
  */
 int Pipe::pop_ctrl() {
-    if (first_buffer_ && first_buffer_->type() == 2) {
+    if (first_buffer_ && first_buffer_->type() == Buffer::Type::CTRL) {
         unlink_first(first_buffer_);
         return 0;
     } else {

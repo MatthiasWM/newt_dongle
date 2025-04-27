@@ -114,7 +114,7 @@ int PicoUARTEndpoint::task() {
         // Now check if there are any control blocks pending (handle one at a time)
         if (in_pipe->ctrl_available()) {
             CtrlBlock *ctrl_block = in_pipe->peek_ctrl();
-            handle(in_pipe->peek_ctrl());
+            handle(ctrl_block);
             //printf("UART Ctrl: %d %d %d %d %d\n", ctrl_block->cmd(), ctrl_block->d0(), ctrl_block->d1(), ctrl_block->d2(), ctrl_block->d3());
             in_pipe->pop_ctrl();
         }
@@ -144,6 +144,6 @@ void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {
     if (new_bitrate != bitrate_) {
         uart_set_baudrate(UART_ID, new_bitrate);
         bitrate_ = new_bitrate;
-        //printf("Set UART bitrate to %d\n", bitrate_);
+        printf("------> Set UART bitrate to %d\n", bitrate_);
     }
 }
