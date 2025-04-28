@@ -45,6 +45,7 @@ public:
     // -- Writing the Pipe
     int32_t num_free() const;
     Error write(Event event);
+    Error prepend(Event event); // For debugging only!
 
     // -- Buffer Management
     bool reached_high_water() const;

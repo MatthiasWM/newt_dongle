@@ -10,6 +10,10 @@
 namespace nd {
 
 // ---- User defined:
+// Indicate use of UART hardware handshake 
+constexpr bool debugShowUARTHandshake = true;
+
+// ---- User defined:
 // Maximum number of burst reads for all endpoints
 constexpr uint32_t cfgMaxBurstRead = 32;
 

@@ -154,6 +154,27 @@ Error Pipe::write(Event event) {
     return Error::OK;
 }
 
+/**
+ * \brief Prepend an event to the pipe, so it is read next.
+ * 
+ * This is used for debugging only. It will not be used in the final
+ * implementation.
+ * 
+ * \note we can make this universal if we always keep two or so event slots
+ *      free. This would always allow us to prepend events.
+ * 
+ * \return Error::OK or PIPE_FULL
+ */
+Error Pipe::prepend(Event event) {
+    if (num_free() < 1) {
+        return Error::PIPE_FULL;
+    }
+    auto new_tail = (tail_ - 1) & cfgRingBufferMask;
+    buffer_[new_tail] = event;
+    tail_ = new_tail;
+    return Error::OK;
+}
+
 // -- Buffer Management --------------------------------------------------------
 
 /**

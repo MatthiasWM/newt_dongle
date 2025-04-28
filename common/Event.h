@@ -14,8 +14,11 @@ enum class Test { };
 
 enum class Type: uint8_t {
     DATA = 0,
-    SET_BITRATE,
-    ERROR = 0xff,   // Not an event, but an erroro message.
+    SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
+    DELAY_MS,           // Delay in milliseconds
+    DELAY_US,           // Delay in microseconds
+    DELAY_CHAR,         // Delay in characters at the current bitrate
+    ERROR = 0xff,       // Not an event, but an erroro message.
 };
 
 enum class Error: uint8_t {
@@ -48,7 +51,13 @@ constexpr Error event_error(Event event) {
 constexpr Event make_event(Type type, uint8_t data) {
     return { .type = type, .data = data, .delta_t = 0 };
 }
+Event make_delay(uint32_t delay_us);
 
+uint32_t id_to_bitrate(uint8_t);
+uint8_t bitrate_to_id(uint32_t);
+
+uint32_t fp8_to_uint20(uint8_t id);
+uint8_t uint20_to_fp8(uint32_t us);
     
 } // namespace nd
 

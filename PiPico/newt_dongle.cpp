@@ -22,14 +22,15 @@
   SOFTWARE.
 */
 
+#include "PicoUARTEndpoint.h"
+#include "PicoCDCEndpoint.h"
+#include "common/Pipe.h"
+#include "common/Event.h"
+
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "tusb.h"
-
-#include "PicoUARTEndpoint.h"
-#include "PicoCDCEndpoint.h"
-#include "common/Pipe.h"
 
 nd::PicoUARTEndpoint uart_endpoint;
 nd::PicoCDCEndpoint cdc_endpoint(BOARD_TUD_RHPORT);

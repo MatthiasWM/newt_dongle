@@ -73,13 +73,16 @@ int PicoUARTEndpoint::init() {
     // -- Initialize Handshake In pin (HSKI, dongle to MP)
     gpio_init(UART_HSKI_PIN);               // output from MP to dongle
     gpio_put(UART_HSKI_PIN, 1);             // we are able to recive data
-    gpio_set_dir(UART_HSKO_PIN, GPIO_OUT);  // we want to readthe pin
+    gpio_set_dir(UART_HSKI_PIN, GPIO_OUT);  // we want to read the pin
     // For debugging, note that we are alive
     //uart_puts(UART_ID, "Hello, Pico UART!\a\a\a\r\n");
     //printf("Pico UART Endpoint initialized.\n");
     // No error
     return 0;
 }
+
+bool hski = 1;
+bool hsko = 1;
 
 int PicoUARTEndpoint::task() {
     uint32_t i;
@@ -89,19 +92,22 @@ int PicoUARTEndpoint::task() {
     if (out_pipe) {
         // Handle a bunch of DATA events.
         for (i=cfgMaxBurstRead; i>0; --i) {
+            // Clear the handshake pin if we run out of buffer capacity.
+            gpio_put(UART_HSKI_PIN, !out_pipe->reached_high_water());
+            if (debugShowUARTHandshake) {
+                bool ctr = out_pipe->reached_high_water();
+                if (ctr != hski) {
+                    if (hski) putchar('I'); else putchar('i');
+                }
+                hski = ctr;
+            }        
             if ((out_pipe->num_free() > 0) && uart_is_readable(UART_ID)) {
                 uint8_t c = uart_getc(UART_ID);
-                //printf("[%02x]", c);
+                // printf("[%02x]", c);
                 out_pipe->write(make_event(Type::DATA, c));
             } else {
                 break;
             }
-        }
-        // Clear the handshake pin if we run out of buffer capacity.
-        if (out_pipe->reached_high_water()) {
-            gpio_put(UART_HSKI_PIN, 0);
-        } else {
-            gpio_put(UART_HSKI_PIN, 1);
         }
     }
 
@@ -112,6 +118,12 @@ int PicoUARTEndpoint::task() {
         // Handle a bunch of DATA events first.
         for (i=cfgMaxBurstWrite; i>0; --i) {
             bool cts = gpio_get(UART_HSKO_PIN);
+            if (debugShowUARTHandshake) {
+                if (cts != hsko) {
+                    if (hsko) putchar('O'); else putchar('o');
+                    hsko = cts;
+                }
+            }
             if (cts && (event_type(ev) == Type::DATA) && uart_is_writable(UART_ID)) {
                 uint8_t c = event_data(ev);
                 //printf("<%02x>", c);
@@ -124,10 +136,13 @@ int PicoUARTEndpoint::task() {
         }
         // Now handle one control event if available.
         if ((event_type(ev) != Type::ERROR) && (event_type(ev) != Type::DATA)) {
-            handle(ev);
-            in_pipe->pop();
+            if (handle(ev)) {
+                // If the event was handled, pop it from the pipe.
+                // If it was not handled, it will be presented again.
+                in_pipe->pop();
+            }
         }
-        // Note that ERROR events must never be popped from the pipe.
+        // \todo How exactly do we want to handle error events?
     }
     return 0;
 }
@@ -139,13 +154,62 @@ int PicoUARTEndpoint::handle(Event event) {
             uint32_t new_bitrate = id_to_bitrate(data);
             set_bitrate(new_bitrate);
             return 1; }
+        case Type::DELAY_MS:    // Wait for the last byte to be processed, then wait n miliseconds
+        case Type::DELAY_US:    // Wait n microseconds
+        case Type::DELAY_CHAR:  // Wait for the time it would take to process n characters
+            return handle_delay(event);
         default:
             printf("**** WARNING ****: UART: Unknown command %d ( %d )\n", 
                 static_cast<int>(event_type(event)),
                 event_data(event));
+            return 1;
+    }
+    return 1;
+}
+
+int PicoUARTEndpoint::handle_delay(Event event) {
+    uint16_t data = 0;
+    switch (delay_state_) {
+        case 0: // make sure that the UART tx FIFO is drained before calculating the delay
+            if ((uart_get_hw(UART_ID)->fr & UART_UARTFR_RXFE_BITS) != 0) delay_state_ = 1;
+            return 0;
+        case 1: // tx FIFO is empty: calculate the delay from now
+            data = event_data(event);
+            // No delay, so we can return immediately.
+            if (data == 0) {
+                delay_state_ = 0;
+                return 1; // Pop the delay from the pipe.
+            }
+            // Set the delay time and state.
+            switch (event_type(event)) {
+                case Type::DELAY_MS:
+                    delay_until_ = make_timeout_time_ms(fp8_to_uint20(data));
+                    break;
+                case Type::DELAY_US:
+                    delay_until_ = make_timeout_time_us(fp8_to_uint20(data));
+                    break;
+                case Type::DELAY_CHAR: { // up to 255 characters
+                    uint32_t byterate = (bitrate_>=300) ? bitrate_/10 : 30;
+                    uint32_t us = ((uint32_t)data) * 1'000'000 / byterate;
+                    delay_until_ = make_timeout_time_us(us);
+                    break; }
+                default:
+                    printf("**** WARNING ****: UART: Unknown delay type %d\n", event_type(event));
+                    return -1;
+            }
+            delay_state_ = 2;
+            return 0;
+        case 2: // Just return to the handler until the delay time is reached.
+            if (absolute_time_diff_us(delay_until_, get_absolute_time()) > 0) {
+                // Delay time has passed, so we can return.
+                delay_state_ = 0;
+                return 1; // Pop the DELAY event from the pipe when we are done.
+            }
+            return 0; 
+        default:
+            printf("**** WARNING ****: UART: Unknown delay state %d\n", delay_state_);
             return -1;
     }
-    return -1;
 }
 
 void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {

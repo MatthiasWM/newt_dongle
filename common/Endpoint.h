@@ -28,9 +28,6 @@ public:
     Pipe *out() const { return out_pipe_; }
 };
 
-uint32_t id_to_bitrate(uint8_t);
-uint8_t bitrate_to_id(uint32_t);
-
 
 } // namespace nd
 
