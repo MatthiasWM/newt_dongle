@@ -10,10 +10,10 @@
 #include "pico/stdlib.h"
 #include "pico/time.h"
 
-// absolute_time_t get_absolute_time (void)
-// int64_t absolute_time_diff_us (absolute_time_t from, absolute_time_t to)
-
 #include <stdio.h>
+
+// MNP Block Start: 0x16 0x10 0x02
+// MNP Block End:   0x10 0x03 crcL crcH
 
 // UART defines
 // By default the stdout UART is `uart0`, so we will use the second one
@@ -126,6 +126,9 @@ int PicoUARTEndpoint::task() {
             }
             if (cts && (event_type(ev) == Type::DATA) && uart_is_writable(UART_ID)) {
                 uint8_t c = event_data(ev);
+                if ((mnp_state_ > 0) || (c == 0x10)) {
+                    if (handle_mnp(ev) == 0) break;
+                }
                 //printf("<%02x>", c);
                 uart_putc_raw(UART_ID, c);
                 in_pipe->pop();
@@ -203,6 +206,7 @@ int PicoUARTEndpoint::handle_delay(Event event) {
             if (absolute_time_diff_us(delay_until_, get_absolute_time()) > 0) {
                 // Delay time has passed, so we can return.
                 delay_state_ = 0;
+                // putchar(']');
                 return 1; // Pop the DELAY event from the pipe when we are done.
             }
             return 0; 
@@ -210,6 +214,42 @@ int PicoUARTEndpoint::handle_delay(Event event) {
             printf("**** WARNING ****: UART: Unknown delay state %d\n", delay_state_);
             return -1;
     }
+}
+
+int PicoUARTEndpoint::handle_mnp(Event event) {
+    // printf("%d[%02x]:", mnp_state_, event_data(event));
+    switch (mnp_state_) {
+        case 0: // We just received a 0x10
+            mnp_state_ = 1;
+            return 1;
+        case 1: // 0x02, 0x03, or 0x10 : We already forwarded the 0x10. 0x02 makes this a block start, 0x03 a block end, everything else does not matter.
+            if (event_data(event) == 0x02) {
+                mnp_state_ = 2;
+                return 1;
+            } else if (event_data(event) == 0x03) {
+                mnp_state_ = 3;
+                return 1;
+            } else {
+                mnp_state_ = 0;
+                return 1;
+            }
+        case 2: // First byte in block: We are in a block. There is nothing I want to do here at the moment
+            mnp_state_ = 0;
+            return 1;
+        case 3: // CRC LSB: We are almost at the end of a block.
+            mnp_state_++;
+            return 1;
+        case 4: // CRC MSB: End of block
+            in()->pop(); 
+            //in()->prepend(make_delay(100'000)); // <------- Experimental. Nice for NCX, not working for NTK (Classic)
+            //in()->prepend(make_delay(1'000));
+            in()->prepend(make_delay(0));
+            // putchar('[');
+            in()->prepend(event);
+            mnp_state_ = 0;
+            return 0; // Don't pop the event!
+    }
+    return 1;
 }
 
 void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {

@@ -19,6 +19,7 @@ class PicoUARTEndpoint : public UARTEndpoint {
     uint32_t bitrate_ = 38400; // Default to 38400
     absolute_time_t delay_until_ = 0;
     uint8_t delay_state_ = 0; // See handle_delay() for state machine
+    uint8_t mnp_state_ = 0;   // MNP state machine
 public:
     PicoUARTEndpoint();
     ~PicoUARTEndpoint();
@@ -27,6 +28,7 @@ public:
     int task() override;
     int handle(Event event);
     int handle_delay(Event event);
+    int handle_mnp(Event event);
 
     void set_bitrate(uint32_t new_bitrate);
 };

@@ -126,7 +126,7 @@ void Pipe::pop() {
  * \return the number of free events in the pipe
  */
 int32_t Pipe::num_free() const {
-    return cfgRingBufferSize - num_avail() - 1;
+    return cfgRingBufferSize - num_avail() - 1; // 4 for events we may want to prepend
 }
 
 /**
