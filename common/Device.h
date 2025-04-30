@@ -8,26 +8,20 @@
 
 #include "nd_config.h"
 #include "common/Pipe.h"
+#include "common/Spoke.h"
 
 namespace nd {
 
 class Wheel;
 
-class Device: public Pipe {
-    Wheel *wheel_ = nullptr;
+class Device: public Pipe, public Spoke {
 public:
-    Device() = default;
+    Device(Wheel &wheel) : Spoke(wheel) { }
     virtual ~Device() = default;
     Device(const Device&) = delete;
     Device& operator=(const Device&) = delete;
     Device(Device&&) = delete;
     Device& operator=(Device&&) = delete;
-
-    // -- Initialization
-    virtual Result init(Wheel &Wheel);
-    virtual Result release() { return Result::OK; }
-    virtual Result task() { return Result::OK; }
-    virtual Result stop() { return Result::OK; }
 };
 
 } // namespace nd

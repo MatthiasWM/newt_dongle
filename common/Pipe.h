@@ -24,6 +24,7 @@ public:
     // -- Pipe Routing
     Pipe &operator>>(Pipe &pipe);
     void disconnect();
+    Pipe *out() const;
 
     // -- Writing to the next pipe
     virtual Result send(Event event);

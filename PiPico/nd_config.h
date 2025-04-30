@@ -7,6 +7,9 @@
 
 #include "common/Event.h"
 
+#ifndef ND_CONFIG_H
+#define ND_CONFIG_H
+
 namespace nd {
 
 // ---- User defined:
@@ -36,3 +39,5 @@ constexpr uint32_t cfgRingBufferHighWater = 1 << (cfgRingBufferSizePow2 - 3);
 
 
 } // namespace nd
+
+#endif // ND_CONFIG_H

@@ -5,7 +5,7 @@
 
 #include "Wheel.h"
 
-#include "Device.h"
+#include "Spoke.h"
 
 using namespace nd;
 
@@ -13,28 +13,28 @@ using namespace nd;
  * 
  */
 
-Wheel &Wheel::add(Device &device) {
-    device_list_.push_front(&device);
+Wheel &Wheel::add(Spoke &spoke) {
+    spoke_list_.push_front(&spoke);
     return *this;
 }
 
 void Wheel::init() {
-    for (auto &device : device_list_) {
-        device->init(*this);
+    for (auto &spoke : spoke_list_) {
+        spoke->init();
     }
 }
 
 void Wheel::release() {
-    for (auto &device : device_list_) {
-        device->release();
+    for (auto &spoke : spoke_list_) {
+        spoke->release();
     }
 }
 
 void Wheel::spin(int n) {
     int i = 0;
     for (;;) {
-        for (auto &device : device_list_) {
-            device->task();
+        for (auto &spoke : spoke_list_) {
+            spoke->task();
         }
         ticks_++;
         if (n > 0) {
@@ -47,8 +47,8 @@ void Wheel::spin(int n) {
 }
 
 void Wheel::pause() {
-    for (auto &device : device_list_) {
-        device->stop();
+    for (auto &spoke : spoke_list_) {
+        spoke->stop();
     }
 }
  

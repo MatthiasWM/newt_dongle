@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "__config": "cpp"
+        "__config": "cpp",
+        "forward_list": "cpp",
+        "ios": "cpp",
+        "memory": "cpp"
     }
 }

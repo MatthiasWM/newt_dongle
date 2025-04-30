@@ -3,8 +3,15 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#include "Device.h"
+#include "Spoke.h"
+
+#include "Wheel.h"
 
 using namespace nd;
 
+Spoke::Spoke(Wheel &wheel) 
+:   wheel_(wheel) 
+{
+    wheel.add(*this);
+}
 

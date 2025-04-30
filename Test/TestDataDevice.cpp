@@ -7,16 +7,8 @@
 
 using namespace nd;
 
-Result TestDataDevice::init(Wheel &wheel) {
-    Result r = Device::init(wheel);
-    if (r.ok()) {
-        // Initialize the device here
-        // For example, set up GPIO pins, UART, etc.
-        // uart_init(UART_ID, BAUD_RATE);
-        // uart_set_hw_flow(UART_ID, false, false);
-        // uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
-    }
-    return r;
+Result TestDataDevice::init() {
+    return Result::OK;
 }
 
 Result TestDataDevice::release() {
@@ -24,7 +16,14 @@ Result TestDataDevice::release() {
 }
 
 Result TestDataDevice::task() {
-    send(Event('!'));
+    if (index_ < 128) {
+        uint8_t data = (index_ & 0x0f) + 'A';
+        if (send(Event(data)).ok()) {
+            index_++;
+        }
+    } else {
+        send(Event('.'));
+    }
     return Device::task();
 }
 

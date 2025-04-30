@@ -14,6 +14,10 @@ Pipe &Pipe::operator>>(Pipe &pipe) {
     return pipe;
 }
 
+Pipe *Pipe::out() const {
+    return out_;
+}
+
 Result Pipe::send(Event event) {
     if (out_) {
         return out_->send(event);

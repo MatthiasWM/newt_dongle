@@ -28,3 +28,4 @@
  - Set HSKO to 29 on XIAO, and to 22 on PiPico)
  - Apply for a USB Vendor ID: https://github.com/raspberrypi/usb-pid
  - Change USB Port name: https://sourcevu.sysprogs.com/rp2040/picosdk/files/src/rp2_common/pico_stdio_usb/stdio_usb_descriptors.c#tok356
+ - `#if defined(PICO_RP2040) ...`

@@ -11,12 +11,13 @@
 namespace nd {
 
 class TestDataDevice: public Device {
+    uint32_t index_ = 0;
 public:
-    TestDataDevice() = default;
+    TestDataDevice(Wheel &wheel) : Device(wheel) {}
     ~TestDataDevice() override = default;
 
     // -- Initialization
-    Result init(Wheel &wheel) override;
+    Result init() override;
     Result release() override;
     Result task() override;
     Result stop() override;

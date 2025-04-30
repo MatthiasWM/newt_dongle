@@ -8,11 +8,16 @@
 
 #include "common/Device.h"
 
+#include <deque>
+
 namespace nd {
 
 class StdioLog: public Device {
+    std::deque<Event> queue_;
+protected:
+    bool would_block();
 public:
-StdioLog() = default;
+    StdioLog(Wheel &wheel) : Device(wheel) { }
     ~StdioLog() override = default;
 
     // -- Pipe Stuff

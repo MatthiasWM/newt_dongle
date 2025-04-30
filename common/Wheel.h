@@ -12,11 +12,11 @@
 
 namespace nd {
 
-class Device;
+class Spoke;
 
 /** \brief Call the tasks of all registered devices in an endless loop. */
 class Wheel {
-    std::forward_list<Device*> device_list_;
+    std::forward_list<Spoke*> spoke_list_;
     uint32_t ticks_ = 0;
 public:
     Wheel() = default;
@@ -27,7 +27,7 @@ public:
     Wheel& operator=(Wheel&&) = delete;
 
     // -- Add a device to the wheel
-    Wheel &add(Device &device);
+    Wheel &add(Spoke &spoke);
 
     // -- Spin the wheel
     void init();

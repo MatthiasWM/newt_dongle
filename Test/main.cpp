@@ -24,41 +24,34 @@
 
 #include "common/Wheel.h"
 #include "common/Devices/StdioLog.h"
-#include "common/Pipes/Tee.h"
+#include "common/Pipes/BufferedPipe.h"
 #include "TestDataDevice.h"
 
 #include <cstdio>
 
-/*
-  Allocate all devices, filters, and pipes here.
-  Note: add a device for general services, i.e. calling TinyUSB's tud_task();
- */
-nd::StdioLog log_device;
-nd::StdioLog log_device_2;
-nd::TestDataDevice test_data_generator;
+nd::Wheel wheel;
+
+nd::StdioLog log_device(wheel);
+nd::TestDataDevice test_data_generator(wheel);
 
 // nd::DiffFilter diff_filter;
 
-nd::Pipe gen_to_log;
+nd::BufferedPipe gen_to_log(wheel);
 nd::Pipe log_to_gen;
-nd::Tee tee;
 
-nd::Wheel wheel;
 
 int main(int argc, char *argv[])
 {
     // -- Connect the devices inside the dongle with pipes.
-    test_data_generator >> gen_to_log >> tee; 
-      tee.a >> log_device;
-      tee.b >> log_device_2;
+    test_data_generator >> gen_to_log >> log_device;
     log_device >> log_to_gen >> test_data_generator;
 
     // -- Register all devices with the Wheel and initialize them
-    wheel.add(test_data_generator).add(log_device). add(log_device_2);
+    wheel.add(test_data_generator).add(log_device);
     wheel.init();
 
     // -- Spin the wheel
-    wheel.spin(1000);
+    wheel.spin(32);
 
     return 0;
 } 

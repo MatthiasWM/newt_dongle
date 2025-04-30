@@ -7,6 +7,12 @@
 
 #include <cstdio>
 
+
+#if defined(PICO_RP2040)
+#else
+#include <sys/select.h>
+#endif
+
 using namespace nd;
 
 /**
@@ -23,18 +29,58 @@ using namespace nd;
  */
 
 /**
+ * \brief Check if wrting to stout would block.
+ * 
+ * \return true if the pipe would block, false otherwise.   
+ */
+bool StdioLog::would_block() {
+#if defined(PICO_RP2040)
+    // TODO: Or we put this into a derived class in the respective tree
+#else
+    fd_set write_fds;
+    struct timeval timeout { .tv_sec = 0, .tv_usec = 0 };
+    FD_ZERO(&write_fds);
+    FD_SET(fileno(stdout), &write_fds);
+    int result = select(fileno(stdout) + 1, NULL, &write_fds, NULL, &timeout);
+    if (result > 0 && FD_ISSET(fileno(stdout), &write_fds)) {
+        return false; // writable
+    } else if (result == 0) {
+        return true; // would block
+    } else {
+        return false; // error, assume we can write
+    }
+#endif
+}
+
+/**
  * \brief We received and Event through the pipe, so print it to the console.
  */
 Result StdioLog::send(Event event) {
+    static char hex_lut[] = "0123456789ABCDEF";
+    static int count = 0;
+    // TODO: testing
+    if ((count++ & 1)||(count & 2)) {
+        return Result::REJECTED;
+    }
+    if (would_block()) {
+        return Result::REJECTED;
+    }
     switch (event.type()) {
-        case Event::Type::DATA:
-            putchar(event.data());
-            break;
+        case Event::Type::DATA: {
+            uint8_t data = event.data();
+            if ((data >= 0x20) && (data <= 0x7e)) {
+                putchar(data);
+            } else {
+                putchar('\\');
+                putchar(hex_lut[(data >> 4) & 0x0f]);
+                putchar(hex_lut[data & 0x0f]);
+            }
+            break; }
         case Event::Type::ERROR:
-            printf("Error: %d\n", event.data());
+            printf("E[%d]\n", event.data());
             break;
         default:
-            printf("Unknown event type: %d\n", static_cast<int>(event.type()));
+            printf("U[%d]\n", static_cast<int>(event.type()));
             break;
     }
     return Result::OK;
@@ -44,6 +90,6 @@ Result StdioLog::send(Event event) {
  * \brief We received and urgent Event through the pipe, so print it to the console.
  */
 Result StdioLog::rush(Event event) {
-    puts("\n**** RUSH ****:");
+    puts("\n!");
     return send(event);
 }
