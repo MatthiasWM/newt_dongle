@@ -5,7 +5,10 @@
 
 // Newton Dongle configuration file
 
-#include "common/Event.h"
+#ifndef ND_CONFIG_H
+#define ND_CONFIG_H
+
+#include <cstdint>
 
 namespace nd {
 
@@ -34,5 +37,6 @@ constexpr uint32_t cfgRingBufferMask = cfgRingBufferSize - 1;
 // Ring buffer high water mark (7/8th filled)
 constexpr uint32_t cfgRingBufferHighWater = 1 << (cfgRingBufferSizePow2 - 3);
 
-
 } // namespace nd
+
+#endif // ND_CONFIG_H

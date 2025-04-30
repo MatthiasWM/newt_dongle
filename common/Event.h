@@ -7,8 +7,97 @@
 #define ND_EVENT_H
 
 #include <cstdint>
+#include <cassert>
 
 namespace nd {
+
+class Event 
+{
+public:
+    enum class Type: uint8_t {
+        NIL = 0,
+        DATA,
+        SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
+        DELAY_MS,           // Delay in milliseconds
+        DELAY_US,           // Delay in microseconds
+        DELAY_CHAR,         // Delay in characters at the current bitrate
+        ERROR = 0xff,       // Not an event, but an error message.
+    };
+
+private:
+    union {
+        uint32_t event_ = 0;
+        struct {
+            Type type_;
+            uint8_t subtype_;
+            uint16_t data_;
+        };
+    };
+
+public:
+    Event() = default;
+    constexpr Event(Type type) : type_(type), subtype_(0), data_(0) {}
+    constexpr Event(uint8_t data) : type_(Type::DATA), subtype_(0), data_(data) {}
+    constexpr Event(Type type, uint32_t data) : type_(type), subtype_(0), data_(data) {}
+    ~Event() = default;
+    // Event(const Event&) = delete;
+    // Event& operator=(const Event&) = delete;
+    // Event(Event&&) = delete;
+    // Event& operator=(Event&&) = delete;
+
+    Type type() const { return type_; }
+    void type(Type t) { type_ = t; }
+    uint32_t data() const { return data_; }
+    void data(uint32_t d) { data_ = d; }
+};
+
+static_assert(sizeof(Event) == 4, "Event class size must be 4 bytes");
+
+
+class Result 
+{
+public:
+    enum class Type: uint8_t {
+        OK = 0,
+        REJECTED,
+    };
+
+private:
+    union {
+        uint32_t result_ = 0;
+        struct {
+            Type type_;
+            uint8_t subtype_;
+            uint16_t data_;
+        };
+    };
+
+public:
+    Result() = default;
+    constexpr Result(Type type, uint32_t data) : type_(type), subtype_(0), data_(data) {}
+    ~Result() = default;
+    // Result(const Result&) = delete;
+    // Result& operator=(const Result&) = delete;
+    // Result(Result&&) = delete;
+    // Result& operator=(Result&&) = delete;
+
+    static Result OK;
+    static Result REJECTED;
+
+    Type type() const { return type_; }
+    void type(Type t) { type_ = t; }
+    uint32_t data() const { return data_; }
+    void data(uint32_t d) { data_ = d; }
+
+    bool ok() const { return type_ == Type::OK; }
+    bool rejected() const { return type_ == Type::REJECTED; }
+};
+
+static_assert(sizeof(Result) == 4, "Result class size must be 4 bytes");
+
+
+
+#if 0
 
 enum class Test { };
 
@@ -59,6 +148,8 @@ uint8_t bitrate_to_id(uint32_t);
 uint32_t fp8_to_uint20(uint8_t id);
 uint8_t uint20_to_fp8(uint32_t us);
     
+#endif
+
 } // namespace nd
 
 #endif // ND_EVENT_H

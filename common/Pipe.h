@@ -6,11 +6,34 @@
 #ifndef ND_PIPE_H
 #define ND_PIPE_H
 
-#include "../nd_config.h"
-
-#include "pico/time.h"
+#include "nd_config.h"
+#include "Event.h"
 
 namespace nd {
+
+class Pipe {
+    Pipe *out_ = nullptr;
+public:
+    Pipe() = default;
+    virtual ~Pipe() = default;
+    Pipe(const Pipe&) = delete;
+    Pipe& operator=(const Pipe&) = delete;
+    Pipe(Pipe&&) = delete;
+    Pipe& operator=(Pipe&&) = delete;
+
+    // -- Pipe Routing
+    Pipe &operator>>(Pipe &pipe);
+    void disconnect();
+
+    // -- Writing to the next pipe
+    virtual Result send(Event event);
+    virtual Result rush(Event event);
+}; 
+
+    
+#if 0    
+
+#include "pico/time.h"
 
 class Endpoint;
 
@@ -52,9 +75,8 @@ public:
     void flush();
 };
 
+#endif
 
 } // namespace nd
-
-
 
 #endif // ND_PIPE_H

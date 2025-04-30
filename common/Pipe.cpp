@@ -3,7 +3,38 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#include "Pipe.h"
+#include "common/Pipe.h"
+
+using namespace nd;
+
+// -- Pipe Routing -------------------------------------------------------------
+
+Pipe &Pipe::operator>>(Pipe &pipe) {
+    out_ = &pipe;
+    return pipe;
+}
+
+Result Pipe::send(Event event) {
+    if (out_) {
+        return out_->send(event);
+    } else {
+        return Result::REJECTED;
+    }
+}
+
+Result Pipe::rush(Event event) {
+    if (out_) {
+        return out_->send(event);
+    } else {
+        return Result::REJECTED;
+    }
+}
+
+
+
+
+#if 0
+
 #include "common/Endpoint.h"
 
 #include <stdio.h>
@@ -195,3 +226,4 @@ void Pipe::flush() {
     tail_ = 0;
 }
 
+#endif

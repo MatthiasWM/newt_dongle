@@ -13,6 +13,9 @@ project(newt_dongle C CXX ASM)
 
 add_executable(newt_dongle
         main.cpp 
+
+        TestDataDevice.cpp
+        TestDataDevice.h
 )
 
 # User defined macros, but also see nd_config.h
@@ -31,6 +34,6 @@ target_include_directories(newt_dongle PRIVATE
 )
 
 # Add the platform agnostic part of the Dongle Firmware
-#add_subdirectory(common)
+add_subdirectory(common)
 
 

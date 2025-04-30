@@ -5,6 +5,16 @@
 
 #include "Event.h"
 
+using namespace nd;
+
+
+
+Result Result::OK = { Type::OK, 0 };
+Result Result::REJECTED = { Type::REJECTED, 0 };
+
+
+#if 0
+
 #include "pico/stdlib.h"
 #include <stdio.h>
 
@@ -104,3 +114,5 @@ uint8_t nd::uint20_to_fp8(uint32_t us) {
     uint8_t mantissa = static_cast<uint8_t>(us);
     return (mantissa | (exponent << 4));
 }
+
+#endif
