@@ -22,6 +22,16 @@
   SOFTWARE.
 */
 
+#include <cstdio>
+
+int main(int argc, char *argv[])
+{
+    printf("Hello World!\n");
+    return 0;
+} 
+
+
+#if 0
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "common/Pipe.h"
@@ -80,4 +90,4 @@ int main()
   }
 
 }
-
+#endif

@@ -33,6 +33,8 @@
 
 # CMake build paths and build components
 
+/Test/build/
+
 /PiPico/build/
 
 /EspressifESP/build/

@@ -84,6 +84,31 @@ int PicoUARTEndpoint::init() {
 bool hski = 1;
 bool hsko = 1;
 
+/*
+int PicoUARTEndpoint::task() {
+    if (event_pending_) {
+        Result result = out_pipe_->push(pending_event_);
+        if (result.rejected())
+            return -1;
+        else
+            event_pending_ = false;
+    }
+    if (uart_is_readable(UART_ID)) {
+        uint8_t c = uart_getc(UART_ID);
+        Event event = make_event(Type::DATA, c);
+        Result result = out_pipe_->push(event);
+        if (result.rejected()) {
+            event_pending_ = true;
+            pending_event_ = make_event(Type::ERROR, 0);
+            return -1;
+        } else {
+            event_pending_ = false;
+        }
+    }
+    return 0;
+}
+*/
+
 int PicoUARTEndpoint::task() {
     uint32_t i;
 
