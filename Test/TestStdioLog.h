@@ -10,11 +10,22 @@
 
 namespace nd {
 
-class TestStdioLog: public StdioLog {
+/** 
+ * \brief Log events to stdio on Posix machines. 
+ */
+class TestStdioLog: public StdioLog 
+{
 protected:
+    // -- Customize the base class
+    /// \brief Check if the next call to write a byte would block.
     bool would_block() override;
+
 public:
+    // -- Constructors
+    /// \brief Create a StdioLog endpoint that is called regularly by the wheel.
     TestStdioLog(Wheel &wheel) : StdioLog(wheel) { }
+
+    /// \brief Destructor.
     ~TestStdioLog() override = default;
 };
 

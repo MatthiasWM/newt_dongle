@@ -17,6 +17,8 @@ target_sources(newt_dongle
         Wheel.cpp
         Wheel.h
 
+        Endpoints/SDCardEndpoint.cpp
+        Endpoints/SDCardEndpoint.h
         Endpoints/StdioLog.cpp
         Endpoints/StdioLog.h
         Endpoints/TestEventGenerator.cpp

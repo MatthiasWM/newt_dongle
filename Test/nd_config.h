@@ -12,6 +12,8 @@
 
 namespace nd {
 
+// TODO: a lot of those are no longer in use, remove them
+
 // ---- User defined:
 // Indicate use of UART hardware handshake 
 constexpr bool debugShowUARTHandshake = true;

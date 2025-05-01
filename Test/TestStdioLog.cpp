@@ -10,9 +10,7 @@
 using namespace nd;
 
 /**
- * \brief Check if wrting to stout would block.
- * 
- * \return true if the pipe would block, false otherwise.   
+ * \return true if the next call to write a byte would block.
  */
 bool TestStdioLog::would_block() {
     fd_set write_fds;
