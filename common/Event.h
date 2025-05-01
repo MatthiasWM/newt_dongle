@@ -34,6 +34,8 @@ private:
         };
     };
 
+    static uint32_t id_to_bitrate(uint8_t id);
+    static uint8_t bitrate_to_id(uint32_t bitrate);
 public:
     Event() = default;
     constexpr Event(Type type) : type_(type), subtype_(0), data_(0) {}
@@ -44,6 +46,9 @@ public:
     // Event& operator=(const Event&) = delete;
     // Event(Event&&) = delete;
     // Event& operator=(Event&&) = delete;
+
+    static Event make_bitrate_event(uint32_t bitrate);
+    uint32_t get_bitrate() const { return id_to_bitrate(data_); }
 
     Type type() const { return type_; }
     void type(Type t) { type_ = t; }

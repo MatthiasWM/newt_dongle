@@ -105,13 +105,14 @@ Result PicoCDCEndpoint::task() {
 }
 
 /**
- * \brief Called whenever the pipe has data to send to the USB device.
+ * \brief Called whenever the in pipe has sent us an Event.
  * 
- * Data events are forwarded to the USB device. Other events are ignored.
+ * Data events are forwarded to the USB device. All other events are 
+ * currently ignored.
  * 
  * \param event The event to send to the USB device.
  * \return Result::OK if the event was handled. Result::REJECTED if the event 
- * must be resent later by the caller.
+ * must be resent again later by the caller.
  */
 Result PicoCDCEndpoint::send(Event event) {
     if (event.type() == Event::Type::DATA) {
@@ -137,3 +138,86 @@ void PicoCDCEndpoint::set_bitrate(uint32_t new_bitrate) {
     UARTEndpoint::set_bitrate(new_bitrate);
 }
 
+// ------------------------------------------------------------------------------
+
+// // Invoked when received new data
+// TU_ATTR_WEAK void tud_cdc_rx_cb(uint8_t itf);
+
+// // Invoked when received `wanted_char`
+// TU_ATTR_WEAK void tud_cdc_rx_wanted_cb(uint8_t itf, char wanted_char);
+
+// // Invoked when a TX is complete and therefore space becomes available in TX buffer
+// TU_ATTR_WEAK void tud_cdc_tx_complete_cb(uint8_t itf);
+
+// // Invoked when line state DTR & RTS are changed via SET_CONTROL_LINE_STATE
+// TU_ATTR_WEAK void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts);
+
+// // Invoked when line coding is change via SET_LINE_CODING
+// TU_ATTR_WEAK void tud_cdc_line_coding_cb(uint8_t itf, cdc_line_coding_t const* p_line_coding);
+// p_line_coding->bit_rate, p_line_coding->stop_bits, p_line_coding->parity, p_line_coding->data_bits
+
+// // Invoked when received send break
+// // \param[in]  itf  interface for which send break was received.
+// // \param[in]  duration_ms  the length of time, in milliseconds, of the break signal. If a value of FFFFh, then the
+// //                          device will send a break until another SendBreak request is received with value 0000h.
+// TU_ATTR_WEAK void tud_cdc_send_break_cb(uint8_t itf, uint16_t duration_ms);
+
+// We can use hardware spin locks for interrupt handling:
+// void spin_lock_claim (uint lock_num)
+// void spin_lock_unclaim (uint lock_num)
+// spin_lock_t * spin_lock_init (uint lock_num)
+// Higher level pico_sync functions: critical section, mutex, etc.
+
+// All callbacks are called from within tud_task(), the TinyUSB device taks,
+// so we don't need to worry about thread safety.
+
+/**
+ * USB Host changed the connection speed.
+ * 
+ * Forward this information by sending a control block to the UART endpoint.
+ */
+void tud_cdc_line_coding_cb(uint8_t itf, cdc_line_coding_t const* p_line_coding) {
+    PicoCDCEndpoint *cdc = PicoCDCEndpoint::instance(itf);
+    if (cdc) {
+        cdc->device_changed_bitrate(p_line_coding->bit_rate);
+    }
+}
+
+/**
+ * \brief Called whenever the USB host has changed out bitrate.
+ * 
+ * Send a bitrate changed event down the pipe.alarm_pool_add_repeating_timer_us
+ * 
+ * \note This event is sent to the out pipe without priority. Since this is
+ * a low frequency event, no measures are taken if the pipe rejects the event.
+ * It would be nice to fix that!
+ */
+void PicoCDCEndpoint::device_changed_bitrate(uint32_t bitrate) {
+    if (out()) {
+        // TODO: if sending the event fails, we do nothing, instead we should resend it later...
+        out()->send(Event::make_bitrate_event(bitrate));
+        set_bitrate(bitrate);
+    }
+}
+
+
+// Invoked when cdc when line state changed e.g connected/disconnected
+void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
+  (void)itf;
+  (void)rts;
+
+  // TODO set some indicator
+  if (dtr) {
+    // Terminal connected
+    printf("CDC Terminal Connected\n");
+  } else {
+    // Terminal disconnected
+    printf("CDC Terminal Disconnected\n");
+  }
+}
+
+// Invoked when CDC interface received data from host
+// void tud_cdc_rx_cb(uint8_t itf) {
+//     puts("CDC RX\n");
+//   (void)itf;
+// }

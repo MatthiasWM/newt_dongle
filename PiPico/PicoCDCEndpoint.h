@@ -26,6 +26,8 @@ public:
     Result send(Event event) override;
     Result rush(Event event) override;
     void set_bitrate(uint32_t new_bitrate) override;
+
+    void device_changed_bitrate(uint32_t bitrate);
 };
 
 } // namespace nd

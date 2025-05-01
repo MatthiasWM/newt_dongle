@@ -25,7 +25,7 @@ public:
 
     // -- UART specific methods
     virtual void set_bitrate(uint32_t bitrate);
-    virtual uint32_t get_bitrate() const;
+    uint32_t get_bitrate() const;
 };
 
 } // namespace nd
