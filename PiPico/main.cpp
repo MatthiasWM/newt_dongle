@@ -75,13 +75,14 @@ TinyUSBTask tinyusb_task(scheduler);
 // -- Allocate all the endpoints we need.
 nd::PicoUARTEndpoint uart_endpoint { scheduler };
 nd::PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
-nd::PicoStdioLog log_endpoint { scheduler };
+// nd::PicoStdioLog log_endpoint { scheduler };
 
 // -- Allocate the pipes and filters that connect the endpoints.
-nd::BufferedPipe uart_to_tee(scheduler);
-nd::BufferedPipe tee_to_cdc(scheduler);
+// nd::BufferedPipe uart_to_tee(scheduler);
+// nd::BufferedPipe tee_to_cdc(scheduler);
+nd::BufferedPipe uart_to_cdc(scheduler);
 nd::BufferedPipe cdc_to_uart(scheduler);
-nd::Tee tee;
+// nd::Tee tee;
 
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
@@ -89,9 +90,11 @@ int main(int argc, char *argv[])
     stdio_uart_init_full(uart1, 115200, 8, 9);
 
     // -- Connect the Endpoints inside the dongle with pipes.
-    uart_endpoint >> uart_to_tee >> tee;
-    tee.a >> cdc_endpoint;
-    tee.b >> log_endpoint;
+    // uart_endpoint >> uart_to_tee >> tee;
+    // tee.a >> cdc_endpoint;
+    // tee.b >> log_endpoint;
+    // cdc_endpoint >> cdc_to_uart >> uart_endpoint;
+    uart_endpoint >> uart_to_cdc >> cdc_endpoint;
     cdc_endpoint >> cdc_to_uart >> uart_endpoint;
 
     // -- The scheduler will call all instances of classes that are derived from Task.
