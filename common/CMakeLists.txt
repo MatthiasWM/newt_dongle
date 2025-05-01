@@ -26,6 +26,9 @@ target_sources(newt_dongle
         Endpoints/UARTEndpoint.cpp
         Endpoints/UARTEndpoint.h
 
+        Filters/HayesFilter.cpp
+        Filters/HayesFilter.h
+
         Pipes/BufferedPipe.cpp
         Pipes/BufferedPipe.h
         Pipes/Tee.cpp
