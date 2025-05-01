@@ -16,10 +16,6 @@ namespace nd {
 class CtrlBlock;
 
 class PicoUARTEndpoint : public UARTEndpoint {
-    // uint32_t bitrate_ = 38400; // Default to 38400
-    // absolute_time_t delay_until_ = 0;
-    // uint8_t delay_state_ = 0; // See handle_delay() for state machine
-    // uint8_t mnp_state_ = 0;   // MNP state machine
     bool event_pending_ = false;
     Event pending_event_ { Event::Type::NIL};
 public:

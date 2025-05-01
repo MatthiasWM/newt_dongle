@@ -22,8 +22,8 @@ protected:
 
 public:
     // -- Constructors
-    /// \brief Create a StdioLog endpoint that is called regularly by the wheel.
-    TestStdioLog(Wheel &wheel) : StdioLog(wheel) { }
+    /// \brief Create a StdioLog endpoint that is called regularly by the scheduler.
+    TestStdioLog(Scheduler &scheduler) : StdioLog(scheduler) { }
 
     /// \brief Destructor.
     ~TestStdioLog() override = default;

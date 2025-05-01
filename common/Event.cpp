@@ -10,6 +10,7 @@ using namespace nd;
 
 
 Result Result::OK = { Type::OK, 0 };
+Result Result::OK__NOT_CONNECTED = { Type::OK, Cause::NOT_CONNECTED };
 Result Result::REJECTED = { Type::REJECTED, 0 };
 
 

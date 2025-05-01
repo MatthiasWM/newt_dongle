@@ -26,6 +26,7 @@ void Scheduler::init() {
 
 void Scheduler::run(int n) {
     for (; (n == -1) || (n > 0); ) {
+        update_time();
         for (auto &task : spoke_list_) {
             task->task();
         }
@@ -33,4 +34,7 @@ void Scheduler::run(int n) {
         if (n > 0) --n;
     }
 }
- 
+
+uint32_t Scheduler::cycle_time() const {
+    return cycle_time_;
+}

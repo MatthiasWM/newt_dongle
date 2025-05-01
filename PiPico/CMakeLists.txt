@@ -46,6 +46,8 @@ add_executable(newt_dongle
         PicoCDCEndpoint.h
         PicoUARTEndpoint.cpp
         PicoUARTEndpoint.h
+        PicoScheduler.cpp
+        PicoScheduler.h
         PicoStdioLog.cpp
         PicoStdioLog.h
 )

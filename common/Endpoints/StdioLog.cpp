@@ -37,10 +37,6 @@ bool StdioLog::would_block() {
 Result StdioLog::send(Event event) {
     static char hex_lut[] = "0123456789ABCDEF";
     static int count = 0;
-    // TODO: testing
-    if ((count++ & 1)||(count & 2)) {
-        return Result::REJECTED;
-    }
     if (would_block()) {
         return Result::REJECTED;
     }

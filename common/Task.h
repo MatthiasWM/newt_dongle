@@ -3,8 +3,8 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#ifndef ND_SPOKE_H
-#define ND_SPOKE_H
+#ifndef ND_TASK_H
+#define ND_TASK_H
 
 #include "nd_config.h"
 #include "common/Pipe.h"
@@ -13,7 +13,7 @@ namespace nd {
 
 class Scheduler;
 
-class Task {
+class Task : public Pipe {
     Scheduler &scheduler_;
 public:
     Task(Scheduler &scheduler);
@@ -30,4 +30,4 @@ public:
 
 } // namespace nd
 
-#endif // ND_SPOKE_H
+#endif // ND_TASK_H

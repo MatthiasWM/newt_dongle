@@ -14,7 +14,7 @@ namespace nd {
 
 class Scheduler;
 
-class Endpoint: public Pipe, public Task {
+class Endpoint: public Task {
 public:
     Endpoint(Scheduler &scheduler) : Task(scheduler) { }
     virtual ~Endpoint() = default;

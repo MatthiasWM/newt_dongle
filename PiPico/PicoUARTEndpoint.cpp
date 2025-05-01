@@ -106,10 +106,8 @@ Result PicoUARTEndpoint::send(Event event) {
     bool cts = gpio_get(UART_HSKO_PIN);
     if (cts && (event.type() == Event::Type::DATA) && uart_is_writable(UART_ID)) {
         uart_putc_raw(UART_ID, event.data());
-        return Result::OK;
-    } else {
-        return Result::REJECTED;
     }
+    return Result::OK;
 }
 
 Result PicoUARTEndpoint::rush(Event event) {

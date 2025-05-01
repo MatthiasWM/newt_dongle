@@ -61,31 +61,35 @@ public:
         OK = 0,
         REJECTED,
     };
+    enum class Cause: uint8_t {
+        UNDEFINED = 0,
+        NOT_CONNECTED,
+    };
 
 private:
     union {
         uint32_t result_ = 0;
         struct {
             Type type_;
-            uint8_t subtype_;
+            Cause cause_;
             uint16_t data_;
         };
     };
 
 public:
     Result() = default;
-    constexpr Result(Type type, uint32_t data) : type_(type), subtype_(0), data_(data) {}
+    constexpr Result(Type type, uint32_t data) : type_(type), cause_(Cause::UNDEFINED), data_(data) {}
+    constexpr Result(Type type, Cause cause, uint32_t data=0) : type_(type), cause_(cause), data_(data) {}
     ~Result() = default;
-    // Result(const Result&) = delete;
-    // Result& operator=(const Result&) = delete;
-    // Result(Result&&) = delete;
-    // Result& operator=(Result&&) = delete;
 
     static Result OK;
+    static Result OK__NOT_CONNECTED;
     static Result REJECTED;
 
     Type type() const { return type_; }
     void type(Type t) { type_ = t; }
+    Cause cause() const { return cause_; }
+    void cause(Cause c) { cause_ = c; }
     uint32_t data() const { return data_; }
     void data(uint32_t d) { data_ = d; }
 

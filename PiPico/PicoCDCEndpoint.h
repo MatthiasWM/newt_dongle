@@ -15,6 +15,8 @@ namespace nd {
 class PicoCDCEndpoint : public UARTEndpoint {
     static PicoCDCEndpoint *list_[4];
     uint32_t index_ = 0;
+    uint32_t tx_num_pending_ = 0;
+    uint32_t tx_timeout_ = 0;
 public:
     static PicoCDCEndpoint *instance(uint32_t index);
     PicoCDCEndpoint(Scheduler &scheduler, uint32_t index);

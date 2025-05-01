@@ -13,7 +13,7 @@
 
 namespace nd {
 
-class BufferedPipe: public Pipe, public Task {
+class BufferedPipe: public Task {
     std::vector<Event> buffer_;
     uint32_t ring_size_ = 0;
     uint32_t ring_mask_ = 0;

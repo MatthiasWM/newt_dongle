@@ -34,14 +34,19 @@
 #include "PicoStdioLog.h"
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
-#include "common/Scheduler.h"
+#include "PicoScheduler.h"
 #include "common/Endpoints/StdioLog.h"
 #include "common/Endpoints/TestEventGenerator.h"
 #include "common/Pipes/BufferedPipe.h"
 #include "common/Pipes/Tee.h"
 
-#include <cstdio>
+#include "pico/stdlib.h"
+#include "hardware/uart.h"
+#include "tusb.h"
 
+#include <stdio.h>
+
+#if 1
 // -- The code below avoids the linker error "undefined reference to '__dso_handle'"
 extern "C" void *__dso_handle;
 void *__dso_handle = nullptr;
@@ -51,9 +56,21 @@ extern "C" int __cxa_atexit(void (*destructor)(void*), void *object, void *dso_h
 extern "C" void __cxa_finalize(void *dso_handle) {
     // Do nothing
 }
+#endif
 
-// -- The scheduler spins while the dongle is powered and deliver time slices to its spokes.
-nd::Scheduler scheduler;
+// -- The task that runs the tinyusb device stack.
+class TinyUSBTask: public nd::Task {
+public:
+    TinyUSBTask(nd::Scheduler &scheduler) : nd::Task(scheduler) { }
+    nd::Result task() override {
+        tud_task(); // tinyusb device task
+        return nd::Result::OK;
+    }
+};
+
+// -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
+nd::PicoScheduler scheduler;
+TinyUSBTask tinyusb_task(scheduler);
 
 // -- Allocate all the endpoints we need.
 nd::PicoUARTEndpoint uart_endpoint { scheduler };
@@ -69,6 +86,8 @@ nd::Tee tee;
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
+    stdio_uart_init_full(uart1, 115200, 8, 9);
+
     // -- Connect the Endpoints inside the dongle with pipes.
     uart_endpoint >> uart_to_tee >> tee;
     tee.a >> cdc_endpoint;
@@ -76,11 +95,14 @@ int main(int argc, char *argv[])
     cdc_endpoint >> cdc_to_uart >> uart_endpoint;
 
     // -- The scheduler will call all instances of classes that are derived from Task.
+    printf("Welcome to NewtDongle!\nInitializing...\n");
     scheduler.init();
 
     // -- Now we can start the scheduler. It will call all spokes in a loop.
-    scheduler.run(32);
+    printf("Running...\n");
+    scheduler.run();
 
+    // -- Never reached.
     return 0;
 } 
 

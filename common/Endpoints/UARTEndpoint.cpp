@@ -28,11 +28,11 @@ Result UARTEndpoint::task() {
 }
 
 Result UARTEndpoint::send(Event event) {
-    return Result::REJECTED;
+    return Result::OK;
 }
 
 Result UARTEndpoint::rush(Event event) {
-    return Result::REJECTED;
+    return Result::OK;
 }
 
 // -- UART specific methods
