@@ -8,6 +8,8 @@
 
 #include "common/Task.h"
 
+#include <string>
+
 namespace nd {
 
 class HayesFilter: public Task {
@@ -24,6 +26,13 @@ class HayesFilter: public Task {
         Result send(Event event) override { return filter_.downstream_send(event); }
     };
     bool data_mode_ = true;
+    uint8_t command_mode_progress_ = 0;
+    uint32_t command_mode_timeout_ = 0;
+    std::string cmd_;
+    bool cmd_ready_ = false;
+
+    void send_string(const char *str);
+
 public:
     UpstreamPipe upstream { *this };
     DownstreamPipe downstream { *this };
@@ -31,9 +40,19 @@ public:
     HayesFilter(Scheduler &scheduler);
     ~HayesFilter() override;
 
+    void switch_to_command_mode();
+    void switch_to_data_mode();
+
     Result task() override;
     Result upstream_send(Event event);
     Result downstream_send(Event event);
+
+    void run_cmd_line();
+    const char *run_next_cmd(const char *cmd);
+
+    void send_OK();
+    void send_CONNECT();
+    void send_ERROR();
 };
 
 } // namespace nd

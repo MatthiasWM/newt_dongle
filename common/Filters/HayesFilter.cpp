@@ -5,7 +5,14 @@
 
 #include "HayesFilter.h"
 
+#include "common/Scheduler.h"
+
+#include <stdio.h>
+
 using namespace nd;
+
+constexpr uint32_t kCommandModeTimeout = 1'000'000;
+constexpr uint32_t kCommandModePause = 1'000'000;
 
 /**
  * \brief Create a new Hayes filter.
@@ -13,9 +20,9 @@ using namespace nd;
  * The Hayes filter adds Hayes modem functionality via AT commands to the line.
  * The filter has two pipes: Upstream is the pipe from the user to the modem,
  * or in this case, from the MP to the dongle, or from the PC to the dongle.
- * Downstream is the pipe from the domgle to any device.alignas
+ * Downstream is the pipe from the dongle to any device.
  * 
- * To get the filter into command mode, send pause-"+++"-pause to th Upstream
+ * To get the filter into command mode, send pause-"+++"-pause to the Upstream
  * pipe. The filter will then send a response to the downstream pipe with "OK".
  * 
  * To go back into data mode, send "ATO".
@@ -32,11 +39,75 @@ HayesFilter::HayesFilter(Scheduler &scheduler)
 HayesFilter::~HayesFilter() {
 }
 
+void HayesFilter::switch_to_command_mode() {
+    data_mode_ = false;
+    command_mode_timeout_ = 0;
+    command_mode_progress_ = 0;
+    send_OK();
+}
+
+void HayesFilter::switch_to_data_mode() {
+    send_CONNECT();
+    data_mode_ = true;
+    command_mode_timeout_ = 0;
+    command_mode_progress_ = 0;
+}
+
 /**
  * \brief Called regularly by the scheduler to take care of the filter.
  */
 Result HayesFilter::task() {
-    // Nothing yet.
+    // Filter out the pause-"+++"-pause sequence."
+    // This works only in cooperation with downstream_send(Event).
+    command_mode_timeout_ += scheduler().cycle_time();
+    if (data_mode_) {
+        switch (command_mode_progress_) {
+            case 0: // waiting for the first pause
+                if (command_mode_timeout_ > kCommandModePause) {
+                    command_mode_progress_ = 1;
+                    command_mode_timeout_ = 0;
+                    //printf("**** HayesFilter task: 0 -> 1 (Good: no character for a while)\n");
+                }
+                break;
+            case 1: // waiting for the first '+'
+                break;
+            case 2: // waiting for the second '+'
+                if (command_mode_timeout_ > kCommandModeTimeout) {
+                    //printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
+                    command_mode_timeout_ = 0;
+                    command_mode_progress_ = 0;
+                    upstream.out()->send(Event('+')); // Make up for the '+' we withheld.
+                }
+                break;
+            case 3: // waiting for the third '+'
+                if (command_mode_timeout_ > kCommandModeTimeout) {
+                    //printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
+                    command_mode_timeout_ = 0;
+                    command_mode_progress_ = 0;
+                    upstream.out()->send(Event('+')); // Make up for the two '+'s we withheld.
+                    upstream.out()->send(Event('+'));
+                }
+                break;
+            case 4: // waiting for the last pause
+                if (command_mode_timeout_ > kCommandModePause) {
+                    command_mode_progress_ = 0;
+                    //printf("**** HayesFilter task: COMMAND MODE (Good: no character for a while)\n");
+                    switch_to_command_mode();
+                    return Result::OK;        
+                }
+                break;
+        }
+    } else {
+        // In command mode, we need to check for the "ATO" command.
+        if (cmd_ready_) {
+            cmd_ready_ = false;
+            if ( ( (cmd_[0]=='A') || (cmd_[0]=='a') ) && ( ((cmd_[1]=='T') || cmd_[1]=='t') ) ) {
+                run_cmd_line();
+            }
+            cmd_.clear();
+        }
+    }
+    
     return Result::OK;
 }
 
@@ -71,47 +142,140 @@ Result HayesFilter::downstream_send(Event event)
     Pipe *up = upstream.out();
     Pipe *down = downstream.out();
 
+    // Filter out the pause-"+++"-pause sequence."
+    // This works only in cooperation with task() and the scheduler.
+    if (data_mode_ && event.is_data()) {
+        switch (command_mode_progress_) {
+            case 0: // waiting for the first pause
+                command_mode_timeout_ = 0;
+                break;
+            case 1: // waiting for the first '+'
+                if (event.data() == '+') {
+                    command_mode_progress_ = 2;
+                    command_mode_timeout_ = 0;
+                    //printf("**** HayesFilter send: 1 -> 2 (Good: received first +)\n");
+                    return Result::OK; // Don't send the '+' just yet.
+                } else {
+                    //printf("**** HayesFilter send: 1 -> 0 (Bad: received unexpected character)\n");
+                    command_mode_progress_ = 0;
+                    command_mode_timeout_ = 0;
+                }
+                break; // Continue and send the latest event.
+            case 2: // waiting for the second '+'
+                if (event.data() == '+') {
+                    command_mode_progress_ = 3;
+                    command_mode_timeout_ = 0;
+                    //printf("**** HayesFilter send: 2 -> 3 (Good: received second +)\n");
+                    return Result::OK; // Don't send the '+' just yet.
+                } else {
+                    upstream.out()->send(Event ('+')); // Make up for the '+' we withheld.
+                    //printf("**** HayesFilter send: 2 -> 0 (Bad: received unexpected character)\n");
+                    command_mode_progress_ = 0;
+                    command_mode_timeout_ = 0;
+                }
+                break; // Continue and send the latest event.
+            case 3: // waiting for the third '+'
+                if (event.data() == '+') {
+                    //printf("**** HayesFilter send: 3 -> 4 (Good: received third +)\n");
+                    command_mode_progress_ = 4;
+                    command_mode_timeout_ = 0;
+                    return Result::OK; // Don't send the '+' just yet.
+                } else {
+                    upstream.out()->send(Event ('+')); // Make up for the two '+'s we withheld.
+                    upstream.out()->send(Event ('+'));
+                    //printf("**** HayesFilter send: 3 -> 0 (Bad: received unexpected character)\n");
+                    command_mode_progress_ = 0;
+                    command_mode_timeout_ = 0;
+                }
+                break; // Continue and send the latest event. 
+            case 4: // waiting for the last pause
+                //printf("**** HayesFilter send: 4 -> 0 (Bad: received unexpected character)\n");
+                upstream.out()->send(Event ('+')); // Make up for the three '+'s we withheld.
+                upstream.out()->send(Event ('+'));
+                upstream.out()->send(Event ('+'));
+                command_mode_progress_ = 0;
+                command_mode_timeout_ = 0;
+                break; // Continue and send the latest event.
+        }
+    }
+
     // If the downstream pipe is not connected, we can't do anything.
     // Simplified mode change:
     if (event.type() == Event::Type::DATA) {
         uint8_t c = event.data();
-        if (data_mode_ && (c == '+')) {
-            data_mode_ = false;
-            if (down) {
-                down->send(Event('O'));
-                down->send(Event('K'));
-                down->send(Event('\r'));
-                down->send(Event('\n'));
-            }
-            return Result::OK;
-        } else if ((data_mode_ == false) && (c == '-')) {
-            if (down) {
-                down->send(Event('C'));
-                down->send(Event('O'));
-                down->send(Event('N'));
-                down->send(Event('N'));
-                down->send(Event('E'));
-                down->send(Event('C'));
-                down->send(Event('T'));
-                down->send(Event('\r'));
-                down->send(Event('\n'));
-            }
-            data_mode_ = true;
+        if ((data_mode_ == false) && (c == '-')) {
+            switch_to_data_mode();
             return Result::OK;
         }
     }
 
     if (data_mode_) {
         // Forward the events up stream.
-        // \todo Listen for pause-"+++"-pause to switch to command mode.
         if (!up)
             return Result::OK__NOT_CONNECTED;
         return up->send(event);
     } else {
         // For now, we just echo the events.
-        // \todo Copy text into a command buffer and run the commands on reciving a CR.
         if (!down)
             return Result::OK__NOT_CONNECTED;
+        if (event.is_data() && (cmd_.length() < 255)) {
+            uint8_t c = event.data();
+            if (c == '\r') {
+            } else if (c == '\n') {
+                cmd_ready_ = true;
+            } else {
+                cmd_.push_back(c);
+            }
+        }
         return down->send(event);   
     }
+}
+
+void HayesFilter::send_string(const char *str) {
+    Pipe *down = downstream.out();
+    if (down) {
+        while (*str) {
+            down->send(Event(*str++));
+        }
+    }
+}
+
+void HayesFilter::send_OK() {
+    send_string("OK\r\n"); 
+}
+
+void HayesFilter::send_CONNECT() { 
+    send_string("CONNECT\r\n"); 
+}
+
+void HayesFilter::send_ERROR() { 
+    send_string("ERROR\r\n"); 
+}
+
+/** 
+ * \brief Interprete the command line and run the commands we find
+ */
+void HayesFilter::run_cmd_line() {
+    const char *cmd = &cmd_[2];
+    while (cmd && *cmd) {
+        cmd = run_next_cmd(cmd);
+    }
+}
+
+const char *HayesFilter::run_next_cmd(const char *cmd) {
+    char c = *cmd++;
+    if (c>32 && c<127) c = toupper(c);
+    switch (c) {
+        case 'I':
+            send_string("NewtDongle V0.0.2\r\n");
+            break;
+        case 'O':
+            switch_to_data_mode();
+            return nullptr; // Nothing to be done after going online.
+        default:
+            send_ERROR();
+            return nullptr;
+    }
+    send_OK();
+    return cmd;
 }

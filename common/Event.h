@@ -47,6 +47,8 @@ public:
     // Event(Event&&) = delete;
     // Event& operator=(Event&&) = delete;
 
+    bool is_data() const { return type_ == Type::DATA; }
+
     static Event make_bitrate_event(uint32_t bitrate);
     uint32_t get_bitrate() const { return id_to_bitrate(data_); }
 
