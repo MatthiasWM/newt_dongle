@@ -7,8 +7,8 @@
 
 using namespace nd;
 
-BufferedPipe::BufferedPipe(Wheel &wheel, uint8_t buffer_size_pow2)
-:   Spoke { wheel },
+BufferedPipe::BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2)
+:   Task { scheduler },
     ring_size_ { static_cast<uint32_t>(1 << buffer_size_pow2) },
     ring_mask_ { ring_size_ - 1 },
     head_ { 0 },
@@ -17,7 +17,7 @@ BufferedPipe::BufferedPipe(Wheel &wheel, uint8_t buffer_size_pow2)
     buffer_.resize(ring_size_);
 }
 
-// -- Spoke Stuff
+// -- Task Stuff
 
 Result BufferedPipe::task() {
     if (is_empty())

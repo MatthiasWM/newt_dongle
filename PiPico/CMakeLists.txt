@@ -40,12 +40,14 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(newt_dongle 
-        newt_dongle.cpp 
+        main.cpp 
         usb_descriptors.c
-        PicoUARTEndpoint.cpp
-        PicoUARTEndpoint.h
         PicoCDCEndpoint.cpp
         PicoCDCEndpoint.h
+        PicoUARTEndpoint.cpp
+        PicoUARTEndpoint.h
+        PicoStdioLog.cpp
+        PicoStdioLog.h
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")
@@ -61,7 +63,8 @@ pico_generate_pio_header(newt_dongle ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
 target_compile_definitions(newt_dongle PRIVATE
         PICO_DEFAULT_UART=1
         PICO_DEFAULT_UART_TX_PIN=8
-        PICO_DEFAULT_UART_RX_PIN=9 )
+        PICO_DEFAULT_UART_RX_PIN=9 
+)
 pico_enable_stdio_uart(newt_dongle 1)
 pico_enable_stdio_usb(newt_dongle 0)
 

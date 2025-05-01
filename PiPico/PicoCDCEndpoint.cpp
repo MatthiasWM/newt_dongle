@@ -23,8 +23,8 @@ PicoCDCEndpoint *PicoCDCEndpoint::instance(uint32_t index) {
     return nullptr;
 }
 
-PicoCDCEndpoint::PicoCDCEndpoint(uint32_t index)
-:   CDCEndpoint(),
+PicoCDCEndpoint::PicoCDCEndpoint(Scheduler &scheduler, uint32_t index)
+:   UARTEndpoint(scheduler),
     index_(index)
 {
     if (index < 4) {
@@ -37,6 +37,29 @@ PicoCDCEndpoint::PicoCDCEndpoint(uint32_t index)
 PicoCDCEndpoint::~PicoCDCEndpoint() {
     // Destructor implementation
 }
+
+Result PicoCDCEndpoint::init() {
+    return UARTEndpoint::init();
+}
+
+Result PicoCDCEndpoint::task() {
+    return UARTEndpoint::task();
+}
+
+Result PicoCDCEndpoint::send(Event event) {
+    return UARTEndpoint::send(event);
+}
+
+Result PicoCDCEndpoint::rush(Event event) {
+    return UARTEndpoint::rush(event);
+}
+
+void PicoCDCEndpoint::set_bitrate(uint32_t new_bitrate) {
+    UARTEndpoint::set_bitrate(new_bitrate);
+}
+
+
+#if 0
 
 int PicoCDCEndpoint::init() {
     tusb_rhport_init_t dev_init = {
@@ -150,7 +173,7 @@ void PicoCDCEndpoint::host_set_bitrate(uint32_t new_bitrate) {
 // //                          device will send a break until another SendBreak request is received with value 0000h.
 // TU_ATTR_WEAK void tud_cdc_send_break_cb(uint8_t itf, uint16_t duration_ms);
 
-// We can use hardware spin locks for interrupt handling:
+// We can use hardware run locks for interrupt handling:
 // void spin_lock_claim (uint lock_num)
 // void spin_lock_unclaim (uint lock_num)
 // spin_lock_t * spin_lock_init (uint lock_num)
@@ -191,3 +214,5 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
 //     puts("CDC RX\n");
 //   (void)itf;
 // }
+
+#endif

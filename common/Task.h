@@ -11,19 +11,19 @@
 
 namespace nd {
 
-class Wheel;
+class Scheduler;
 
-class Spoke {
-    Wheel &wheel_;
+class Task {
+    Scheduler &scheduler_;
 public:
-    Spoke(Wheel &wheel);
-    virtual ~Spoke() = default;
-    Spoke(const Spoke&) = delete;
-    Spoke& operator=(const Spoke&) = delete;
-    Spoke(Spoke&&) = delete;
-    Spoke& operator=(Spoke&&) = delete;
+    Task(Scheduler &scheduler);
+    virtual ~Task() = default;
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
+    Task(Task&&) = delete;
+    Task& operator=(Task&&) = delete;
 
-    Wheel &wheel() const { return wheel_; }
+    Scheduler &scheduler() const { return scheduler_; }
     virtual Result init() { return Result::OK; }
     virtual Result task() { return Result::OK; }
 };

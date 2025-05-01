@@ -14,7 +14,7 @@ class StdioLog: public Endpoint {
 protected:
     virtual bool would_block();
 public:
-    StdioLog(Wheel &wheel) : Endpoint(wheel) { }
+    StdioLog(Scheduler &scheduler) : Endpoint(scheduler) { }
     ~StdioLog() override = default;
 
     // -- Pipe Stuff

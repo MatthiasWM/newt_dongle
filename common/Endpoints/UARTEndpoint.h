@@ -13,7 +13,7 @@ namespace nd {
 class UARTEndpoint : public Endpoint {
     uint32_t bitrate_ = 38400; // Newton default
 public:
-    UARTEndpoint(Wheel &wheel);
+    UARTEndpoint(Scheduler &scheduler);
     ~UARTEndpoint();
 
     Result init() override;

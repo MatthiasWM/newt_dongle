@@ -8,15 +8,15 @@
 
 #include "nd_config.h"
 #include "common/Pipe.h"
-#include "common/Spoke.h"
+#include "common/Task.h"
 
 namespace nd {
 
-class Wheel;
+class Scheduler;
 
-class Endpoint: public Pipe, public Spoke {
+class Endpoint: public Pipe, public Task {
 public:
-    Endpoint(Wheel &wheel) : Spoke(wheel) { }
+    Endpoint(Scheduler &scheduler) : Task(scheduler) { }
     virtual ~Endpoint() = default;
     Endpoint(const Endpoint&) = delete;
     Endpoint& operator=(const Endpoint&) = delete;

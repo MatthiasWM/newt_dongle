@@ -7,13 +7,13 @@
 #define ND_PIPES_BUFFERED_PIPE_H
 
 #include "../Pipe.h"
-#include "../Spoke.h"
+#include "../Task.h"
 
 #include <vector>
 
 namespace nd {
 
-class BufferedPipe: public Pipe, public Spoke {
+class BufferedPipe: public Pipe, public Task {
     std::vector<Event> buffer_;
     uint32_t ring_size_ = 0;
     uint32_t ring_mask_ = 0;
@@ -30,10 +30,10 @@ protected:
     bool is_high_water_mark() const;
 
 public:
-    BufferedPipe(Wheel &wheel, uint8_t buffer_size_pow2 = 9);
+    BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2 = 9);
     ~BufferedPipe() override = default;
 
-    // -- Spoke stuff
+    // -- Task stuff
     Result task() override;
 
     // -- Writing to the next pipe

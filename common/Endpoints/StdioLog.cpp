@@ -19,7 +19,7 @@ using namespace nd;
  * 
  * \todo On embedded Endpoints, printing to the console takes to long and blocks
  *       other tasks. We need to buffer all incomming events and print them
- *       one by one whenever the wheel gives us the next task slot.
+ *       one by one whenever the scheduler gives us the next task slot.
  */
 
 /**

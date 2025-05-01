@@ -7,8 +7,8 @@
 
 using namespace nd; 
 
-UARTEndpoint::UARTEndpoint(Wheel &wheel) 
-:   Endpoint(wheel)
+UARTEndpoint::UARTEndpoint(Scheduler &scheduler) 
+:   Endpoint(scheduler)
 {
     // Constructor implementation
 }

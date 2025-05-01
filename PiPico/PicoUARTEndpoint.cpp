@@ -36,6 +36,92 @@
 
 using namespace nd;
 
+PicoUARTEndpoint::PicoUARTEndpoint(Scheduler &scheduler)
+:   UARTEndpoint(scheduler)
+{
+}
+
+PicoUARTEndpoint::~PicoUARTEndpoint() {
+}
+
+Result PicoUARTEndpoint::init() {
+    // Set the TX and RX pins by using the function select on the GPIO
+    // Set datasheet for more information on function select
+    gpio_set_function(UART_TX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_TX_PIN));
+    gpio_set_function(UART_RX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_RX_PIN));
+    // Set up our UART
+    uart_init(UART_ID, BAUD_RATE);
+    uart_set_hw_flow(UART_ID, false, false);
+    uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
+    uart_set_translate_crlf(UART_ID, false);
+
+    uart_set_fifo_enabled(UART_ID, true);
+    // int UART_IRQ = UART_ID == uart0 ? UART0_IRQ : UART1_IRQ;
+    // irq_set_exclusive_handler(UART_IRQ, on_uart_rx);
+    // irq_set_enabled(UART_IRQ, true);
+    // uart_set_irq_enables(UART_ID, true, false);
+
+    // Set the TX and RX pins by using the function select on the GPIO
+    // Some notes for hardware flow control:
+    // HSKI (28) and HSKO (29 on XIAO, 22 PiPico)
+    // -- Initialize Handshake Out pin (HSKO, MP to dongle)
+    // HSKO is 0 if the port in not open on the MP, or if the buffer is full
+    // It's 1 whenever the MP is ready to recive data
+    gpio_init(UART_HSKO_PIN);               // output from MP to dongle
+    gpio_disable_pulls(UART_HSKO_PIN);      // let the MP do its work
+    gpio_set_dir(UART_HSKO_PIN, GPIO_IN);   // we want to read the pin
+    // -- Initialize Handshake In pin (HSKI, dongle to MP)
+    gpio_init(UART_HSKI_PIN);               // output from MP to dongle
+    gpio_put(UART_HSKI_PIN, 1);             // we are able to recive data
+    gpio_set_dir(UART_HSKI_PIN, GPIO_OUT);  // we want to read the pin
+    // For debugging, note that we are alive
+    //uart_puts(UART_ID, "Hello, Pico UART!\a\a\a\r\n");
+    //printf("Pico UART Endpoint initialized.\n");
+    // No error
+    return UARTEndpoint::init();
+}
+
+Result PicoUARTEndpoint::task() {
+    if (event_pending_) {
+        Result r = out()->send(pending_event_);
+        if (r.rejected())
+            return Result::OK;
+        else
+            event_pending_ = false;
+    }
+    if (uart_is_readable(UART_ID)) {
+        uint8_t c = uart_getc(UART_ID);
+        Event event { c };
+        Result r = out()->send(event);
+        if (r.rejected()) {
+            event_pending_ = true;
+            pending_event_ = event;
+            return Result::OK;
+        }
+    }
+    return Result::OK;
+}
+
+Result PicoUARTEndpoint::send(Event event) {
+    bool cts = gpio_get(UART_HSKO_PIN);
+    if (cts && (event.type() == Event::Type::DATA) && uart_is_writable(UART_ID)) {
+        uart_putc_raw(UART_ID, event.data());
+        return Result::OK;
+    } else {
+        return Result::REJECTED;
+    }
+}
+
+Result PicoUARTEndpoint::rush(Event event) {
+    return UARTEndpoint::rush(event);
+}
+
+void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {
+    UARTEndpoint::set_bitrate(new_bitrate);
+}
+
+#if 0
+
 PicoUARTEndpoint::PicoUARTEndpoint() {
     // Constructor implementation
 }
@@ -284,3 +370,5 @@ void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {
         printf("------> Set UART bitrate to %d\n", bitrate_);
     }
 }
+
+#endif

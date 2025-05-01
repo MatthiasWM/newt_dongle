@@ -3,7 +3,7 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#include "StdioLog.h"
+#include "TestStdioLog.h"
 
 #include <sys/select.h>
 

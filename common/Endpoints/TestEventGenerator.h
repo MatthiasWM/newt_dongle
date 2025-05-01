@@ -13,7 +13,7 @@ namespace nd {
 class TestEventGenerator: public Endpoint {
     uint32_t index_ = 0;
 public:
-    TestEventGenerator(Wheel &wheel) : Endpoint(wheel) {}
+    TestEventGenerator(Scheduler &scheduler) : Endpoint(scheduler) {}
     ~TestEventGenerator() override = default;
 
     // -- Initialization

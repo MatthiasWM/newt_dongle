@@ -22,6 +22,70 @@
   SOFTWARE.
 */
 
+// -- Minimal setup for the Newton Dongle.
+//  UART ---> BufferPipe ----> CDC
+//  UART <--- BufferPipe <---- CDC
+
+// TODO: add mnp throttle filter
+// TODO: add Hayes filter
+// TODO: add three way switch and SDCard access
+
+
+#include "PicoStdioLog.h"
+#include "PicoUARTEndpoint.h"
+#include "PicoCDCEndpoint.h"
+#include "common/Scheduler.h"
+#include "common/Endpoints/StdioLog.h"
+#include "common/Endpoints/TestEventGenerator.h"
+#include "common/Pipes/BufferedPipe.h"
+#include "common/Pipes/Tee.h"
+
+#include <cstdio>
+
+// -- The code below avoids the linker error "undefined reference to '__dso_handle'"
+extern "C" void *__dso_handle;
+void *__dso_handle = nullptr;
+extern "C" int __cxa_atexit(void (*destructor)(void*), void *object, void *dso_handle) {
+    return 0; // Do nothing
+}
+extern "C" void __cxa_finalize(void *dso_handle) {
+    // Do nothing
+}
+
+// -- The scheduler spins while the dongle is powered and deliver time slices to its spokes.
+nd::Scheduler scheduler;
+
+// -- Allocate all the endpoints we need.
+nd::PicoUARTEndpoint uart_endpoint { scheduler };
+nd::PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
+nd::PicoStdioLog log_endpoint { scheduler };
+
+// -- Allocate the pipes and filters that connect the endpoints.
+nd::BufferedPipe uart_to_tee(scheduler);
+nd::BufferedPipe tee_to_cdc(scheduler);
+nd::BufferedPipe cdc_to_uart(scheduler);
+nd::Tee tee;
+
+// -- Everything is already allocated. Now link the endpoints and run the scheduler.
+int main(int argc, char *argv[])
+{
+    // -- Connect the Endpoints inside the dongle with pipes.
+    uart_endpoint >> uart_to_tee >> tee;
+    tee.a >> cdc_endpoint;
+    tee.b >> log_endpoint;
+    cdc_endpoint >> cdc_to_uart >> uart_endpoint;
+
+    // -- The scheduler will call all instances of classes that are derived from Task.
+    scheduler.init();
+
+    // -- Now we can start the scheduler. It will call all spokes in a loop.
+    scheduler.run(32);
+
+    return 0;
+} 
+
+#if 0
+
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "common/Pipe.h"
@@ -70,7 +134,7 @@ int main()
 #if 0
     if (absolute_time_diff_us(tNext, tn) > 0) {
       tNext = make_timeout_time_ms(1000);
-      printf("Wheel: tot:%d tud:%d cdc:%d uart:%d\n", 
+      printf("Scheduler: tot:%d tud:%d cdc:%d uart:%d\n", 
         (int)absolute_time_diff_us(t0, tn),
         (int)absolute_time_diff_us(t0, t1),
         (int)absolute_time_diff_us(t1, t2),
@@ -81,3 +145,4 @@ int main()
 
 }
 
+#endif

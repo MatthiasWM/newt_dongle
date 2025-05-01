@@ -12,10 +12,10 @@ target_sources(newt_dongle
         Event.h
         Pipe.cpp
         Pipe.h
-        Spoke.cpp
-        Spoke.h
-        Wheel.cpp
-        Wheel.h
+        Task.cpp
+        Task.h
+        Scheduler.cpp
+        Scheduler.h
 
         Endpoints/SDCardEndpoint.cpp
         Endpoints/SDCardEndpoint.h
