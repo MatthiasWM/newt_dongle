@@ -27,6 +27,13 @@ constexpr uint32_t kCommandModePause = 1'000'000;
  * 
  * To go back into data mode, send "ATO".
  * 
+ * \todo allow dropping DTR (dropping GPI on the InterconnectPort?) to go into 
+ *       command mode. Could be a user settable option.
+ * 
+ * \note When entering "+++", the current implementation holds back the '+'
+ *       characters until the timeout expires. This is not a standard Hayes
+ *       implementation and may vary between devices.
+ * 
  * \param scheduler The scheduler to use for this filter.
  */
 HayesFilter::HayesFilter(Scheduler &scheduler)
@@ -226,6 +233,7 @@ Result HayesFilter::downstream_send(Event event)
             } else {
                 cmd_.push_back(c);
             }
+            // TODO: if we want to allow "A/", we need to check for that here.
         }
         return down->send(event);   
     }
@@ -262,16 +270,44 @@ void HayesFilter::run_cmd_line() {
     }
 }
 
+// A single command line can hold multiple concatenated commands.
+// - basic command set: A capital character followed by a digit. For example, M1.
+// - extended command set: An "&" and a capital character followed by a digit. "&M1".
+// - proprietary command set: Usually starting either with a backslash (“\”) or with a percent sign (“%”);
+// - register commands – Sr=n or Sr?.
+// ATD*99# : Dial Access Point
 const char *HayesFilter::run_next_cmd(const char *cmd) {
     char c = *cmd++;
     if (c>32 && c<127) c = toupper(c);
     switch (c) {
+        case 'D': // The remainder of the command line is a phone number.
+            cmd = nullptr; // Skip the rest of the command line.
+            send_ERROR();
+            return nullptr;
         case 'I':
+            // TODO: read_int() and output the corresponding string
             send_string("NewtDongle V0.0.2\r\n");
             break;
         case 'O':
             switch_to_data_mode();
             return nullptr; // Nothing to be done after going online.
+        //case 'S':
+        // ATS : set current register, ATS? return value fo current register
+        // ATS3=5 : set register 3 to value 5, ATS3? return value of register 3
+        // ATS=3 : set current register to value 3
+        // S2: escape character ("+")
+        // S3: carriage return (13)
+        // S4: line feed (10)
+        // S12: escape code guard time (1/50th of a second)
+        // Z: Reset
+        // &D1: DTR signal (0=on, 1=off) etc.
+        // &F0: factory reset
+        // &K0: flow control (0=none, 1=hardware, 2=software)
+        // &T0: self test
+        // &W0: write to NVRAM
+        // &Yn: reset to profile
+        // &V: show current profile
+        // %E0: Escape method ("+++", break, DTR?, etc.)
         default:
             send_ERROR();
             return nullptr;

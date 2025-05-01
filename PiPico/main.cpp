@@ -35,6 +35,7 @@
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "PicoScheduler.h"
+#include "PicoSDCard.h"
 #include "common/Endpoints/StdioLog.h"
 #include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
@@ -47,7 +48,7 @@
 
 #include <stdio.h>
 
-#if 1
+#if 0
 // -- The code below avoids the linker error "undefined reference to '__dso_handle'"
 extern "C" void *__dso_handle;
 void *__dso_handle = nullptr;
@@ -96,6 +97,8 @@ nd::BufferedPipe buffer_to_uart(scheduler);
 int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
+
+    test_sd_card();
 
     // -- Connect the Endpoints inside the dongle with pipes.
     // Connect the UART to USB
