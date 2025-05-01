@@ -24,31 +24,13 @@ void Wheel::init() {
     }
 }
 
-void Wheel::release() {
-    for (auto &spoke : spoke_list_) {
-        spoke->release();
-    }
-}
-
 void Wheel::spin(int n) {
-    int i = 0;
-    for (;;) {
+    for (; (n == -1) || (n > 0); ) {
         for (auto &spoke : spoke_list_) {
             spoke->task();
         }
         ticks_++;
-        if (n > 0) {
-            i++;
-            if (i >= n) {
-                break;
-            }
-        }
-    }
-}
-
-void Wheel::pause() {
-    for (auto &spoke : spoke_list_) {
-        spoke->stop();
+        if (n > 0) --n;
     }
 }
  

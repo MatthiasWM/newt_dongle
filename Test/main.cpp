@@ -22,17 +22,18 @@
   SOFTWARE.
 */
 
+#include "TestStdioLog.h"
 #include "common/Wheel.h"
-#include "common/Devices/StdioLog.h"
+#include "common/Endpoints/StdioLog.h"
 #include "common/Pipes/BufferedPipe.h"
-#include "TestDataDevice.h"
+#include "common/Endpoints/TestEventGenerator.h"
 
 #include <cstdio>
 
 nd::Wheel wheel;
 
 nd::StdioLog log_device(wheel);
-nd::TestDataDevice test_data_generator(wheel);
+nd::TestEventGenerator test_data_generator(wheel);
 
 // nd::DiffFilter diff_filter;
 
@@ -42,11 +43,11 @@ nd::Pipe log_to_gen;
 
 int main(int argc, char *argv[])
 {
-    // -- Connect the devices inside the dongle with pipes.
+    // -- Connect the Endpoints inside the dongle with pipes.
     test_data_generator >> gen_to_log >> log_device;
     log_device >> log_to_gen >> test_data_generator;
 
-    // -- Register all devices with the Wheel and initialize them
+    // -- Register all Endpoints with the Wheel and initialize them
     wheel.add(test_data_generator).add(log_device);
     wheel.init();
 

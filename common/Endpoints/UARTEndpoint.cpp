@@ -7,7 +7,9 @@
 
 using namespace nd; 
 
-UARTEndpoint::UARTEndpoint() {
+UARTEndpoint::UARTEndpoint(Wheel &wheel) 
+:   Endpoint(wheel)
+{
     // Constructor implementation
 }
 
@@ -15,12 +17,29 @@ UARTEndpoint::~UARTEndpoint() {
     // Destructor implementation
 }
 
-int UARTEndpoint::init() {
+Result UARTEndpoint::init() {
     // Initialization implementation
-    return 0;
+    return Result::OK;
 }
 
-int UARTEndpoint::task() {
+Result UARTEndpoint::task() {
     // Task implementation
-    return 0;
+    return Result::OK;
+}
+
+Result UARTEndpoint::send(Event event) {
+    return Result::REJECTED;
+}
+
+Result UARTEndpoint::rush(Event event) {
+    return Result::REJECTED;
+}
+
+// -- UART specific methods
+void UARTEndpoint::set_bitrate(uint32_t bitrate) {
+    bitrate_ = bitrate;
+}
+
+uint32_t UARTEndpoint::get_bitrate() const {
+    return bitrate_;
 }

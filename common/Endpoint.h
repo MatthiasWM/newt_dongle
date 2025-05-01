@@ -3,32 +3,27 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#ifndef ND_ENDPOINT_H
-#define ND_ENDPOINT_H
+#ifndef ND_DEVICE_H
+#define ND_DEVICE_H
 
-#include "Event.h"
+#include "nd_config.h"
+#include "common/Pipe.h"
+#include "common/Spoke.h"
 
 namespace nd {
 
-class Pipe;
+class Wheel;
 
-class Endpoint {
-    Pipe *in_pipe_ = nullptr;
-    Pipe *out_pipe_ = nullptr;
+class Endpoint: public Pipe, public Spoke {
 public:
-    Endpoint();
-    virtual ~Endpoint();
-
-    virtual int init();
-    virtual int task();
-
-    Endpoint &set_in(Pipe *pipe);
-    Endpoint &set_out(Pipe *pipe);
-    Pipe *in() const { return in_pipe_; }
-    Pipe *out() const { return out_pipe_; }
+    Endpoint(Wheel &wheel) : Spoke(wheel) { }
+    virtual ~Endpoint() = default;
+    Endpoint(const Endpoint&) = delete;
+    Endpoint& operator=(const Endpoint&) = delete;
+    Endpoint(Endpoint&&) = delete;
+    Endpoint& operator=(Endpoint&&) = delete;
 };
-
 
 } // namespace nd
 
-#endif // ND_ENDPOINT_H
+#endif // ND_DEVICE_H

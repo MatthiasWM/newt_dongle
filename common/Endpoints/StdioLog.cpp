@@ -5,25 +5,19 @@
 
 #include "StdioLog.h"
 
-#include <cstdio>
-
-
-#if defined(PICO_RP2040)
-#else
-#include <sys/select.h>
-#endif
+#include <stdio.h>
 
 using namespace nd;
 
 /**
  * \class StdioLog
  * 
- * \brief The StdioLog class is a simple device that prints events to the console.
+ * \brief The StdioLog class is a simple End that prints events to the console.
  * 
  * This class is used for debugging and testing purposes. It receives events
  * through a pipe and prints them to the standard output (stdout).
  * 
- * \todo On embedded devices, printing to the console takes to long and blocks
+ * \todo On embedded Endpoints, printing to the console takes to long and blocks
  *       other tasks. We need to buffer all incomming events and print them
  *       one by one whenever the wheel gives us the next task slot.
  */
@@ -34,22 +28,7 @@ using namespace nd;
  * \return true if the pipe would block, false otherwise.   
  */
 bool StdioLog::would_block() {
-#if defined(PICO_RP2040)
-    // TODO: Or we put this into a derived class in the respective tree
-#else
-    fd_set write_fds;
-    struct timeval timeout { .tv_sec = 0, .tv_usec = 0 };
-    FD_ZERO(&write_fds);
-    FD_SET(fileno(stdout), &write_fds);
-    int result = select(fileno(stdout) + 1, NULL, &write_fds, NULL, &timeout);
-    if (result > 0 && FD_ISSET(fileno(stdout), &write_fds)) {
-        return false; // writable
-    } else if (result == 0) {
-        return true; // would block
-    } else {
-        return false; // error, assume we can write
-    }
-#endif
+    return false;
 }
 
 /**

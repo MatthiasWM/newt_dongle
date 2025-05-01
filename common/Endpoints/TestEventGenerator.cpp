@@ -3,19 +3,15 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#include "TestDataDevice.h"
+#include "TestEventGenerator.h"
 
 using namespace nd;
 
-Result TestDataDevice::init() {
+Result TestEventGenerator::init() {
     return Result::OK;
 }
 
-Result TestDataDevice::release() {
-    return Device::release();
-}
-
-Result TestDataDevice::task() {
+Result TestEventGenerator::task() {
     if (index_ < 128) {
         uint8_t data = (index_ & 0x0f) + 'A';
         if (send(Event(data)).ok()) {
@@ -24,11 +20,6 @@ Result TestDataDevice::task() {
     } else {
         send(Event('.'));
     }
-    return Device::task();
+    return Endpoint::task();
 }
-
-Result TestDataDevice::stop() {
-    return Device::stop();
-}
-
 

@@ -14,7 +14,7 @@ namespace nd {
 
 class Spoke;
 
-/** \brief Call the tasks of all registered devices in an endless loop. */
+/** \brief Call the tasks of all registered Endpoints in an endless loop. */
 class Wheel {
     std::forward_list<Spoke*> spoke_list_;
     uint32_t ticks_ = 0;
@@ -26,14 +26,12 @@ public:
     Wheel(Wheel&&) = delete;
     Wheel& operator=(Wheel&&) = delete;
 
-    // -- Add a device to the wheel
+    // -- Add a Spoke to the wheel
     Wheel &add(Spoke &spoke);
 
     // -- Spin the wheel
     void init();
-    void spin(int n=0);
-    void pause();
-    void release();
+    void spin(int n=-1);
 
     // -- Additionl wheel features
     uint32_t ticks() const { return ticks_; }

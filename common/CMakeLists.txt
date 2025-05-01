@@ -6,8 +6,8 @@
 
 target_sources(newt_dongle
     PRIVATE
-        Device.cpp
-        Device.h
+        Endpoint.cpp
+        Endpoint.h
         Event.cpp
         Event.h
         Pipe.cpp
@@ -17,16 +17,16 @@ target_sources(newt_dongle
         Wheel.cpp
         Wheel.h
 
-        Devices/StdioLog.cpp
-        Devices/StdioLog.h
+        Endpoints/StdioLog.cpp
+        Endpoints/StdioLog.h
+        Endpoints/TestEventGenerator.cpp
+        Endpoints/TestEventGenerator.h
+        Endpoints/UARTEndpoint.cpp
+        Endpoints/UARTEndpoint.h
 
         Pipes/BufferedPipe.cpp
         Pipes/BufferedPipe.h
         Pipes/Tee.cpp
         Pipes/Tee.h
 
-#        Endpoints/UARTEndpoint.cpp
-#        Endpoints/UARTEndpoint.h
-#        Endpoints/CDCEndpoint.cpp
-#        Endpoints/CDCEndpoint.h
 )

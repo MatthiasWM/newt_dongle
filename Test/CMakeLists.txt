@@ -13,9 +13,6 @@ project(newt_dongle C CXX ASM)
 
 add_executable(newt_dongle
         main.cpp 
-
-        TestDataDevice.cpp
-        TestDataDevice.h
 )
 
 # User defined macros, but also see nd_config.h

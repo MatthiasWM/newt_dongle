@@ -11,12 +11,21 @@
 namespace nd {
 
 class UARTEndpoint : public Endpoint {
+    uint32_t bitrate_ = 38400; // Newton default
 public:
-    UARTEndpoint();
+    UARTEndpoint(Wheel &wheel);
     ~UARTEndpoint();
 
-    int init() override;
-    int task() override;
+    Result init() override;
+    Result task() override;
+
+    // -- Pipe Stuff
+    Result send(Event event) override;
+    Result rush(Event event) override;
+
+    // -- UART specific methods
+    virtual void set_bitrate(uint32_t bitrate);
+    virtual uint32_t get_bitrate() const;
 };
 
 } // namespace nd

@@ -23,11 +23,9 @@ public:
     Spoke(Spoke&&) = delete;
     Spoke& operator=(Spoke&&) = delete;
 
-    Wheel &wheel() { return wheel_; }
+    Wheel &wheel() const { return wheel_; }
     virtual Result init() { return Result::OK; }
     virtual Result task() { return Result::OK; }
-    virtual Result release() { return Result::OK; }
-    virtual Result stop() { return Result::OK; }
 };
 
 } // namespace nd
