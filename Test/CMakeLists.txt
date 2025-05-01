@@ -12,7 +12,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(newt_dongle C CXX ASM)
 
 add_executable(newt_dongle
-        main.cpp 
+        main.cpp
+        TestScheduler.cpp
+        TestScheduler.h
+        TestStdioLog.cpp
+        TestStdioLog.h
 )
 
 # User defined macros, but also see nd_config.h

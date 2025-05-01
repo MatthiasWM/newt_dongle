@@ -5,6 +5,7 @@
 
 #include "TestStdioLog.h"
 
+#include <stdio.h>
 #include <sys/select.h>
 
 using namespace nd;

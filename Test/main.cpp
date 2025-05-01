@@ -23,7 +23,7 @@
 */
 
 #include "TestStdioLog.h"
-#include "common/Scheduler.h"
+#include "TestScheduler.h"
 #include "common/Endpoints/StdioLog.h"
 #include "common/Pipes/BufferedPipe.h"
 #include "common/Endpoints/TestEventGenerator.h"
@@ -31,10 +31,10 @@
 #include <cstdio>
 
 // -- The scheduler spins while the dongle is powered and deliver time slices to its spokes.
-nd::Scheduler scheduler;
+nd::TestScheduler scheduler;
 
 // -- Allocate all the endpoints we need.
-nd::StdioLog log_device(scheduler);
+nd::TestStdioLog log_device(scheduler);
 nd::TestEventGenerator test_data_generator(scheduler);
 
 // -- Allocate the pipes and filters that connect the endpoints.
