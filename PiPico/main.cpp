@@ -36,6 +36,8 @@
 #include "PicoCDCEndpoint.h"
 #include "PicoScheduler.h"
 #include "PicoSDCard.h"
+#include "PicoSystem.h"
+
 #include "common/Endpoints/StdioLog.h"
 #include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
@@ -43,32 +45,11 @@
 #include "common/Pipes/Tee.h"
 
 #include "pico/stdlib.h"
-#include "hardware/uart.h"
-#include "tusb.h"
 
 #include <stdio.h>
 
-#if 0
-// -- The code below avoids the linker error "undefined reference to '__dso_handle'"
-extern "C" void *__dso_handle;
-void *__dso_handle = nullptr;
-extern "C" int __cxa_atexit(void (*destructor)(void*), void *object, void *dso_handle) {
-    return 0; // Do nothing
-}
-extern "C" void __cxa_finalize(void *dso_handle) {
-    // Do nothing
-}
-#endif
-
-// -- The task that runs the tinyusb device stack.
-class TinyUSBTask: public nd::Task {
-public:
-    TinyUSBTask(nd::Scheduler &scheduler) : nd::Task(scheduler) { }
-    nd::Result task() override {
-        tud_task(); // tinyusb device task
-        return nd::Result::OK;
-    }
-};
+void* __dso_handle = nullptr;
+void* _fini = nullptr;
 
 /*
 
@@ -79,7 +60,7 @@ public:
 
 // -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
 nd::PicoScheduler scheduler;
-TinyUSBTask tinyusb_task(scheduler);
+nd::PicoSystemTask system_task(scheduler);
 
 // -- Instantiate all the endpoints we need.
 nd::PicoUARTEndpoint uart_endpoint { scheduler };

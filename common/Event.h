@@ -18,10 +18,14 @@ public:
         NIL = 0,
         DATA,
         SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
-        DELAY_MS,           // Delay in milliseconds
-        DELAY_US,           // Delay in microseconds
-        DELAY_CHAR,         // Delay in characters at the current bitrate
+        PAUSE,              // Pause transmission of bytes for the given time.
         ERROR = 0xff,       // Not an event, but an error message.
+    };
+    enum class Subtype: uint8_t {
+        NIL = 0,
+        USECS,              // Delay in microseconds   
+        MSECS,              // Delay in milliseconds       
+        CHARS               // Delay in characters at the current bitrate 
     };
 
 private:
@@ -29,7 +33,7 @@ private:
         uint32_t event_ = 0;
         struct {
             Type type_;
-            uint8_t subtype_;
+            Subtype subtype_;
             uint16_t data_;
         };
     };
@@ -38,9 +42,9 @@ private:
     static uint8_t bitrate_to_id(uint32_t bitrate);
 public:
     Event() = default;
-    constexpr Event(Type type) : type_(type), subtype_(0), data_(0) {}
-    constexpr Event(uint8_t data) : type_(Type::DATA), subtype_(0), data_(data) {}
-    constexpr Event(Type type, uint32_t data) : type_(type), subtype_(0), data_(data) {}
+    constexpr Event(Type type) : type_(type), subtype_(Subtype::NIL), data_(0) {}
+    constexpr Event(uint8_t data) : type_(Type::DATA), subtype_(Subtype::NIL), data_(data) {}
+    constexpr Event(Type type, uint32_t data) : type_(type), subtype_(Subtype::NIL), data_(data) {}
     ~Event() = default;
     // Event(const Event&) = delete;
     // Event& operator=(const Event&) = delete;
@@ -54,6 +58,8 @@ public:
 
     Type type() const { return type_; }
     void type(Type t) { type_ = t; }
+    Subtype subtype() const { return subtype_; }
+    void subtype(Subtype c) { subtype_ = c; }
     uint32_t data() const { return data_; }
     void data(uint32_t d) { data_ = d; }
 };
@@ -68,9 +74,10 @@ public:
         OK = 0,
         REJECTED,
     };
-    enum class Cause: uint8_t {
+    enum class Subtype: uint8_t {
         UNDEFINED = 0,
-        NOT_CONNECTED,
+        NOT_CONNECTED,      // No output pipe connected.
+        UNKNOWN,            // Endpoint does not recognize this event type.
     };
 
 private:
@@ -78,25 +85,26 @@ private:
         uint32_t result_ = 0;
         struct {
             Type type_;
-            Cause cause_;
+            Subtype subtype_;
             uint16_t data_;
         };
     };
 
 public:
     Result() = default;
-    constexpr Result(Type type, uint32_t data) : type_(type), cause_(Cause::UNDEFINED), data_(data) {}
-    constexpr Result(Type type, Cause cause, uint32_t data=0) : type_(type), cause_(cause), data_(data) {}
+    constexpr Result(Type type, uint32_t data) : type_(type), subtype_(Subtype::UNDEFINED), data_(data) {}
+    constexpr Result(Type type, Subtype subtype, uint32_t data=0) : type_(type), subtype_(subtype), data_(data) {}
     ~Result() = default;
 
     static Result OK;
     static Result OK__NOT_CONNECTED;
     static Result REJECTED;
+    static Result REJECTED__NOT_CONNECTED;
 
     Type type() const { return type_; }
     void type(Type t) { type_ = t; }
-    Cause cause() const { return cause_; }
-    void cause(Cause c) { cause_ = c; }
+    Subtype subtype() const { return subtype_; }
+    void subtype(Subtype c) { subtype_ = c; }
     uint32_t data() const { return data_; }
     void data(uint32_t d) { data_ = d; }
 

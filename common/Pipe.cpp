@@ -5,229 +5,87 @@
 
 #include "common/Pipe.h"
 
+#include <cassert>
+
 using namespace nd;
 
-// -- Pipe Routing -------------------------------------------------------------
+/**
+ * @class Pipe
+ * @brief Represents a pipeline component that can route events to another pipe.
+ * 
+ * The Pipe class implements a pipeline pattern for event processing. Pipes connect
+ * a sending Endpoint with a receiving Endpoint, They can be chained using 
+ * the '>>' operator, forming a directed graph of event flow.
+ * Events are sent through the pipeline with either normal priority (send) or high 
+ * priority (rush) for immediate processing.
+ *
+ * Pipes form the foundation of the event-driven architecture, allowing modular
+ * components to be combined while maintaining separation of concerns.
+ */
 
+/**
+ * @brief Connects this pipe to another pipe for data flow.
+ * 
+ * This operator allows pipes to be chained together in a stream-like manner.
+ * The current pipe's output is directed to the provided pipe.
+ * 
+ * @param pipe The destination pipe to receive output from this pipe
+ * @return A reference to the destination pipe, allowing for method chaining
+ */
 Pipe &Pipe::operator>>(Pipe &pipe) {
+    assert(active_); // The output of this pipe is not active. You can't connect a pipe to it.
     out_ = &pipe;
     return pipe;
 }
 
+/**
+ * @brief Gets the output pipe connected to this pipe
+ * 
+ * @return Pipe* Pointer to the output pipe, or nullptr if no output is connected
+ */
 Pipe *Pipe::out() const {
     return out_;
 }
 
+/**
+ * @brief Forwards an event to the output destination if one exists.
+ * 
+ * This method forwards the provided event to the pipe's output destination.
+ * Pipes derived from this class can override this method to implement custom
+ * behavior for event processing, e.g. event buffering. The return value
+ * indicates that the event was sent further down the pipeline, but it does
+ * not guarantee that the event was processed by the Endpoint.
+ * 
+ * @param event The event to be sent through the pipe
+ * @return return the result from the output's send method.
+ * @return if no output pipe is connected, the Event is discarded and we 
+ *         return Result::OK with the Subtype NOT_CONNECTED.
+*/
 Result Pipe::send(Event event) {
     if (out_) {
         return out_->send(event);
     } else {
-        return Result::REJECTED;
+        return Result::OK__NOT_CONNECTED;
     }
 }
 
+/**
+ * @brief Quickly forwards an event to the pipe's output destination.
+ *
+ * Rush an event past the queue of events further down the pipeline all the way
+ * to the Endpoint. As opposed to `send()`, the return value of this method is 
+ * also the immediate reply to the event.
+ *
+ * @param event The event to be forwarded
+ * @return return the result from the output's rush method.
+ * @return if no output pipe is connected, delivery was not possible, and we
+ *        return Result::REJECTED with the Subtype NOT_CONNECTED.
+ */
 Result Pipe::rush(Event event) {
     if (out_) {
         return out_->send(event);
     } else {
-        return Result::REJECTED;
+        return Result::OK__NOT_CONNECTED;
     }
 }
 
-
-
-
-#if 0
-
-#include "common/Endpoint.h"
-
-#include <stdio.h>
-
-using namespace nd;
-
-/**
- * \class Pipe The Pipe class manages a stream of events.
- */
-
-// -- Pipe Ponstruction --------------------------------------------------------
-
-/**
- * Creat a pipe that can be linked between two endpoints.
- */
-Pipe::Pipe() {
-    prev_event_time_ = get_absolute_time();
-}
-
-// -- Pipe Routing -------------------------------------------------------------
-
-/**
- * \brief Set the source endpoint.
- * \param endpoint The source endpoint
- * \return self, so we can stack calls
- */
-Pipe &Pipe::connect_from(Endpoint &endpoint) {
-    endpoint.set_out(this);
-    source_ = &endpoint;
-    prev_event_time_ = get_absolute_time();
-    return *this;
-}
-
-/**
- * \brief Set the target endpoint.
- * \param endpoint The target endpoint
- * \return self, so we can stack calls
- */
-Pipe &Pipe::connect_to(Endpoint &endpoint) {
-    endpoint.set_in(this);
-    target_ = &endpoint;
-    prev_event_time_ = get_absolute_time();
-    return *this;
-}
-
-/**
- * \brief Disconnect the pipe from the source and sink endpoints.
- * 
- * The pipe can be disconnected from the source and sink endpoints.
- * The endpoints will no longer be able to stuff data or read data
- * from the pipe.
- * 
- * \return self, so we can stack calls
- */
-Pipe &Pipe::disconnect() {
-    if (source_) {
-        source_->set_out(nullptr);
-        source_ = nullptr;
-    }
-    if (target_) {
-        target_->set_in(nullptr);
-        target_ = nullptr;
-    }
-    return *this;
-}
-
-// -- Reading the Pipe ---------------------------------------------------------
-
-/**
- * \brief Return the number of events available in the pipe.
- * 
- * \return the number of events available in the pipe
- */
-int32_t Pipe::num_avail() const {
-    return (head_ - tail_) & cfgRingBufferMask;
-}
-
-/**
- * \brief Peek at the first event in the pipe.
- * \return the first event in the pipe
- * \return an error event with PIPE_EMPTY if there are no events in the pipe
- */
-Event Pipe::peek() const {
-    if (head_ == tail_) {
-        return make_event(Type::ERROR, static_cast<uint8_t>(Error::PIPE_EMPTY));
-    }
-    return buffer_[tail_];
-}
-
-/**
- * \brief Get the first event from the pipe.
- * 
- * The event is not removed from the pipe.
- * 
- * \return the first event in the pipe
- * \return an error event with PIPE_EMPTY if there are no events in the pipe
- */
-Event Pipe::read() {
-    Event e = peek();
-    if (e.type != Type::ERROR) pop();
-    return e;
-}
-
-/**
- * \brief Remove the first event from the pipe.
- */
-void Pipe::pop() {
-    if (head_ == tail_) {
-        puts("**** ERROR **** in Pipe::pop() - no event to pop");
-        return;
-    }
-    tail_ = (tail_ + 1) & cfgRingBufferMask;
-}
-
-// -- Writing the Pipe
-
-/**
- * \brief Return the number of free events in the pipe.
- * 
- * \return the number of free events in the pipe
- */
-int32_t Pipe::num_free() const {
-    return cfgRingBufferSize - num_avail() - 1; // 4 for events we may want to prepend
-}
-
-/**
- * \brief Write an event into the pipe.
- * 
- * The event is added to the end of the pipe. If the pipe is full,
- * the PIPE_FULL error code is returned.
- * 
- * \return Error::OK or PIPE_FULL
- */
-Error Pipe::write(Event event) {  
-    // -- Check if we have room for a new event
-    auto new_head = (head_ + 1) & cfgRingBufferMask;
-    if (new_head == tail_) {
-        return Error::PIPE_FULL;
-    }
-    // -- Calculate the time since the last event
-    absolute_time_t now = get_absolute_time();
-    int64_t delta_t_us = absolute_time_diff_us(prev_event_time_, now);
-    event_delta_t(event, delta_t_us);
-    prev_event_time_ = now;
-    // -- push the event into the pipe
-    buffer_[head_] = event;
-    head_ = new_head;
-    return Error::OK;
-}
-
-/**
- * \brief Prepend an event to the pipe, so it is read next.
- * 
- * This is used for debugging only. It will not be used in the final
- * implementation.
- * 
- * \note we can make this universal if we always keep two or so event slots
- *      free. This would always allow us to prepend events.
- * 
- * \return Error::OK or PIPE_FULL
- */
-Error Pipe::prepend(Event event) {
-    if (num_free() < 1) {
-        return Error::PIPE_FULL;
-    }
-    auto new_tail = (tail_ - 1) & cfgRingBufferMask;
-    buffer_[new_tail] = event;
-    tail_ = new_tail;
-    return Error::OK;
-}
-
-// -- Buffer Management --------------------------------------------------------
-
-/**
- * \brief Check if the pipe is above the high water mark.
- * \return true when the pipe fills up and the enpoint may want to clear CTS
- */
-bool Pipe::reached_high_water() const {
-    return (num_free() < cfgRingBufferHighWater);
-}
-
-/**
- * \brief Flush the pipe.
- * 
- * The pipe is flushed. All events are removed from the pipe.
- */
-void Pipe::flush() {
-    head_ = 0;
-    tail_ = 0;
-}
-
-#endif

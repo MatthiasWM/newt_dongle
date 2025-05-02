@@ -76,6 +76,8 @@ add_executable(newt_dongle
         PicoStdioLog.h
         PicoSDCard.cpp
         PicoSDCard.h
+        PicoSystem.cpp
+        PicoSystem.h
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")

@@ -22,6 +22,9 @@ public:
     Endpoint& operator=(const Endpoint&) = delete;
     Endpoint(Endpoint&&) = delete;
     Endpoint& operator=(Endpoint&&) = delete;
+
+    Result send(Event event) override;
+    Result rush(Event event) override;
 };
 
 } // namespace nd

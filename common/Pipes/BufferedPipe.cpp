@@ -7,6 +7,20 @@
 
 using namespace nd;
 
+/**
+ * @brief A buffered pipe.
+ * 
+ * BufferedPipe implements a ring buffer for Event objects, allowing events to be
+ * queued and processed asynchronously. It inherits from Task, enabling it to be
+ * scheduled for execution within a Scheduler.
+ * 
+ * The internal buffer is implemented as a power-of-2 sized ring buffer for
+ * efficient circular operation using bit masking.
+ * 
+ * @note Buffer size is specified as a power of 2 (default is 2^9 = 512 elements)
+ */
+
+
 BufferedPipe::BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2)
 :   Task { scheduler },
     ring_size_ { static_cast<uint32_t>(1 << buffer_size_pow2) },
@@ -61,28 +75,20 @@ bool BufferedPipe::is_high_water_mark() const {
 
 
 Result BufferedPipe::send(Event event) {   
-    // TODO: continue here
-    // Return in subytype if the high water mark is reached
-    // Implement the delay functionality
-    // Rename the new Device class back to Endpoint
-    // Serialize the Log Endpoint to run better on Pico (just buffer it?)
-    // Better Log output
-    // Implement the UART endpoint API
-    // (Re)Implement the Pico UART and Pico CDC classes
+    // TODO: Return in subtype if the high water mark is reached
+    // TODO: Implement the delay functionality (maybe not here, but in Endpoint)
 
-
-    Result r = Result::REJECTED;
     if (out() == nullptr)
-        return Result::REJECTED;
+        return Result::OK__NOT_CONNECTED;
 
     if (is_empty()) {
-        r = out()->send(event);
+        Result r = out()->send(event);
         if (r.ok()) {
             return r;
         }
     } else {
         Event buffered_event = peek_front();
-        r = out()->send(buffered_event);
+        Result r = out()->send(buffered_event);
         if (r.ok()) {
             pop_front();
             // Fall through: We still need to push the new event to the buffer
@@ -97,6 +103,6 @@ Result BufferedPipe::send(Event event) {
 }
 
 Result BufferedPipe::rush(Event event) {
-    // TODO: continue here
+    // Rush events are never buffered.
     return Pipe::rush(event);
 }

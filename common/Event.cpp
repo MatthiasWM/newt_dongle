@@ -9,9 +9,26 @@
 
 using namespace nd;
 
-Result Result::OK = { Type::OK, 0 };
-Result Result::OK__NOT_CONNECTED = { Type::OK, Cause::NOT_CONNECTED };
-Result Result::REJECTED = { Type::REJECTED, 0 };
+/**
+ * @brief Event class for managing various types of communication and control events.
+ * 
+ * The Event class represents different types of communication events like data transmission,
+ * bitrate settings, and pause/delay events. It uses a memory-efficient union representation
+ * to store event information, with a type, subtype, and associated data.
+ * 
+ * @details Events can be one of several types:
+ *   - NIL: Empty/null event
+ *   - DATA: Represents a data byte to be transmitted
+ *   - SET_BITRATE: Configuration event to change communication bitrate
+ *   - PAUSE: Delay/pause event with configurable duration
+ *   - ERROR: Error indicator with associated error data
+ * 
+ * Pause events can have different time representations through the Subtype enum:
+ *   - USECS: Microsecond delay
+ *   - MSECS: Millisecond delay
+ *   - CHARS: Character-time based delay (dependent on current bitrate)
+ */
+
 
 Event nd::Event::make_bitrate_event(uint32_t bitrate) {
     return Event(Type::SET_BITRATE, bitrate_to_id(bitrate));
@@ -53,74 +70,24 @@ uint8_t Event::bitrate_to_id(uint32_t bitrate) {
     }
 }
 
-
-
-
-#if 0
-
-#include "pico/stdlib.h"
-#include <stdio.h>
-
-using namespace nd;
-
 /**
- * \brief Create a new delay event.
+ * @brief Result class for operation outcome representation
  * 
- * \param delay_us The delay in microseconds
- * \return A new delay event with the given timeouts
+ * A utility class to represent the result of operations with type information,
+ * subtypes, and additional data. This provides a structured way to handle
+ * success and failure cases with contextual information.
+ * 
+ * The class defines two basic instances for common result types:
+ * - Result::OK: The event was processed in some way. Subtypes may 
+ *   give more details.
+ * - Result::REJECTED: The event was rejected and should be resent in the next 
+ *   scheduler cycle. The Subtype may give the reason for rejecting the event.
+ * 
+ * @see Type Enumeration of primary result types (OK, REJECTED)
+ * @see Subtype Enumeration of additional context (UNDEFINED, NOT_CONNECTED)
  */
-Event nd::make_delay(uint32_t delay_us) {
-    if ((delay_us & 0x000fffff) != 0) {
-        return make_event(Type::DELAY_MS, uint20_to_fp8(delay_us/1000));
-    }
-    return make_event(Type::DELAY_US, delay_us);
-}
 
-
-/**
- * Store the time since the last event in milliseconds with the event.alignas
- * 
- * \note It's binary mSec as 1024 uSecs in a mSec. Dividing is expensive.alignas
- * 
- * \param[inout] event update the event time in this event
- * \param[in] uSecs time delta in microseconds 
- * 
- * \see pico/time.h: absolute_time_diff_us()
- */
-void nd::event_delta_t(Event event, int64_t uSecs) {
-    int64_t mSecs = uSecs >> 10; // divide by 1024
-    if (mSecs > 0xffff) mSecs = 0xffff;
-    event.delta_t = static_cast<uint16_t>(mSecs);
-}
-
-
-/**
- * Convert an 8 bit float into n integer value between 0 and 1'000'000.
- * 
- * \param id 8 bit floating point(4 bits exponent, 4 bits mantissa)
- * \return an unsigned integer up to 0x000f'ffff
- */
-uint32_t nd::fp8_to_uint20(uint8_t id) {
-    uint32_t mantissa = id & 0x0F;
-    uint8_t exponent = (id & 0xF0) >> 4;
-    uint32_t us = mantissa << exponent;
-    return us;
-}
-
-/**
- * Convert an integer value between 0 and 1'000'000 into an 8 bit float.
- * 
- * \param us 20 bit unsigned integer
- * \return an 8 bit floating point(4 bits exponent, 4 bits mantissa)
- */
-uint8_t nd::uint20_to_fp8(uint32_t us) {
-    uint8_t exponent = 0;
-    while ((us & 0xFFFFFFF0) > 0) {
-        us >>= 1;
-        exponent++;
-    }
-    uint8_t mantissa = static_cast<uint8_t>(us);
-    return (mantissa | (exponent << 4));
-}
-
-#endif
+Result Result::OK = { Type::OK, 0 };
+Result Result::OK__NOT_CONNECTED = { Type::OK, Subtype::NOT_CONNECTED };
+Result Result::REJECTED = { Type::REJECTED, 0 };
+Result Result::REJECTED__NOT_CONNECTED = { Type::REJECTED, Subtype::NOT_CONNECTED };

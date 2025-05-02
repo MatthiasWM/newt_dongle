@@ -15,7 +15,6 @@ public:
     Tee() = default;
     ~Tee() override = default;
 
-    Pipe a;
     Pipe b;
 
     // -- Pipe Stuff
