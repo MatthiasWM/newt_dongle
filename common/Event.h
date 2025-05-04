@@ -18,11 +18,15 @@ public:
         NIL = 0,
         DATA,
         SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
-        PAUSE,              // Pause transmission of bytes for the given time.
+        DELAY,              // Delay transmission of data for the given time.
+        HIGH_WATER,         // Receiving endpoint buffer about to flood.
         ERROR = 0xff,       // Not an event, but an error message.
     };
     enum class Subtype: uint8_t {
         NIL = 0,
+        ON,
+        OFF,
+        RESET,
         USECS,              // Delay in microseconds   
         MSECS,              // Delay in milliseconds       
         CHARS               // Delay in characters at the current bitrate 
@@ -45,6 +49,7 @@ public:
     constexpr Event(Type type) : type_(type), subtype_(Subtype::NIL), data_(0) {}
     constexpr Event(uint8_t data) : type_(Type::DATA), subtype_(Subtype::NIL), data_(data) {}
     constexpr Event(Type type, uint32_t data) : type_(type), subtype_(Subtype::NIL), data_(data) {}
+    constexpr Event(Type type, Subtype subtype, uint32_t data=0) : type_(type), subtype_(subtype), data_(data) {}
     ~Event() = default;
     // Event(const Event&) = delete;
     // Event& operator=(const Event&) = delete;
@@ -54,7 +59,9 @@ public:
     bool is_data() const { return type_ == Type::DATA; }
 
     static Event make_bitrate_event(uint32_t bitrate);
-    uint32_t get_bitrate() const { return id_to_bitrate(data_); }
+    uint32_t bitrate() const { return id_to_bitrate(data_); }
+
+    static Event make_delay_event(uint32_t usec);
 
     Type type() const { return type_; }
     void type(Type t) { type_ = t; }
@@ -77,7 +84,7 @@ public:
     enum class Subtype: uint8_t {
         UNDEFINED = 0,
         NOT_CONNECTED,      // No output pipe connected.
-        UNKNOWN,            // Endpoint does not recognize this event type.
+        NOT_HANDLED,            // Endpoint does not recognize this event type.
     };
 
 private:
@@ -97,6 +104,7 @@ public:
     ~Result() = default;
 
     static Result OK;
+    static Result OK__NOT_HANDLED;
     static Result OK__NOT_CONNECTED;
     static Result REJECTED;
     static Result REJECTED__NOT_CONNECTED;
@@ -113,61 +121,6 @@ public:
 };
 
 static_assert(sizeof(Result) == 4, "Result class size must be 4 bytes");
-
-
-
-#if 0
-
-enum class Test { };
-
-enum class Type: uint8_t {
-    DATA = 0,
-    SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
-    DELAY_MS,           // Delay in milliseconds
-    DELAY_US,           // Delay in microseconds
-    DELAY_CHAR,         // Delay in characters at the current bitrate
-    ERROR = 0xff,       // Not an event, but an erroro message.
-};
-
-enum class Error: uint8_t {
-    OK = 0,
-    PIPE_EMPTY,
-    PIPE_FULL,
-};
-
-// An event can be raw data or control events. Delta_t is the time since the 
-// last event or 0xffff for time beyond range.
-typedef union {
-    uint32_t value;
-    struct {
-        Type type;
-        uint8_t data;
-        uint16_t delta_t;
-    };
-} Event;
-
-
-static_assert(sizeof(Event) == 4, "Event size must be 4 bytes");
-
-constexpr Type event_type(nd::Event event) { return event.type; }
-constexpr uint8_t event_data(Event event) { return event.data; }
-constexpr uint16_t event_delta_t(Event event) { return event.delta_t; }
-void event_delta_t(Event event, int64_t uSecs);
-constexpr Error event_error(Event event) { 
-    return (event.type==Type::ERROR)?static_cast<Error>(event.data):(Error::OK); }
-
-constexpr Event make_event(Type type, uint8_t data) {
-    return { .type = type, .data = data, .delta_t = 0 };
-}
-Event make_delay(uint32_t delay_us);
-
-uint32_t id_to_bitrate(uint8_t);
-uint8_t bitrate_to_id(uint32_t);
-
-uint32_t fp8_to_uint20(uint8_t id);
-uint8_t uint20_to_fp8(uint32_t us);
-    
-#endif
 
 } // namespace nd
 

@@ -1,4 +1,4 @@
-
+#if 0
 
 // pico_time timestamp to delay serial transmissions
 
@@ -80,18 +80,14 @@ blink_pin_forever(pio, 0, offset, 6, 3);
 #include "hardware/timer.h"
 #include "hardware/clocks.h"
 
-#if 0
 int64_t alarm_callback(alarm_id_t id, void *user_data) {
     // Put your timeout handler code in here
     return 0;
 }
-#endif
 
-#if 0
 // Timer example code - This example fires off the callback after 2000ms
 add_alarm_in_ms(2000, alarm_callback, NULL, false);
 // For more examples of timer use see https://github.com/raspberrypi/pico-examples/tree/master/timer
-#endif
 
 printf("System Clock Frequency is %d Hz\n", clock_get_hz(clk_sys));
 printf("USB Clock Frequency is %d Hz\n", clock_get_hz(clk_usb));
@@ -150,3 +146,5 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, __unused uint16_t langid
     }
 ...
 }
+
+#endif

@@ -16,16 +16,10 @@ public:
     UARTEndpoint(Scheduler &scheduler);
     ~UARTEndpoint();
 
-    Result init() override;
-    Result task() override;
+    Result send(Event) override;
 
-    // -- Pipe Stuff
-    Result send(Event event) override;
-    Result rush(Event event) override;
-
-    // -- UART specific methods
     virtual void set_bitrate(uint32_t bitrate);
-    uint32_t get_bitrate() const;
+    uint32_t bitrate() const;
 };
 
 } // namespace nd

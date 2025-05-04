@@ -17,29 +17,25 @@ UARTEndpoint::~UARTEndpoint() {
     // Destructor implementation
 }
 
-Result UARTEndpoint::init() {
-    // Initialization implementation
-    return Result::OK;
-}
-
-Result UARTEndpoint::task() {
-    // Task implementation
-    return Result::OK;
-}
-
+/**
+ * \brief Handle events that were send via the `in` pipe.
+ */
 Result UARTEndpoint::send(Event event) {
-    return Result::OK;
-}
-
-Result UARTEndpoint::rush(Event event) {
-    return Result::OK;
+    switch (event.type()) {
+        case Event::Type::SET_BITRATE:
+            set_bitrate(event.bitrate());
+            return Result::OK;
+    }
+    return Endpoint::send(event);
 }
 
 // -- UART specific methods
+
 void UARTEndpoint::set_bitrate(uint32_t bitrate) {
     bitrate_ = bitrate;
 }
 
-uint32_t UARTEndpoint::get_bitrate() const {
+uint32_t UARTEndpoint::bitrate() const {
     return bitrate_;
 }
+

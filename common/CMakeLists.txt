@@ -31,6 +31,8 @@ target_sources(newt_dongle
 
         Pipes/BufferedPipe.cpp
         Pipes/BufferedPipe.h
+        Pipes/MNPThrottle.cpp
+        Pipes/MNPThrottle.h
         Pipes/Tee.cpp
         Pipes/Tee.h
 

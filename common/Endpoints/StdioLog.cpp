@@ -50,15 +50,15 @@ Result StdioLog::send(Event event) {
                 putchar(hex_lut[(data >> 4) & 0x0f]);
                 putchar(hex_lut[data & 0x0f]);
             }
-            break; }
+            return Result::OK; }
         case Event::Type::ERROR:
             printf("E[%d]\n", event.data());
-            break;
+            return Result::OK;
         default:
             printf("U[%d]\n", static_cast<int>(event.type()));
             break;
     }
-    return Result::OK;
+    return Endpoint::send(event);
 }
 
 /**
@@ -66,5 +66,5 @@ Result StdioLog::send(Event event) {
  */
 Result StdioLog::rush(Event event) {
     puts("\n!");
-    return send(event);
+    return rush(event);
 }

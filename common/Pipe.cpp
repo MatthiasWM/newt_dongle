@@ -35,7 +35,17 @@ using namespace nd;
 Pipe &Pipe::operator>>(Pipe &pipe) {
     assert(active_); // The output of this pipe is not active. You can't connect a pipe to it.
     out_ = &pipe;
+    pipe.in_ = this;
     return pipe;
+}
+
+/**
+ * @brief Gets the pipe connected to this pipe on the input side.
+ * 
+ * @return Pipe* Pointer to the output pipe, or nullptr if no output is connected
+ */
+Pipe *Pipe::in() const {
+    return in_;
 }
 
 /**
@@ -70,20 +80,32 @@ Result Pipe::send(Event event) {
 }
 
 /**
- * @brief Quickly forwards an event to the pipe's output destination.
+ * @brief Rush an event from `in` to out and give an immediate reply.
  *
  * Rush an event past the queue of events further down the pipeline all the way
  * to the Endpoint. As opposed to `send()`, the return value of this method is 
  * also the immediate reply to the event.
  *
  * @param event The event to be forwarded
- * @return return the result from the output's rush method.
- * @return if no output pipe is connected, delivery was not possible, and we
- *        return Result::REJECTED with the Subtype NOT_CONNECTED.
+ * @return the result from the output's `rush()` method or `OK__NOT_CONNECTED`.
  */
 Result Pipe::rush(Event event) {
     if (out_) {
-        return out_->send(event);
+        return out_->rush(event);
+    } else {
+        return Result::OK__NOT_CONNECTED;
+    }
+}
+
+/**
+ * @brief Rush an event from `out` upstream to `in` and give an immediate reply.
+ *
+ * @param event The event to be forwarded
+ * @return the result from the input's `rush_back()` method or `OK__NOT_CONNECTED`.
+ */
+Result Pipe::rush_back(Event event) {
+    if (in_) {
+        return in_->rush_back(event);
     } else {
         return Result::OK__NOT_CONNECTED;
     }

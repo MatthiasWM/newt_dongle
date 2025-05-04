@@ -130,10 +130,6 @@ Result PicoCDCEndpoint::send(Event event) {
     }
 }
 
-Result PicoCDCEndpoint::rush(Event event) {
-    return UARTEndpoint::rush(event);
-}
-
 void PicoCDCEndpoint::set_bitrate(uint32_t new_bitrate) {
     UARTEndpoint::set_bitrate(new_bitrate);
 }

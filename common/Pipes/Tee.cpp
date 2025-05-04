@@ -8,12 +8,16 @@
 using namespace nd;
 
 /**
+ * @class Tee
  * @brief A pipe splitter that forwards events to two separate pipes
  *
  * The Tee class acts as a T-junction in a pipeline, allowing events to be
  * sent to two different pipes simultaneously. Any event sent through this pipe
  * will be forwarded to both pipe 'out' and pipe 'b'. Rushed events are only  
  * sent to the main pipe.
+ * 
+ * @note rush_back events are only handled from the `out` pipe. The `b` pipe 
+ *       returns OK__NOT_CONNECTED.
  *
  * @see Pipe The parent class that defines the basic pipe interface
  */
@@ -40,14 +44,16 @@ Result Tee::send(Event event) {
 /**
  * @brief Rushes an event through the Tee junction.
  * 
- * Output 'out' is the primary destination. The event is rushed to 'out', but not
- * sent to the secondary destination 'b'.
+ * \see send() for more details.
  * 
  * @param event The event to be rushed through the Tee
  * @return Result Status of the rush operation
  */
 Result Tee::rush(Event event) {
-    if (out() == nullptr)
-        return Result::REJECTED__NOT_CONNECTED;
-    return out()->rush(event);
+    Result r = Result::OK__NOT_CONNECTED;
+    if (out())
+        r = out()->rush(event);
+    if (b.out())
+        b.rush(event);
+    return r;
 }

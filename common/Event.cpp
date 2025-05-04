@@ -70,6 +70,14 @@ uint8_t Event::bitrate_to_id(uint32_t bitrate) {
     }
 }
 
+Event Event::make_delay_event(uint32_t usec) {
+    if (usec > 0xFFFF) {
+        return Event(Type::DELAY, Subtype::MSECS, usec/1000);
+    }
+    return Event(Type::DELAY, Subtype::USECS, usec);
+}
+
+
 /**
  * @brief Result class for operation outcome representation
  * 
@@ -88,6 +96,7 @@ uint8_t Event::bitrate_to_id(uint32_t bitrate) {
  */
 
 Result Result::OK = { Type::OK, 0 };
+Result Result::OK__NOT_HANDLED = { Type::OK, Subtype::NOT_HANDLED };
 Result Result::OK__NOT_CONNECTED = { Type::OK, Subtype::NOT_CONNECTED };
 Result Result::REJECTED = { Type::REJECTED, 0 };
 Result Result::REJECTED__NOT_CONNECTED = { Type::REJECTED, Subtype::NOT_CONNECTED };

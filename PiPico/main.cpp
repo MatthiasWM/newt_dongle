@@ -42,6 +42,7 @@
 #include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
 #include "common/Pipes/BufferedPipe.h"
+#include "common/Pipes/MNPThrottle.h"
 #include "common/Pipes/Tee.h"
 
 #include "pico/stdlib.h"
@@ -50,13 +51,6 @@
 
 void* __dso_handle = nullptr;
 void* _fini = nullptr;
-
-/*
-
-  UART ---------------> UART_Hayes ---> CDC Hayes ---> buffer ---> CDC
-  UART <--- buffer <--- UART_Hayes <--- CDC Hayes <--------------- CDC
-  
- */
 
 // -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
 nd::PicoScheduler scheduler;
@@ -71,6 +65,7 @@ nd::HayesFilter uart_hayes(scheduler);
 nd::HayesFilter cdc_hayes(scheduler);
 
 // -- Instantiate pipes to connect everything.
+nd::MNPThrottle mnp_throttle;
 nd::BufferedPipe buffer_to_cdc(scheduler);
 nd::BufferedPipe buffer_to_uart(scheduler);
 
@@ -79,17 +74,20 @@ int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
 
-    test_sd_card();
+    //test_sd_card();
 
     // -- Connect the Endpoints inside the dongle with pipes.
+    // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC
+    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
+  
     // Connect the UART to USB
-    uart_endpoint >> uart_hayes.downstream; 
-    uart_hayes.upstream >> cdc_hayes.upstream;
-    cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
+    /**/  uart_endpoint >> uart_hayes.downstream; 
+    /**/    uart_hayes.upstream >> cdc_hayes.upstream;
+    /**/      cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
     // Connect USB to the UART
-    cdc_endpoint >> cdc_hayes.downstream; 
-    cdc_hayes.upstream >> uart_hayes.upstream;
-    uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
+    /**/  cdc_endpoint >> cdc_hayes.downstream; 
+    /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
+    /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 
     // -- The scheduler will call all instances of classes that are derived from Task.
     printf("Welcome to NewtDongle!\nInitializing...\n");

@@ -12,6 +12,7 @@
 namespace nd {
 
 class Pipe {
+    Pipe *in_ = nullptr;
     Pipe *out_ = nullptr;
     bool active_ = true;
 protected:
@@ -27,11 +28,13 @@ public:
     // -- Pipe Routing
     Pipe &operator>>(Pipe &pipe);
     void disconnect();
+    Pipe *in() const;
     Pipe *out() const;
 
     // -- Writing to the next pipe
     virtual Result send(Event event);
     virtual Result rush(Event event);
+    virtual Result rush_back(Event event);
 }; 
 
 } // namespace nd
