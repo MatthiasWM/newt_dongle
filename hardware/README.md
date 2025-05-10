@@ -44,6 +44,8 @@ if you can't sodler SMDs, especially the tiny diodes.
 
 ### Preparing the Interconnect Port connector
 
+#### IEEE 1386
+
 The original Interconnect Port connector is no longer manufactured. We are 
 helping ourselves with a havily modified IEEE 1386 connector. One Molex 
 71439-0964 (Mouser 538-71439-0964) yields two Newton connectors.
@@ -55,13 +57,26 @@ should not matter.
 ![Molex Connector](../resources/connector_about.png)
 
 This is the standard Molex IEEE 1386 connector. Remove the metal cap (that's
-only needed for pick'n'place machines) and make sure the pins on the bottom are 
-not bent out of shape.
+only needed for pick'n'place machines) and make sure the pins on the bottom are not bent out of shape.
+
+#### Jigs
+
+After cutting and filing a few connectors by hand, I decided to build jigs that make this work really easy. The STL files to print the jigs are [here](/3d-parts/jigs/). I printed the jigs with a 0.4mm nozzle at 0.2mm layer height.
+
+![Molex Connector](../resources/connector_jigs.png)
+
+#### Prebend
+
+We need to remove 12 pins from the connector. Our [Prebend Jig)[/3d-parts/jigs/Connector_Prebend_Jig.stl] bends those pins that must be removed. Just push the connector all the way into the opening. Use the ejector to remove the connector again.
+
+![Molex Connector](../resources/connector_prebend.png)
+
+The jig will bend the pins that need to be remove up slightly. Take your needle nose pliers out and remove the first pin, the four center pins, and the last pin on each side, so 12 pins alltogether. We should have two groups
+of pins now on either side with 13 pins per row, or 26 pins per group.
+
+![Molex Connector](../resources/connector_pull.png)
 
 TODO: write me!
-- print the jigs
-- prebend
-- pull
 - cut
 - file sides
 - file diagonals
