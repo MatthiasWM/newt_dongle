@@ -22,6 +22,7 @@
  - [ ] Fill in missing documentation
  - [ ] Pipe should be able to handle block data in addition streaming data
  - [ ] Check if we run on the PiPico1 for debugging, or the Dongle
+ - [ ] New project name: Firmware "NewtCOM", hardware "NewtCOM Dongle"
    - GPIO29 IP Used in ADC mode (ADC3) to measure VSYS/3 *CONFLICTS* with HSKO on Dongle!
    - GPIO25 OP Connected to user LED
    - GPIO24 IP VBUS sense - high if VBUS is present, else low (but n.c. on Seeed module!)

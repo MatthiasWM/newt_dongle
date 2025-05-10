@@ -1,7 +1,9 @@
 
-# Newton MessagePad 2x00 and eMate 300 USB Dongle Firmware
+# Newton MessagePad MP2x00 and eMate 300 USB Dongle Firmware
 
 Welcome to the firmware repository for the Newton MessagePad 2x00 and eMate 300 USB dongle! This project brings Apple's iconic 1995 handheld PDA into the modern era by enabling seamless data transfer between the Newton devices and modern computers via a USB-C connection.
+
+More documentation on the [NewtCOM Dongle](hardware/README.txt) currently under development.
 
 ## What Does This Firmware Do?
 

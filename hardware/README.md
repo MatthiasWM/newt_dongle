@@ -1,0 +1,106 @@
+
+# Hardware supported by NewtCOM firmware
+
+As of May 2025, `NewtCOM` supports  the RP2040 base NewtCOM Dongle. 
+
+## The NewtCOM Dongle
+
+The design of the dongle is OpenSource and I encourage anyone with sufficient 
+soldereing skills to build their own dongle. There is a base dongle that 
+converts the Serial Port signals on the Interconnect port to USB-C. Optionally,
+the dongle can convert the 5V form the USB-C to 7V to run the Newton. There
+is also an option for a MicroSD card slot for installing software without
+needing a PC, and eventually for making backups and restoring teh content of 
+the MessagePad or eMate.
+
+So here is how you build one:
+
+Parts:
+
+- Interconnect Port connector (TODO: insert link)
+- RS422 circuit board (TODO: insert link)
+- XIAO RP204 circuit board (TODO: insert link)
+- optional: Pololu DC-DC power converter (TODO: insert link)
+- optional: MicroSD card board (TODO: insert link)
+- various pin headers (TODO: insert link)
+- 3d printed case (TODO: insert link)
+
+Tools:
+
+- Soldering iron and solder wire
+- Hot air gun and SMD solder paste
+- multimeter
+- needle nose pliers
+- wire cutter
+- 3d printed jigs
+
+## Step by step
+
+### Ordering the RS422 circuit board
+
+The PCB design can be dowloaded for [oshwlab.com](https://oshwlab.com/matthiasm/interconnecttousb_copy_copy_copy). The PCB can be manufactured based on these
+files. Some services (I used JLCPCB) offer the complete assembly for a low rate
+if you can't sodler SMDs, especially the tiny diodes.
+
+### Preparing the Interconnect Port connector
+
+TODO: write me!
+- print the jigs
+- prebend
+- pull
+- cut
+- file sides
+- file diagonals
+- final bend of pins
+
+### Soldering the connector
+
+TODO: write me!
+- hot air gun
+- visual test, multimeter test
+
+### Soldering the RS422 board to the RP2040 board
+
+TODO: write me!
+- Solder board to board if no MicroSD board will be mounted
+- Solder with 10mm pins if SD card slot is wanted
+- visual test, multimeter test
+
+### Optional: adding the DC-DC converter
+
+TODO: write me!
+- 3 pin header to PCB, converter hovers under the board
+- visual test, multimeter test
+
+### Optional: adding the MicroSD board
+
+TODO: write me!
+- solder PCB to teh bottom of the module
+- visual test, multimeter test
+
+### Flashing the Firmware
+
+TODO: write me!
+- USB Drive mode
+- drag and drop
+
+### Testing the dongle
+
+TODO: write me!
+- test power from interconnect port
+- test power from USB-C
+- test power to Newton
+- Hayes mode, AT commands
+- practical tests: NCX, Basilisk and NCU
+- practical test SD Card
+
+### Putting everything in a case
+
+TODO: write me!
+- choose a case
+- print the case
+- glue
+
+
+
+

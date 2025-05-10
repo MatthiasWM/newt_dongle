@@ -85,7 +85,8 @@ Result MNPThrottle::send(Event event)
                 if (dbg) printf("CRC ");
                 // Set the delay with a fixed value plus a number of characters at the curren bitrate.
                 // TODO: make those two numbers configurable via Hayes commands.
-                resend_event_ = Event::make_delay_event(200 + ((4 * 1'000'000) / bitrate_) * 10);
+                //resend_event_ = Event::make_delay_event(200 + ((4 * 1'000'000) / bitrate_) * 10);
+                resend_event_ = Event::make_delay_event(400 + ((8 * 1'000'000) / bitrate_) * 10);
                 if (Pipe::send(resend_event_).ok()) {
                     if (dbg) printf("Delay added\n");
                     state_ = State::WAIT_FOR_DLE;
