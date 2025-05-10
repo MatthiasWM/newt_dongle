@@ -31,6 +31,9 @@
 *.out
 *.app
 
+.DS_Store
+**/.DS_Store
+
 # CMake build paths and build components
 
 /Test/build/

@@ -44,6 +44,20 @@ if you can't sodler SMDs, especially the tiny diodes.
 
 ### Preparing the Interconnect Port connector
 
+The original Interconnect Port connector is no longer manufactured. We are 
+helping ourselves with a havily modified IEEE 1386 connector. One Molex 
+71439-0964 (Mouser 538-71439-0964) yields two Newton connectors.
+
+Note that after cutting these to pieces, they wil not be as strong as the 
+originals, and I have not found a way to cut the shielding. For normal use, this
+should not matter.
+
+![Molex Connector](../resources/connector_about.png)
+
+This is the standard Molex IEEE 1386 connector. Remove the metal cap (that's
+only needed for pick'n'place machines) and make sure the pins on the bottom are 
+not bent out of shape.
+
 TODO: write me!
 - print the jigs
 - prebend
