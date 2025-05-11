@@ -54,7 +54,7 @@ Note that after cutting these to pieces, they wil not be as strong as the
 originals, and I have not found a way to cut the shielding. For normal use, this
 should not matter.
 
-![Molex Connector](../resources/connector_about.png)
+<img src="../resources/connector_about.png" width="60%">
 
 This is the standard Molex IEEE 1386 connector. Remove the metal cap (that's
 only needed for pick'n'place machines) and make sure the pins on the bottom are not bent out of shape.
@@ -63,18 +63,18 @@ only needed for pick'n'place machines) and make sure the pins on the bottom are 
 
 After cutting and filing a few connectors by hand, I decided to build jigs that make this work really easy. The STL files to print the jigs are [here](/3d-parts/jigs/). I printed the jigs with a 0.4mm nozzle at 0.2mm layer height.
 
-![Molex Connector](../resources/connector_jigs.png)
+<img src="../resources/connector_jigs.png" width="20%">
 
 #### Prebend
 
 We need to remove 12 pins from the connector. Our (Prebend Jig)[/3d-parts/jigs/Connector_Prebend_Jig.stl] bends those pins that must be removed. Just push the connector all the way into the opening. Use the ejector to remove the connector again.
 
-![Molex Connector](../resources/connector_prebend.png)
+<img src="../resources/connector_prebend.png" width="60%">
 
 The jig will bend the pins that need to be remove up slightly. Take your needle nose pliers out and remove the first pin, the four center pins, and the last pin on each side, so 12 pins alltogether. We should have two groups
 of pins now on either side with 13 pins per row, or 26 pins per group.
 
-<img src="../resources/connector_pull.png" width="60%">+
+<img src="../resources/connector_pull.png" width="60%">
 
 TODO: write me!
 - cut
