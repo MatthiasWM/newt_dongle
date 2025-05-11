@@ -97,7 +97,7 @@ To ensure that the connector is not inserted upside down, the corners on the bot
 
 *Don't* bend any pins.
 
-<img src="../resources/connector_file_corners.png" width="80%">
+<img src="../resources/connector_file_corners.png" width="100%">
 
 The last image show a test fit in a MessagePad. The connector should fit snug, but not stuck. Did I mention to not bend any pins? Well, the top left pin in the photo broke off after being bent one too many times. 
 
@@ -118,6 +118,12 @@ Remove the plunger and grab the two pistons. Without lifting the jig, push the t
 TODO: write me!
 - hot air gun
 - visual test, multimeter test
+
+<img src="../resources/rs422_position.png" width="60%">
+
+<img src="../resources/rs422_solder.png" width="40%">
+
+<img src="../resources/rs422_check.png" width="40%">
 
 ### Soldering the RS422 board to the RP2040 board
 
