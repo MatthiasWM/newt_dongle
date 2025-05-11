@@ -30,8 +30,9 @@ Tools:
 - Soldering iron and solder wire
 - Hot air gun and SMD solder paste
 - multimeter
-- needle nose pliers
-- wire cutter
+- small needle nose pliers
+- small hacksaw
+- electronics wire cutter
 - 3d printed jigs
 
 ## Step by step
@@ -76,11 +77,41 @@ of pins now on either side with 13 pins per row, or 26 pins per group.
 
 <img src="../resources/connector_pull.png" width="60%">
 
-TODO: write me!
-- cut
-- file sides
-- file diagonals
-- final bend of pins
+#### Cut
+
+Use the cutting jig and the small hacksaw to cut the original connector into two new connectors. Three cuts are needed.
+
+<img src="../resources/connector_cut.png" width="60%">
+
+#### File Sides
+
+The Interconnect Port connector must be 15.6mm wide. File the plastic off of our part evenly on both ends until you reach the desired width. The jig can help, but the 3mm bolts must be adjusted to the correct distance.
+
+*Don't* bend any pins.
+
+<img src="../resources/connector_file_sides.png" width="80%">
+
+#### File Corners
+
+To ensure that the connector is not inserted upside down, the corners on the bottom must be filed to 45 degrees. Again, the two jigs for left and right should help. Make sure that you file the corners on the *same* side.
+
+*Don't* bend any pins.
+
+<img src="../resources/connector_file_corners.png" width="80%">
+
+The last image show a test fit in a MessagePad. The connector should fit snug, but not stuck. Did I mention to not bend any pins? Well, the top left pin in the photo broke off after being bent one too many times. 
+
+#### Final Bend
+
+This step is the most difficult one. The connectors tend to break if done incorrectly. So I developed a jig that makes this step much easier. 
+
+Insert teh pulg into the top of the bender. Insert the plunger between the pin rows and push it all the way down.
+
+<img src="../resources/connector_bend.png" width="100%">
+
+Remove the plunger and grab the two pistons. Without lifting the jig, push the two pistons into the side openings (the slant faces down). Remove the plug. The pins are now bent away from the plug without damaging the plug's case. It's ready to be soldered to the RS422 interface board.
+
+<img src="../resources/connector_bend_2.png" width="60%">
 
 ### Soldering the connector
 
