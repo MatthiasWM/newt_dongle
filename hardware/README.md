@@ -99,7 +99,7 @@ To ensure that the connector is not inserted upside down, the corners on the bot
 
 <img src="../resources/connector_file_corners.png" width="100%">
 
-The last image show a test fit in a MessagePad. The connector should fit snug, but not stuck. Did I mention to not bend any pins? Well, the top left pin in the photo broke off after being bent one too many times. 
+The last image show a test fit in a MessagePad. The connector should fit snug, but not stuck. Did I mention to not bend any pins? Well, if you did, and you did bend them back too many times, they probably broke off by now. Throw away the connector and try again.. 
 
 #### Final Bend
 
