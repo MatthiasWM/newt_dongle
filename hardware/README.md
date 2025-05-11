@@ -74,7 +74,7 @@ We need to remove 12 pins from the connector. Our (Prebend Jig)[/3d-parts/jigs/C
 The jig will bend the pins that need to be remove up slightly. Take your needle nose pliers out and remove the first pin, the four center pins, and the last pin on each side, so 12 pins alltogether. We should have two groups
 of pins now on either side with 13 pins per row, or 26 pins per group.
 
-![Molex Connector](../resources/connector_pull.png)
+<img src="../resources/connector_pull.png" width="60%">+
 
 TODO: write me!
 - cut
