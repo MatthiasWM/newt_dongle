@@ -115,13 +115,21 @@ Remove the plunger and grab the two pistons. Without lifting the jig, push the t
 
 ### Soldering the connector
 
-TODO: write me!
-- hot air gun
-- visual test, multimeter test
+Position the connector correctly on the RS422 board. The first two images show the *bottom* of the board. Make sure that the 45 degree corners are on the *bottom* side of the PCB. The third image show the *top* of the PCB with no parts on it. The connector must have the 90 degree corners on the top!
+
+Look at the PCB from the side: the connector must be straight with the PCB, not pointing up or down.
 
 <img src="../resources/rs422_position.png" width="60%">
 
+Soldering is easy with some fresh solder paste and a hot air gun. Just add a small bead and heat one side of the connector until the solder balls disappear and teh solder is shiny. The pin distance it 1mm. It's also relatively easy to solder this with a regular soldering iron, flux, and a fine tip.
+
+Did you solder the connector on the right way? Did you make sure the 45 degree corners are on the side where the parts are?
+
 <img src="../resources/rs422_solder.png" width="40%">
+
+Let's do a mechanical check first. Here we see the RS422 board plugged into my MessagePad (it's a very roughly used MP, sorry for the scratches). The left photo show the top view, the right photo is taken from the bottom.
+
+If you are unsure about your soldering, use a multimeter to check for shorts between pins.  Pin 15 and 16 are connected and will show a short circuot correctly. The remaining neighbors should show a high resistance.
 
 <img src="../resources/rs422_check.png" width="40%">
 
