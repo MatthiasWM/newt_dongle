@@ -67,7 +67,7 @@ After cutting and filing a few connectors by hand, I decided to build jigs that 
 
 #### Prebend
 
-We need to remove 12 pins from the connector. Our [Prebend Jig)[/3d-parts/jigs/Connector_Prebend_Jig.stl] bends those pins that must be removed. Just push the connector all the way into the opening. Use the ejector to remove the connector again.
+We need to remove 12 pins from the connector. Our (Prebend Jig)[/3d-parts/jigs/Connector_Prebend_Jig.stl] bends those pins that must be removed. Just push the connector all the way into the opening. Use the ejector to remove the connector again.
 
 ![Molex Connector](../resources/connector_prebend.png)
 
