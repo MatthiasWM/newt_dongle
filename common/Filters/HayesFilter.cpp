@@ -6,8 +6,10 @@
 #include "HayesFilter.h"
 
 #include "common/Scheduler.h"
+#include "common/Endpoints/SDCardEndpoint.h"
 
 #include <stdio.h>
+#include <cstring>
 
 using namespace nd;
 
@@ -265,7 +267,7 @@ void HayesFilter::send_ERROR() {
  */
 void HayesFilter::run_cmd_line() {
     const char *cmd = &cmd_[2];
-    while (cmd && *cmd) {
+    while (cmd) {
         cmd = run_next_cmd(cmd);
     }
 }
@@ -280,6 +282,9 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
     char c = *cmd++;
     if (c>32 && c<127) c = toupper(c);
     switch (c) {
+        case 0: // End of command line.
+            send_OK();
+            return nullptr;
         case 'D': // The remainder of the command line is a phone number.
             cmd = nullptr; // Skip the rest of the command line.
             send_ERROR();
@@ -308,10 +313,49 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
         // &Yn: reset to profile
         // &V: show current profile
         // %E0: Escape method ("+++", break, DTR?, etc.)
+        case '[': 
+            return run_sdcard_cmd(cmd);
         default:
             send_ERROR();
             return nullptr;
     }
     send_OK();
     return cmd;
+}
+
+
+void HayesFilter::link(SDCardEndpoint *sdcard) {
+    sdcard_ = sdcard;
+}
+
+const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
+    if ((strncasecmp(cmd, "DS", 2) == 0) || (strncasecmp(cmd, "DI", 2) == 0)) { // disk status
+        auto status = 0;
+        if (strncasecmp(cmd, "DS", 2) == 0)
+            status = sdcard_->disk_status();
+        else
+            status = sdcard_->disk_initialize();
+        bool pad = false;
+        if (status | 1) { send_string("NOINIT"); pad = true; }
+        if (status | 2) { if (pad) send_string(" "); send_string("NODISK"); pad = true; }
+        if (status | 4) { if (pad) send_string(" "); send_string("PROTECT"); pad = true; }
+        if (pad) send_string("\r\n");
+        return cmd + 2;
+    }
+    if (strncasecmp(cmd, "GL", 2) == 0) { // Get Label
+        char label[36]; label[0] = 0;
+        auto err = sdcard_->get_label(label);
+        if (err) {
+            send_string(sdcard_->strerr(err));
+            send_string("\r\n");
+            send_ERROR();
+            return nullptr;
+        }
+        send_string("\"");
+        send_string(label);
+        send_string("\"\r\n");
+        return cmd + 2;
+    }
+    send_ERROR();
+    return nullptr;
 }

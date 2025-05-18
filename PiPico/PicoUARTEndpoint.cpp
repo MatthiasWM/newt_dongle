@@ -4,6 +4,8 @@
 //
 
 #include "PicoUARTEndpoint.h"
+
+#include "main.h"
 #include "common/Pipe.h"
 #include "common/Scheduler.h"
 
@@ -12,6 +14,8 @@
 #include "pico/time.h"
 
 #include <stdio.h>
+
+constexpr bool log_uart = false;
 
 // UART defines
 // By default the stdout UART is `uart0`, so we will use the second one
@@ -25,8 +29,11 @@
 #define UART_TX_PIN 0
 #define UART_RX_PIN 1
 #define UART_HSKI_PIN 28
-#define UART_HSKO_PIN 22
-//#define UART_HSKO_PIN 29
+
+// Define this for the PiPico board
+// #define UART_HSKO_PIN 22
+// Define this for the XIAO board
+#define UART_HSKO_PIN 29
 
 // \todo Hardware flow control: void uart_set_hw_flow (uart_inst_t * uart, bool cts, bool rts)
 // Built-in hardware flow control is on ports 2 and 3, but we use those for SPI.
@@ -88,6 +95,7 @@ Result PicoUARTEndpoint::task() {
             return Result::OK;
         else
             event_pending_ = false;
+        if (log_uart) Log.log(pending_event_, 0);
     }
     if (uart_is_readable(UART_ID)) {
         uint8_t c = uart_getc(UART_ID);
@@ -98,6 +106,7 @@ Result PicoUARTEndpoint::task() {
             pending_event_ = event;
             return Result::OK;
         }
+        if (log_uart) Log.log(event, 0);
     }
     return Result::OK;
 }
@@ -134,12 +143,14 @@ Result PicoUARTEndpoint::send(Event event) {
             bool cts = gpio_get(UART_HSKO_PIN);
             if (cts && uart_is_writable(UART_ID)) {
                 uart_putc_raw(UART_ID, event.data());
+                if (log_uart) Log.log(event, 1);
                 return Result::OK;
             } else {
                 return Result::REJECTED;
             }
         }
     }
+    if (log_uart) Log.log(event, 1);
     return UARTEndpoint::send(event);
 }
 

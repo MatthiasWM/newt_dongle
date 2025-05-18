@@ -18,6 +18,14 @@ To return to **data mode**, type `ATO⮐`.
 | `ATO`   | Switch back to data mode             |
 | `ATI`   | Display device information           |
 
+### SD Card debugging Commands
+
+| Command    | Description                                      |
+|------------|--------------------------------------------------|
+| `AT[DS`    | Disk Status (NOINIT, NODISK, PROTECT)            |
+| `AT[DI`    | Disk Initialize (NOINIT, NODISK, PROTECT)        |
+| `AT[GL`    | Get Label                                        |
+
 ### Commands in Development
 
 | Command    | Description                                      |

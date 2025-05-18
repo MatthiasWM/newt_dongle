@@ -12,6 +12,8 @@
 
 namespace nd {
 
+class SDCardEndpoint;
+
 class HayesFilter: public Task {
     class UpstreamPipe: public Pipe {
     public:
@@ -30,6 +32,7 @@ class HayesFilter: public Task {
     uint32_t command_mode_timeout_ = 0;
     std::string cmd_;
     bool cmd_ready_ = false;
+    SDCardEndpoint *sdcard_ = nullptr;
 
     void send_string(const char *str);
 
@@ -49,10 +52,13 @@ public:
 
     void run_cmd_line();
     const char *run_next_cmd(const char *cmd);
+    const char *run_sdcard_cmd(const char *cmd);
 
     void send_OK();
     void send_CONNECT();
     void send_ERROR();
+
+    void link(SDCardEndpoint *sdcard);
 };
 
 } // namespace nd

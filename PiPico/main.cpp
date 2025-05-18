@@ -26,12 +26,11 @@
 //  UART ---> BufferPipe ----> CDC
 //  UART <--- BufferPipe <---- CDC
 
-// TODO: add mnp throttle filter
-// TODO: add Hayes filter
 // TODO: add three way switch and SDCard access
 
 
 #include "PicoStdioLog.h"
+#include "PicoAsyncLog.h"
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "PicoScheduler.h"
@@ -49,8 +48,10 @@
 
 #include <stdio.h>
 
-void* __dso_handle = nullptr;
-void* _fini = nullptr;
+// void* __dso_handle = nullptr;
+// void* _fini = nullptr;
+
+nd::PicoAsyncLog Log(0);
 
 // -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
 nd::PicoScheduler scheduler;
@@ -59,6 +60,7 @@ nd::PicoSystemTask system_task(scheduler);
 // -- Instantiate all the endpoints we need.
 nd::PicoUARTEndpoint uart_endpoint { scheduler };
 nd::PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
+nd::PicoSDCardEndpoint sdcard_endpoint { scheduler };
 
 // -- Instantiate filters and loggers.
 nd::HayesFilter uart_hayes(scheduler);
@@ -74,12 +76,19 @@ int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
 
+    //Log.log("Starting...\n");
     //test_sd_card();
 
     // -- Connect the Endpoints inside the dongle with pipes.
     // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
-  
+    
+    // -- Goal:
+    // UART ---------------> UART_Hayes --------------------> Dock ---> CDC Hayes ---> buffer ---> CDC
+    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Dock <--- CDC Hayes <--------------- CDC
+    //                                                         ↑↓
+    //                                                       SDCard    
+
     // Connect the UART to USB
     /**/  uart_endpoint >> uart_hayes.downstream; 
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
@@ -89,12 +98,16 @@ int main(int argc, char *argv[])
     /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 
+    // -- Give both serial ports access to the SD Card (currently for debugging only)
+    uart_hayes.link(&sdcard_endpoint);
+    cdc_hayes.link(&sdcard_endpoint);
+
     // -- The scheduler will call all instances of classes that are derived from Task.
-    printf("Welcome to NewtDongle!\nInitializing...\n");
+    //printf("Welcome to NewtDongle!\nInitializing...\n");
     scheduler.init();
 
     // -- Now we can start the scheduler. It will call all spokes in a loop.
-    printf("Running...\n");
+    //printf("Running...\n");
     scheduler.run();
 
     // -- Never reached.

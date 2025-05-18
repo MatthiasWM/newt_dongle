@@ -3,6 +3,8 @@
 
 As of May 2025, `NewtCOM` supports  the RP2040 base NewtCOM Dongle. 
 
+<img src="../resources/prototypes.png" width="20%">
+
 ## The NewtCOM Dongle
 
 The design of the dongle is OpenSource and I encourage anyone with sufficient 

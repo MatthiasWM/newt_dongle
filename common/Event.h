@@ -17,6 +17,7 @@ public:
     enum class Type: uint8_t {
         NIL = 0,
         DATA,
+        TEXT,
         SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
         DELAY,              // Delay transmission of data for the given time.
         HIGH_WATER,         // Receiving endpoint buffer about to flood.
@@ -69,6 +70,8 @@ public:
     void subtype(Subtype c) { subtype_ = c; }
     uint32_t data() const { return data_; }
     void data(uint32_t d) { data_ = d; }
+    uint32_t raw() const { return event_; }
+    void raw(uint32_t r) { event_ = r; }
 };
 
 static_assert(sizeof(Event) == 4, "Event class size must be 4 bytes");
@@ -115,6 +118,8 @@ public:
     void subtype(Subtype c) { subtype_ = c; }
     uint32_t data() const { return data_; }
     void data(uint32_t d) { data_ = d; }
+    uint32_t raw() const { return result_; }
+    void raw(uint32_t r) { result_ = r; }
 
     bool ok() const { return type_ == Type::OK; }
     bool rejected() const { return type_ == Type::REJECTED; }

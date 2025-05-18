@@ -1,6 +1,13 @@
-
+//
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Matthias Melcher, robowerk.de
+//
 
 #include "PicoSDCard.h"
+
+#include "main.h"
+#include "common/Pipe.h"
+#include "common/Scheduler.h"
 
 #include "f_util.h"
 #include "ff.h"
@@ -9,12 +16,55 @@
 #include "sd_card.h"
 #include "hw_config.h"
 #include "diskio.h"
+#include "pico/time.h"
 
 #include <stdio.h>
 
+using namespace nd;
+
+constexpr bool log_sdcard = false;
+
+/*
+ SD Card operations can be quite time consuming while serial data is pounding
+ our CPU. To avoid interrupting the serial data stream, we will handle all slow 
+ devices using the second core of the RP2040.
+
+ Don't use multicore_fifo - it's only 8 words anyway
+ Use multicore_doorbell to wake up the other core via IRQ. So the other core can sleep.
+
+
+ https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_pico_multicore
+
+ target_link_libraries(... pico_multicore)
+
+ #include "pico/multicore.h"
+
+ void core1_entry() {
+    while(1) {
+        
+    }
+ }
+ multicore_launch_core1(core1_entry);
+
+
+ Multicore IRQ safe queue:
+
+ https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_queue
+
+
+ // the Chip Select (CS) line can be used for Card Detection: "At power up this 
+ line has a 50KOhm pull up enabled in the card... For Card detection, the host 
+ detects that the line is pulled high."
+ 
+ disk_status and FatFS functions:
+ https://elm-chan.org/fsw/ff/00index_e.html
+
+Also please explicitly set the configuration that we really want:
+https://elm-chan.org/fsw/ff/doc/config.html
+ */
+
 // Hardware Configuration of SPI "objects"
-// Note: multiple SD cards can be driven by one SPI if they use different slave
-// selects.
+
 
 // MOSI D10  P3
 // MISO  D9  P4
@@ -72,6 +122,9 @@ void test_sd_card() {
     printf("Testing SD card...\n");
 
     sd_card_t *pSD = sd_get_by_num(0);
+
+    DSTATUS status = disk_status(0);
+
     FRESULT fr = f_mount(&pSD->fatfs, pSD->pcName, 1);
     if (FR_OK != fr) panic("f_mount error: %s (%d)\n", FRESULT_str(fr), fr);
     FIL fil;
@@ -92,3 +145,89 @@ void test_sd_card() {
  
 
 }
+
+
+
+PicoSDCardEndpoint::PicoSDCardEndpoint(Scheduler &scheduler)
+:   SDCardEndpoint(scheduler)
+{
+    time_init();
+    sd_card_ = sd_get_by_num(0);
+}
+
+PicoSDCardEndpoint::~PicoSDCardEndpoint() {
+}
+
+Result PicoSDCardEndpoint::init() 
+{
+    return SDCardEndpoint::init();
+}
+
+Result PicoSDCardEndpoint::task() {
+    return SDCardEndpoint::task();
+}
+
+Result PicoSDCardEndpoint::send(Event event) {
+    switch (event.type()) {
+        case Event::Type::DATA: {
+        }
+    }
+    if (log_sdcard) Log.log(event, 1);
+    return SDCardEndpoint::send(event);
+}
+
+
+const char *PicoSDCardEndpoint::strerr(uint32_t err) {
+    switch (err) {
+        case FR_OK: return "OK";
+        case FR_DISK_ERR: return "DISK_ERR";
+        case FR_INT_ERR: return "INT_ERR";
+        case FR_NOT_READY: return "NOT_READY";
+        case FR_NO_FILE: return "NO_FILE";
+        case FR_NO_PATH: return "NO_PATH";
+        case FR_INVALID_NAME: return "INVALID_NAME";
+        case FR_DENIED: return "DENIED";
+        case FR_EXIST: return "EXIST";
+        case FR_INVALID_OBJECT: return "INVALID_OBJECT";
+        case FR_WRITE_PROTECTED: return "WRITE_PROTECTED";
+        case FR_INVALID_DRIVE: return "INVALID_DRIVE";
+        case FR_NOT_ENABLED: return "NOT_ENABLED";
+        case FR_NO_FILESYSTEM: return "NO_FILESYSTEM";
+        case FR_MKFS_ABORTED: return "MKFS_ABORTED";
+        case FR_TIMEOUT: return "TIMEOUT";
+        case FR_LOCKED: return "LOCKED";
+        case FR_NOT_ENOUGH_CORE: return "NOT_ENOUGH_CORE";
+        case FR_TOO_MANY_OPEN_FILES: return "TOO_MANY_OPEN_FILES";
+        case FR_INVALID_PARAMETER: return "INVALID_PARAMETER";
+    }
+    return "UNKNOWN";
+}
+
+uint32_t PicoSDCardEndpoint::disk_status() {
+    DSTATUS status = ::disk_status(0);
+    uint32_t ret = 0;
+    if (status & STA_NOINIT) ret |= 1;
+    if (status & STA_NODISK) ret |= 2;
+    if (status & STA_PROTECT) ret |= 4;
+    return ret;
+}
+
+uint32_t PicoSDCardEndpoint::disk_initialize() {
+    DSTATUS status = ::disk_initialize(0);
+    uint32_t ret = 0;
+    if (status & STA_NOINIT) ret |= 1;
+    if (status & STA_NODISK) ret |= 2;
+    if (status & STA_PROTECT) ret |= 4;
+    return ret;
+}
+
+uint32_t PicoSDCardEndpoint::get_label(char *label_buffer) {
+    FRESULT fr = f_mount(&fat_fs_, "", 1);
+    if (fr==FR_OK)
+        fr = f_getlabel("", label_buffer, NULL);
+    f_unmount("");
+    return fr;
+}
+// vim: set sw=4 ts=4 et:
+
+
