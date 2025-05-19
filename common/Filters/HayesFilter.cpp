@@ -13,9 +13,6 @@
 
 using namespace nd;
 
-constexpr uint32_t kCommandModeTimeout = 1'000'000;
-constexpr uint32_t kCommandModePause = 1'000'000;
-
 /**
  * \brief Create a new Hayes filter.
  * 
@@ -72,7 +69,7 @@ Result HayesFilter::task() {
     if (data_mode_) {
         switch (command_mode_progress_) {
             case 0: // waiting for the first pause
-                if (command_mode_timeout_ > kCommandModePause) {
+                if (command_mode_timeout_ > esc_code_guard_timeout_) {
                     command_mode_progress_ = 1;
                     command_mode_timeout_ = 0;
                     //printf("**** HayesFilter task: 0 -> 1 (Good: no character for a while)\n");
@@ -81,7 +78,7 @@ Result HayesFilter::task() {
             case 1: // waiting for the first '+'
                 break;
             case 2: // waiting for the second '+'
-                if (command_mode_timeout_ > kCommandModeTimeout) {
+                if (command_mode_timeout_ > esc_code_guard_timeout_) {
                     //printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
                     command_mode_timeout_ = 0;
                     command_mode_progress_ = 0;
@@ -89,7 +86,7 @@ Result HayesFilter::task() {
                 }
                 break;
             case 3: // waiting for the third '+'
-                if (command_mode_timeout_ > kCommandModeTimeout) {
+                if (command_mode_timeout_ > esc_code_guard_timeout_) {
                     //printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
                     command_mode_timeout_ = 0;
                     command_mode_progress_ = 0;
@@ -98,22 +95,13 @@ Result HayesFilter::task() {
                 }
                 break;
             case 4: // waiting for the last pause
-                if (command_mode_timeout_ > kCommandModePause) {
+                if (command_mode_timeout_ > esc_code_guard_timeout_) {
                     command_mode_progress_ = 0;
                     //printf("**** HayesFilter task: COMMAND MODE (Good: no character for a while)\n");
                     switch_to_command_mode();
                     return Result::OK;        
                 }
                 break;
-        }
-    } else {
-        // In command mode, we need to check for the "ATO" command.
-        if (cmd_ready_) {
-            cmd_ready_ = false;
-            if ( ( (cmd_[0]=='A') || (cmd_[0]=='a') ) && ( ((cmd_[1]=='T') || cmd_[1]=='t') ) ) {
-                run_cmd_line();
-            }
-            cmd_.clear();
         }
     }
     
@@ -208,16 +196,6 @@ Result HayesFilter::downstream_send(Event event)
         }
     }
 
-    // If the downstream pipe is not connected, we can't do anything.
-    // Simplified mode change:
-    if (event.type() == Event::Type::DATA) {
-        uint8_t c = event.data();
-        if ((data_mode_ == false) && (c == '-')) {
-            switch_to_data_mode();
-            return Result::OK;
-        }
-    }
-
     if (data_mode_) {
         // Forward the events up stream.
         if (!up)
@@ -227,17 +205,66 @@ Result HayesFilter::downstream_send(Event event)
         // For now, we just echo the events.
         if (!down)
             return Result::OK__NOT_CONNECTED;
-        if (event.is_data() && (cmd_.length() < 255)) {
+        if (event.is_data()) {
             uint8_t c = event.data();
             if (c == '\r') {
-            } else if (c == '\n') {
+                // Some treminals send only a CR (PT100), so use this to launch the command.
                 cmd_ready_ = true;
-            } else {
+                cr_rcvd_ = true;
+                // We always send a CRLF to the downstream pipe.
+                down->send('\r');
+                event = '\n';
+            } else if (c == '\n') {
+                // Some terminals send LF (Unix) and some send CRLF (Windows).
+                if (cr_rcvd_) {
+                    // CR already triggered the command, so ignore the LF.
+                    cr_rcvd_ = false;
+                    return Result::OK;
+                } else {
+                    // We have a LF without a CR. This is a command line.
+                    cmd_ready_ = true;
+                    // We always send a CRLF to the downstream pipe.
+                    down->send('\r');
+                    // Fall through to send the LF.
+                }
+            } else if (c == 127) { // Backspace (or 8)
+                // Remove the last character from the command line.
+                if (cmd_.length() > 0) {
+                    Result res = down->send_text("\x1b[1D \x1b[1D"); // Move cursor left
+                    cmd_.pop_back();
+                    return res;
+                }
+            } else if (c == 27) { // Escape
+                // Escape pressed. Clear the buffer and start a nuw line.
+                cmd_.clear();
+                down->send('\r');
+                return down->send('\n');
+            } else if ((c == '/') && (cmd_.length() == 1) && ((cmd_[0] == 'A') || (cmd_[0] == 'a'))) {
+                // "A/" repeats the last command. It does not need CR/LF
+                cmd_ = prev_cmd_;
+                cmd_ready_ = true;
+                down->send(event);
+                down->send('\r');
+                event = '\n';
+            } else if (cmd_.length() < 255) {
+                // Add the character to the command line.
+                // We could check for printable characters here.
                 cmd_.push_back(c);
+            } else {
+                // Command line too long. Send a bell.
+                event = '\a'; // Bell
             }
-            // TODO: if we want to allow "A/", we need to check for that here.
         }
-        return down->send(event);   
+        auto ret = down->send(event);
+        if (cmd_ready_) {
+            cmd_ready_ = false;
+            if ( ( (cmd_[0]=='A') || (cmd_[0]=='a') ) && ( ((cmd_[1]=='T') || cmd_[1]=='t') ) ) {
+                run_cmd_line();
+            }
+            prev_cmd_ = cmd_;
+            cmd_.clear();
+        }
+        return ret;
     }
 }
 
@@ -280,6 +307,7 @@ void HayesFilter::run_cmd_line() {
 // ATD*99# : Dial Access Point
 const char *HayesFilter::run_next_cmd(const char *cmd) {
     char c = *cmd++;
+    int a = -1, v = -1;
     if (c>32 && c<127) c = toupper(c);
     switch (c) {
         case 0: // End of command line.
@@ -290,21 +318,54 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
             send_ERROR();
             return nullptr;
         case 'I':
-            // TODO: read_int() and output the corresponding string
+            read_int(&cmd); // We can add various info strings here, depending of the command argument.
             send_string("NewtDongle V0.0.2\r\n");
             break;
         case 'O':
             switch_to_data_mode();
             return nullptr; // Nothing to be done after going online.
-        //case 'S':
-        // ATS : set current register, ATS? return value fo current register
-        // ATS3=5 : set register 3 to value 5, ATS3? return value of register 3
-        // ATS=3 : set current register to value 3
-        // S2: escape character ("+")
-        // S3: carriage return (13)
-        // S4: line feed (10)
-        // S12: escape code guard time (1/50th of a second)
+        case 'S':
+            if (*cmd >= '0' && *cmd <= '9') {
+                current_register_ = read_int(&cmd);
+            }
+            if (*cmd == '=') {
+                cmd++;
+                if (!set_register(current_register_,read_int(&cmd))) {
+                    send_ERROR();
+                    return nullptr;
+                }
+                return cmd;
+            }
+            if (*cmd == '?') {
+                cmd++;
+                char buf[16];
+                itoa(get_register(current_register_), buf, 10);
+                send_string(buf);
+                send_string("\r\n");
+                return cmd;
+            }
+            // ATS : set current register, ATS? return value fo current register
+            // ATS3=5 : set register 3 to value 5, ATS3? return value of register 3
+            // ATS=3 : set current register to value 3
+            // S2: escape character ("+")
+            // S3: carriage return (13)
+            // S4: line feed (10)
         // Z: Reset
+        case '&':
+            return run_ampersand_cmd(cmd);
+        case '[': 
+            return run_sdcard_cmd(cmd);
+        default:
+            send_ERROR();
+            return nullptr;
+    }
+    return cmd;
+}
+
+const char *HayesFilter::run_ampersand_cmd(const char *cmd) {
+    char c = *cmd++;
+    if (c>32 && c<127) c = toupper(c);
+    switch (c) {
         // &D1: DTR signal (0=on, 1=off) etc.
         // &F0: factory reset
         // &K0: flow control (0=none, 1=hardware, 2=software)
@@ -313,14 +374,11 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
         // &Yn: reset to profile
         // &V: show current profile
         // %E0: Escape method ("+++", break, DTR?, etc.)
-        case '[': 
-            return run_sdcard_cmd(cmd);
-        default:
+        case 0:  // End of command line.
+        default: // Unknown command AT&...
             send_ERROR();
-            return nullptr;
+            return nullptr; 
     }
-    send_OK();
-    return cmd;
 }
 
 
@@ -358,4 +416,33 @@ const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
     }
     send_ERROR();
     return nullptr;
+}
+
+uint32_t HayesFilter::read_int(const char **cmd) {
+    uint32_t value = 0;
+    while (**cmd >= '0' && **cmd <= '9') {
+        value = value * 10 + (**cmd - '0');
+        (*cmd)++;
+    }
+    return value;
+}
+
+bool HayesFilter::set_register(uint32_t reg, uint32_t value) {
+    switch (reg) {
+        case 12: // S12: escape code guard time (1/50th of a second)
+            esc_code_guard_time_ = value;
+            esc_code_guard_timeout_ = value * 20'000; // 20ms per 1/50th of a second
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+uint32_t HayesFilter::get_register(uint32_t reg) const {
+    switch (reg) {
+        case 12: // S12: escape code guard time (1/50th of a second)
+            return esc_code_guard_time_;
+    }
+    return 0;
 }

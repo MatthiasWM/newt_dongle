@@ -111,3 +111,24 @@ Result Pipe::rush_back(Event event) {
     }
 }
 
+/**
+ * @brief Send a string of text to the next pipe in the pipeline.
+ * 
+ * This method sends a string of characters to the next pipe in the pipeline.
+ * It is a convenience method that calls `send()` for each character in the string.
+ * 
+ * @param str The string to be sent
+ */
+Result Pipe::send_text(const char* str) {
+    if (!out_) 
+        return Result::OK__NOT_CONNECTED;
+    if (!str || !*str) 
+        return Result::OK;
+
+    Result res = Result::OK;
+    while (*str) {
+        res = send(Event(*str++));
+        if (!res.ok()) return res;
+    }
+    return res;
+}   

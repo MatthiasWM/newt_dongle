@@ -30,8 +30,13 @@ class HayesFilter: public Task {
     bool data_mode_ = true;
     uint8_t command_mode_progress_ = 0;
     uint32_t command_mode_timeout_ = 0;
-    std::string cmd_;
+    std::string cmd_, prev_cmd_;
     bool cmd_ready_ = false;
+    bool cr_rcvd_ = false;
+    uint32_t current_register_ = 0;
+    uint32_t esc_code_guard_time_ = 50; // Register S12, time in 50ths of a second
+    uint32_t esc_code_guard_timeout_ = 1'000'000; // 1 second
+
     SDCardEndpoint *sdcard_ = nullptr;
 
     void send_string(const char *str);
@@ -52,13 +57,18 @@ public:
 
     void run_cmd_line();
     const char *run_next_cmd(const char *cmd);
+    const char *run_ampersand_cmd(const char *cmd);
     const char *run_sdcard_cmd(const char *cmd);
+    uint32_t read_int(const char **cmd);
 
     void send_OK();
     void send_CONNECT();
     void send_ERROR();
 
     void link(SDCardEndpoint *sdcard);
+
+    bool set_register(uint32_t reg, uint32_t value);
+    uint32_t get_register(uint32_t reg) const;
 };
 
 } // namespace nd

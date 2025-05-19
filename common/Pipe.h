@@ -35,6 +35,8 @@ public:
     virtual Result send(Event event);
     virtual Result rush(Event event);
     virtual Result rush_back(Event event);
+
+    Result send_text(const char*);
 }; 
 
 } // namespace nd
