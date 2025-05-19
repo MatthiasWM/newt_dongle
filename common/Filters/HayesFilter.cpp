@@ -7,6 +7,7 @@
 
 #include "common/Scheduler.h"
 #include "common/Endpoints/SDCardEndpoint.h"
+#include "common/Pipes/MNPThrottle.h"
 
 #include <stdio.h>
 #include <cstring>
@@ -433,6 +434,12 @@ bool HayesFilter::set_register(uint32_t reg, uint32_t value) {
             esc_code_guard_time_ = value;
             esc_code_guard_timeout_ = value * 20'000; // 20ms per 1/50th of a second
             break;
+        case 300: // ATS300: absolute throttle delay in microseconds
+            MNPThrottle::reg_absolute_delay = value;
+            break;
+        case 301: // ATS301: relative MNP throttle delay in characters
+            MNPThrottle::reg_num_char_delay = value;
+            break;
         default:
             return false;
     }
@@ -443,6 +450,10 @@ uint32_t HayesFilter::get_register(uint32_t reg) const {
     switch (reg) {
         case 12: // S12: escape code guard time (1/50th of a second)
             return esc_code_guard_time_;
+        case 300: // ATS300: absolute throttle delay in microseconds
+            return MNPThrottle::reg_absolute_delay;
+        case 301: // ATS301: relative MNP throttle delay in characters
+            return MNPThrottle::reg_num_char_delay;
     }
     return 0;
 }

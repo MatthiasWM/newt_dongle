@@ -40,6 +40,10 @@ constexpr uint8_t kETX = 0x03;
 
 constexpr bool dbg = false;
 
+uint32_t MNPThrottle::reg_absolute_delay = 400;
+uint32_t MNPThrottle::reg_num_char_delay = 8;
+
+
 Result MNPThrottle::send(Event event) 
 {
     if (state_ == State::RESEND_DELAY) {
@@ -84,9 +88,9 @@ Result MNPThrottle::send(Event event)
             case State::WAIT_FOR_CRC_hi:
                 if (dbg) printf("CRC ");
                 // Set the delay with a fixed value plus a number of characters at the curren bitrate.
-                // TODO: make those two numbers configurable via Hayes commands.
-                //resend_event_ = Event::make_delay_event(200 + ((4 * 1'000'000) / bitrate_) * 10);
-                resend_event_ = Event::make_delay_event(400 + ((8 * 1'000'000) / bitrate_) * 10);
+                // Hayes `ATS300`: absolute throttle delay in microseconds
+                // Hayes `ATS301`: relative MNP throttle delay in characters
+                resend_event_ = Event::make_delay_event(reg_absolute_delay + ((reg_num_char_delay * 1'000'000) / bitrate_) * 10);
                 if (Pipe::send(resend_event_).ok()) {
                     if (dbg) printf("Delay added\n");
                     state_ = State::WAIT_FOR_DLE;

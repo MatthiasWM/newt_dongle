@@ -18,6 +18,15 @@ To return to **data mode**, type `ATO⮐`.
 | `ATO`   | Switch back to data mode             |
 | `ATI`   | Display device information           |
 
+## Setting and reading Registers
+
+| Command  | Description                                 |
+|----------|---------------------------------------------|
+| `ATS12`  | escape code guard time (1/50th of a second) |
+| `ATS300` | absolute MNP throttle delay in microseconds |
+| `ATS301` | relative MNP throttle delay in characters   |
+
+
 ### SD Card debugging Commands
 
 | Command    | Description                                      |

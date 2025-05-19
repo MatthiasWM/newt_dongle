@@ -28,6 +28,9 @@ public:
     ~MNPThrottle() override = default;
 
     Result send(Event event) override;
+
+    static uint32_t reg_absolute_delay;
+    static uint32_t reg_num_char_delay;
 }; 
 
 
