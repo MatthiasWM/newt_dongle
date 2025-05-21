@@ -39,7 +39,7 @@
 
 # CMake build paths and build components
 
-/Firmware/Test/build/
+/Firmware/CommandLine/build/
 /Firmware/PiPico/build/
 /Firmware/NewtCOM/build/
 
