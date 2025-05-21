@@ -19,4 +19,6 @@ target_sources(newt_dongle
         PicoSDCard.h
         PicoSystem.cpp
         PicoSystem.h
+        PicoUserSettings.cpp
+        PicoUserSettings.h
 )

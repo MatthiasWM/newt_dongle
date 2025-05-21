@@ -7,12 +7,15 @@
 #define ND_MAIN_H
 
 #include "PicoAsyncLog.h"
+#include "PicoUserSettings.h"
 
 #include <hardware/uart.h>
 
 extern nd::PicoAsyncLog Log;
 
 namespace nd {
+
+extern PicoUserSettings user_settings;
 
 // PiPico developer board settings
 

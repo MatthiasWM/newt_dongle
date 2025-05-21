@@ -7,6 +7,7 @@
 
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
+#include <pico/flash.h>
 #include <stdio.h>
 
 using namespace nd;
@@ -48,6 +49,7 @@ void PicoAsyncLog::log(const char *message, int pipe) {
  */
 void PicoAsyncLog::run() {
     static char hex_lut[] = "0123456789ABCDEF";
+    flash_safe_execute_core_init();
     while (true) {
         uint32_t e;
         queue_remove_blocking(&queue_, &e);

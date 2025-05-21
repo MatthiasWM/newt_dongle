@@ -5,6 +5,8 @@
 
 #include "HayesFilter.h"
 
+#include "main.h"
+
 #include "common/Scheduler.h"
 #include "common/Endpoints/SDCardEndpoint.h"
 #include "common/Pipes/MNPThrottle.h"
@@ -355,6 +357,7 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
             // S2: escape character ("+")
             // S3: carriage return (13)
             // S4: line feed (10)
+            // S37: Desired DCE Line Speed (http://www.messagestick.net/modem/Hayes_Ch1-3.html)
         // Z: Reset
         case '&':
             return run_ampersand_cmd(cmd);
@@ -375,15 +378,19 @@ const char *HayesFilter::run_ampersand_cmd(const char *cmd) {
         // &F0: factory reset
         // &K0: flow control (0=none, 1=hardware, 2=software)
         // &T0: self test
-        // &W0: write to NVRAM
         // &Yn: reset to profile
         // &V: show current profile
         // %E0: Escape method ("+++", break, DTR?, etc.)
         case 0:  // End of command line.
+        case 'W': // write current settings to NVRAM
+            read_int(&cmd);
+            user_settings.write();
+            break;
         default: // Unknown command AT&...
             send_ERROR();
             return nullptr; 
     }
+    return cmd;
 }
 
 
@@ -419,6 +426,21 @@ const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
         send_string("\"\r\n");
         return cmd + 2;
     }
+    if (strncasecmp(cmd, "SN", 2) == 0) { // Write a new serial number, hardware version, and revision
+        cmd += 2;
+        uint32_t serial = read_int(&cmd);
+        if (*cmd != '.') { send_ERROR(); return nullptr; } else cmd++;
+        uint16_t version = read_int(&cmd);
+        if (*cmd != '.') { send_ERROR(); return nullptr; } else cmd++;
+        uint16_t revision = read_int(&cmd);
+        Result res = user_settings.write_serial(serial, version, revision);
+        if (res.rejected()) {
+            send_string("Rejected\r\n");
+            send_ERROR();
+            return nullptr;
+        }
+        return cmd; 
+    }
     send_ERROR();
     return nullptr;
 }
@@ -435,6 +457,7 @@ uint32_t HayesFilter::read_int(const char **cmd) {
 bool HayesFilter::set_register(uint32_t reg, uint32_t value) {
     switch (reg) {
         case 12: // S12: escape code guard time (1/50th of a second)
+            user_settings.data.hayes0_esc_code_guard_time_ = value;
             esc_code_guard_time_ = value;
             esc_code_guard_timeout_ = value * 20'000; // 20ms per 1/50th of a second
             break;
@@ -469,8 +492,17 @@ bool HayesFilter::send_info(uint32_t ix) {
             send_string("NewtDongle V0.0.4\r\n");
             break;
         case 1:
-            pico_get_unique_board_id_string(buf, 31);
-            send_string("Serial: ");
+            itoa(user_settings.serial(), buf, 10);
+            send_string("Serial No.: ");
+            send_string(buf);
+            send_string("\r\n");
+            break;
+        case 2:
+            send_string("Hardware: V");
+            itoa(user_settings.hardware_version(), buf, 10);
+            send_string(buf);
+            send_string(".");
+            itoa(user_settings.hardware_revision(), buf, 10);
             send_string(buf);
             send_string("\r\n");
             break;

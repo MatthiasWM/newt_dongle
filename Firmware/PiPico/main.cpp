@@ -37,6 +37,21 @@
 // };
 // flash_range_erase(uint32_t flash_offs, size_t count);
 // flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
+//
+//  __flash_binary_end (which is a memory address, not an offset in flash)
+//
+// https://www.raspberrypi.com/documentation/pico-sdk/runtime.html#group_pico_standard_binary_info
+//
+// 264kB RAM
+// pico_cmake_set_default PICO_FLASH_SIZE_BYTES = (2 * 1024 * 1024)
+//
+// read the BOOT button: https://github.com/raspberrypi/pico-examples/blob/master/picoboard/button/button.c
+
+//
+// https://community.element14.com/products/raspberry-pi/b/blog/posts/raspberry-pico-c-sdk-reserve-a-flash-memory-block-for-persistent-storage
+// pico_set_linker_script("pico/pico_standard_link.ld")
+
+#include "main.h"
 
 #include "PicoStdioLog.h"
 #include "PicoAsyncLog.h"
@@ -53,6 +68,7 @@
 #include "common/Pipes/MNPThrottle.h"
 #include "common/Pipes/Tee.h"
 
+
 #include "pico/stdlib.h"
 
 #include <stdio.h>
@@ -60,6 +76,7 @@
 void* __dso_handle = nullptr;
 void* _fini = nullptr;
 
+nd::PicoUserSettings nd::user_settings;
 nd::PicoAsyncLog Log(0);
 
 // -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
@@ -85,6 +102,9 @@ int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
 
+    // nd::user_settings.mess_up_flash();
+    nd::user_settings.read();
+
     // Set the LED to yellow for now (0=on, 1=off).
     gpio_init(17); // User LED red
     gpio_put(17, 0);
@@ -107,10 +127,14 @@ int main(int argc, char *argv[])
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
     
     // -- Goal:
-    // UART ---------------> UART_Hayes --------------------> Dock ---> CDC Hayes ---> buffer ---> CDC
-    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Dock <--- CDC Hayes <--------------- CDC
-    //                                                         ↑↓
-    //                                                       SDCard    
+    // UART ---------------> UART_Hayes --------------------> Matrix ---> CDC Hayes ---> buffer ---> CDC
+    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Matrix <--- CDC Hayes <--------------- CDC
+    //                                                          ↑↓
+    //                                                       MNP/V.24
+    //                                                          ↑↓
+    //                                                         Dock    
+    //                                                          ↑↓
+    //                                                        SDCard    
 
     // Connect the UART to USB
     /**/  uart_endpoint >> uart_hayes.downstream; 
