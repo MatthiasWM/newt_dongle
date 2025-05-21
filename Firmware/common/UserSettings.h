@@ -20,7 +20,7 @@ protected:
         uint8_t page_size_;
         uint8_t sector_size_;
         uint8_t sector_count_;
-        uint8_t filler16_;
+        uint8_t version_;
         uint32_t serial_no_;
         uint16_t hardware_version_;
         uint16_t hardware_revision_;
@@ -70,6 +70,7 @@ public:
     virtual Result read();
     void factory_reset();
 
+    uint8_t version() const { return fingerprint_.version_; }
     uint32_t serial() const { return fingerprint_.serial_no_; }
     uint16_t hardware_version() const { return fingerprint_.hardware_version_; }
     uint16_t hardware_revision() const { return fingerprint_.hardware_revision_; }

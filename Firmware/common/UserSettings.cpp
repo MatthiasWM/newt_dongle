@@ -19,7 +19,7 @@ UserSettings::Fingerprint UserSettings::factory_fingerprint_ = {
     .page_size_ = 1, // 1x256 bytes
     .sector_size_ = 16, // 16x256 bytes = 4kB
     .sector_count_ = 1,
-    .filler16_ = 0,
+    .version_ = 0,
     .serial_no_ = 0,
     .hardware_version_ = 0,
     .hardware_revision_ = 0,

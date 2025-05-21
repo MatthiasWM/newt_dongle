@@ -25,15 +25,17 @@ To return to **data mode**, type `ATO⮐`.
 | `ATS12`  | escape code guard time (1/50th of a second) |
 | `ATS300` | absolute MNP throttle delay in microseconds |
 | `ATS301` | relative MNP throttle delay in characters   |
+| `AT&W`   | write the current setting to Flash memory   |
 
 
 ### SD Card debugging Commands
 
-| Command    | Description                                      |
-|------------|--------------------------------------------------|
-| `AT[DS`    | Disk Status (NOINIT, NODISK, PROTECT)            |
-| `AT[DI`    | Disk Initialize (NOINIT, NODISK, PROTECT)        |
-| `AT[GL`    | Get Label                                        |
+| Command    | Description                                             |
+|------------|---------------------------------------------------------|
+| `AT[DS`    | EXPERIMENTAL: Disk Status (NOINIT, NODISK, PROTECT)     |
+| `AT[DI`    | EXPERIMENTAL: Disk Initialize (NOINIT, NODISK, PROTECT) |
+| `AT[GL`    | EXPERIMENTAL: Get Label                                 |
+| `AT[SN...` | DON'T USE: set a serial number and hardware identifiers |
 
 ### Commands in Development
 
