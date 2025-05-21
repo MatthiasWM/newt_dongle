@@ -466,7 +466,7 @@ bool HayesFilter::send_info(uint32_t ix) {
     char buf[32]; buf[0] = 0;
     switch (ix) {
         case 0:
-            send_string("NewtDongle V0.0.3\r\n");
+            send_string("NewtDongle V0.0.4\r\n");
             break;
         case 1:
             pico_get_unique_board_id_string(buf, 31);
