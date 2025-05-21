@@ -6,7 +6,6 @@
 #ifndef ND_TASK_H
 #define ND_TASK_H
 
-#include "nd_config.h"
 #include "common/Pipe.h"
 
 namespace nd {

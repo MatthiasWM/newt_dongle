@@ -6,9 +6,8 @@
 #ifndef ND_SCHEDULER_H
 #define ND_SCHEDULER_H
 
-#include "nd_config.h"
-
 #include <forward_list>
+#include <cstdint>
 
 namespace nd {
 

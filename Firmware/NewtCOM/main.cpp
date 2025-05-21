@@ -1,0 +1,135 @@
+/*
+  MIT License
+
+  Copyright (c) 2025 Matthias Melcher, robowerk.de
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
+// -- Minimal setup for the Newton Dongle.
+//  UART ---> BufferPipe ----> CDC
+//  UART <--- BufferPipe <---- CDC
+
+// TODO: add three way switch and SDCard access
+// // https://www.makermatrix.com/blog/read-and-write-data-with-the-pi-pico-onboard-flash/
+// XIP_BASE # The base address of the flash memory
+// PICO_FLASH_SIZE_BYTES # The total size of the RP2040 flash, in bytes
+// FLASH_SECTOR_SIZE     # The size of one sector, in bytes (the minimum amount you can erase)
+// FLASH_PAGE_SIZE       # The size of one page, in bytes (the mimimum amount you can write)
+// extern "C" {
+//   #include <hardware/flash.h>
+// };
+// flash_range_erase(uint32_t flash_offs, size_t count);
+// flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
+
+#include "PicoStdioLog.h"
+#include "PicoAsyncLog.h"
+#include "PicoUARTEndpoint.h"
+#include "PicoCDCEndpoint.h"
+#include "PicoScheduler.h"
+#include "PicoSDCard.h"
+#include "PicoSystem.h"
+
+#include "common/Endpoints/StdioLog.h"
+#include "common/Endpoints/TestEventGenerator.h"
+#include "common/Filters/HayesFilter.h"
+#include "common/Pipes/BufferedPipe.h"
+#include "common/Pipes/MNPThrottle.h"
+#include "common/Pipes/Tee.h"
+
+#include "pico/stdlib.h"
+
+#include <stdio.h>
+
+nd::PicoAsyncLog Log(0);
+
+// -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
+nd::PicoScheduler scheduler;
+nd::PicoSystemTask system_task(scheduler);
+
+// -- Instantiate all the endpoints we need.
+nd::PicoUARTEndpoint uart_endpoint { scheduler };
+nd::PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
+nd::PicoSDCardEndpoint sdcard_endpoint { scheduler };
+
+// -- Instantiate filters and loggers.
+nd::HayesFilter uart_hayes(scheduler);
+nd::HayesFilter cdc_hayes(scheduler);
+
+// -- Instantiate pipes to connect everything.
+nd::MNPThrottle mnp_throttle;
+nd::BufferedPipe buffer_to_cdc(scheduler);
+nd::BufferedPipe buffer_to_uart(scheduler);
+
+// -- Everything is already allocated. Now link the endpoints and run the scheduler.
+int main(int argc, char *argv[])
+{
+    stdio_uart_init_full(uart1, 115200, 8, 9);
+
+    // Set the LED to yellow for now (0=on, 1=off).
+    gpio_init(17); // User LED red
+    gpio_put(17, 0);
+    gpio_set_dir(17, GPIO_OUT);
+
+    gpio_init(16); // User LED green
+    gpio_put(16, 0);
+    gpio_set_dir(16, GPIO_OUT);
+
+    gpio_init(25); // User LED red
+    gpio_put(25, 1);
+    gpio_set_dir(25, GPIO_OUT);
+
+
+    //Log.log("Starting...\n");
+    //test_sd_card();
+
+    // -- Connect the Endpoints inside the dongle with pipes.
+    // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC
+    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
+    
+    // -- Goal:
+    // UART ---------------> UART_Hayes --------------------> Dock ---> CDC Hayes ---> buffer ---> CDC
+    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Dock <--- CDC Hayes <--------------- CDC
+    //                                                         ↑↓
+    //                                                       SDCard    
+
+    // Connect the UART to USB
+    /**/  uart_endpoint >> uart_hayes.downstream; 
+    /**/    uart_hayes.upstream >> cdc_hayes.upstream;
+    /**/      cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
+    // Connect USB to the UART
+    /**/  cdc_endpoint >> cdc_hayes.downstream; 
+    /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
+    /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
+
+    // -- Give both serial ports access to the SD Card (currently for debugging only)
+    uart_hayes.link(&sdcard_endpoint);
+    cdc_hayes.link(&sdcard_endpoint);
+
+    // -- The scheduler will call all instances of classes that are derived from Task.
+    //printf("Welcome to NewtDongle!\nInitializing...\n");
+    scheduler.init();
+
+    // -- Now we can start the scheduler. It will call all spokes in a loop.
+    //printf("Running...\n");
+    scheduler.run();
+
+    // -- Never reached.
+    return 0;
+} 

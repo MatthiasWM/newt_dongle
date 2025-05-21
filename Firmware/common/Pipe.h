@@ -6,7 +6,6 @@
 #ifndef ND_PIPE_H
 #define ND_PIPE_H
 
-#include "nd_config.h"
 #include "Event.h"
 
 namespace nd {

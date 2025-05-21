@@ -6,7 +6,6 @@
 #ifndef ND_DEVICE_H
 #define ND_DEVICE_H
 
-#include "nd_config.h"
 #include "common/Pipe.h"
 #include "common/Task.h"
 

@@ -17,24 +17,6 @@
 
 constexpr bool log_uart = true;
 
-// UART defines
-// By default the stdout UART is `uart0`, so we will use the second one
-#define UART_ID uart0
-// Default for Dock is 38400, but the USB CDC should set the right speed.
-// #define BAUD_RATE 19200
-#define BAUD_RATE 38400
-
-// Use pins 4 and 5 for UART1
-// Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
-#define UART_TX_PIN 0
-#define UART_RX_PIN 1
-#define UART_HSKI_PIN 28
-
-// Define this for the PiPico board
-// #define UART_HSKO_PIN 22
-// Define this for the XIAO board
-#define UART_HSKO_PIN 29
-
 // \todo Hardware flow control: void uart_set_hw_flow (uart_inst_t * uart, bool cts, bool rts)
 // Built-in hardware flow control is on ports 2 and 3, but we use those for SPI.
 // We can emulate RTS and CTS using HSKI (28) and HSKO (29 on XIAO, 22 PiPico)
@@ -52,25 +34,25 @@ PicoUARTEndpoint::~PicoUARTEndpoint() {
 Result PicoUARTEndpoint::init() 
 {
     // -- Set TX and RX pin mode
-    gpio_set_function(UART_TX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_TX_PIN));
-    gpio_set_function(UART_RX_PIN, UART_FUNCSEL_NUM(UART_ID, UART_RX_PIN));
+    gpio_set_function(kUART_TX_Pin, UART_FUNCSEL_NUM(kUART, kUART_TX_Pin));
+    gpio_set_function(kUART_RX_Pin, UART_FUNCSEL_NUM(kUART, kUART_RX_Pin));
 
     // -- Initialize UART
-    uart_init(UART_ID, BAUD_RATE);
-    uart_set_format(UART_ID, 8, 1, UART_PARITY_NONE);
-    uart_set_translate_crlf(UART_ID, false);
-    uart_set_fifo_enabled(UART_ID, true);
+    uart_init(kUART, kUART_BaudRate);
+    uart_set_format(kUART, 8, 1, UART_PARITY_NONE);
+    uart_set_translate_crlf(kUART, false);
+    uart_set_fifo_enabled(kUART, true);
 
     // -- Take care of hardware flow control
-    uart_set_hw_flow(UART_ID, false, false);
+    uart_set_hw_flow(kUART, false, false);
     // Handshake Out (from MP to the Dongle)
-    gpio_init(UART_HSKO_PIN);               // output from MP to dongle
-    gpio_pull_up(UART_HSKO_PIN);            // let the MP do its work
-    gpio_set_dir(UART_HSKO_PIN, GPIO_IN);   // we want to read the pin
+    gpio_init(kUART_HSKO_Pin);               // output from MP to dongle
+    gpio_pull_up(kUART_HSKO_Pin);            // let the MP do its work
+    gpio_set_dir(kUART_HSKO_Pin, GPIO_IN);   // we want to read the pin
     // Handshake In (from the Dongle to the MP)
-    gpio_init(UART_HSKI_PIN);               // output from MP to dongle
-    gpio_put(UART_HSKI_PIN, 1);             // we are able to receive data
-    gpio_set_dir(UART_HSKI_PIN, GPIO_OUT);  // we want to write the pin
+    gpio_init(kUART_HSKI_Pin);               // output from MP to dongle
+    gpio_put(kUART_HSKI_Pin, 1);             // we are able to receive data
+    gpio_set_dir(kUART_HSKI_Pin, GPIO_OUT);  // we want to write the pin
 
     return UARTEndpoint::init();
 }
@@ -97,8 +79,8 @@ Result PicoUARTEndpoint::task() {
             event_pending_ = false;
         if (log_uart) Log.log(pending_event_, 0);
     }
-    if (uart_is_readable(UART_ID)) {
-        uint8_t c = uart_getc(UART_ID);
+    if (uart_is_readable(kUART)) {
+        uint8_t c = uart_getc(kUART);
         Event event { c };
         Result r = out()->send(event);
         if (r.rejected()) {
@@ -125,7 +107,7 @@ Result PicoUARTEndpoint::send(Event event) {
     switch (event.type()) {
         case Event::Type::DATA: {
             if (tx_wait_for_fifo_empty_) {
-                if (!(uart_get_hw(UART_ID)->fr & UART_UARTFR_TXFE_BITS)) {
+                if (!(uart_get_hw(kUART)->fr & UART_UARTFR_TXFE_BITS)) {
                     return Result::REJECTED;
                 } else {
                     tx_wait_for_fifo_empty_ = false;
@@ -140,9 +122,9 @@ Result PicoUARTEndpoint::send(Event event) {
                     tx_delay_ = 0;
                 }
             }
-            bool cts = gpio_get(UART_HSKO_PIN);
-            if (cts && uart_is_writable(UART_ID)) {
-                uart_putc_raw(UART_ID, event.data());
+            bool cts = gpio_get(kUART_HSKO_Pin);
+            if (cts && uart_is_writable(kUART)) {
+                uart_putc_raw(kUART, event.data());
                 if (log_uart) Log.log(event, 1);
                 return Result::OK;
             } else {
@@ -183,10 +165,10 @@ void PicoUARTEndpoint::delay(uint32_t usec, uint32_t chars) {
 void PicoUARTEndpoint::set_high_water(bool on) {
     if (on) {
         // Set the handshake pin to 0, so the Newton stops sending data.
-        gpio_put(UART_HSKI_PIN, 0);
+        gpio_put(kUART_HSKI_Pin, 0);
     } else {
         // Set the handshake pin to 1, so the Newton can send data again.
-        gpio_put(UART_HSKI_PIN, 1);
+        gpio_put(kUART_HSKI_Pin, 1);
     }
 }
 
@@ -199,6 +181,6 @@ void PicoUARTEndpoint::set_high_water(bool on) {
  * \param new_bitrate The new bitrate to set.
  */
 void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {
-    uart_set_baudrate(UART_ID, new_bitrate);
+    uart_set_baudrate(kUART, new_bitrate);
 }
 

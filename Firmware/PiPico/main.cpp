@@ -57,8 +57,8 @@
 
 #include <stdio.h>
 
-// void* __dso_handle = nullptr;
-// void* _fini = nullptr;
+void* __dso_handle = nullptr;
+void* _fini = nullptr;
 
 nd::PicoAsyncLog Log(0);
 
