@@ -31,9 +31,9 @@ constexpr bool log_uart = true;
 #define UART_HSKI_PIN 28
 
 // Define this for the PiPico board
-#define UART_HSKO_PIN 22
+// #define UART_HSKO_PIN 22
 // Define this for the XIAO board
-// #define UART_HSKO_PIN 29
+#define UART_HSKO_PIN 29
 
 // \todo Hardware flow control: void uart_set_hw_flow (uart_inst_t * uart, bool cts, bool rts)
 // Built-in hardware flow control is on ports 2 and 3, but we use those for SPI.

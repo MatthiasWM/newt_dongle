@@ -9,6 +9,7 @@
 #include "common/Endpoints/SDCardEndpoint.h"
 #include "common/Pipes/MNPThrottle.h"
 
+#include <pico/unique_id.h>
 #include <stdio.h>
 #include <cstring>
 
@@ -308,7 +309,7 @@ void HayesFilter::run_cmd_line() {
 // ATD*99# : Dial Access Point
 const char *HayesFilter::run_next_cmd(const char *cmd) {
     char c = *cmd++;
-    int a = -1, v = -1;
+    uint32_t a = 0, v = 0;
     if (c>32 && c<127) c = toupper(c);
     switch (c) {
         case 0: // End of command line.
@@ -319,8 +320,11 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
             send_ERROR();
             return nullptr;
         case 'I':
-            read_int(&cmd); // We can add various info strings here, depending of the command argument.
-            send_string("NewtDongle V0.0.2\r\n");
+            a = read_int(&cmd); // We can add various info strings here, depending of the command argument.
+            if (!send_info(a)) {
+                send_ERROR();
+                return nullptr;
+            }
             break;
         case 'O':
             switch_to_data_mode();
@@ -456,4 +460,23 @@ uint32_t HayesFilter::get_register(uint32_t reg) const {
             return MNPThrottle::reg_num_char_delay;
     }
     return 0;
+}
+
+bool HayesFilter::send_info(uint32_t ix) {
+    char buf[32]; buf[0] = 0;
+    switch (ix) {
+        case 0:
+            send_string("NewtDongle V0.0.3\r\n");
+            break;
+        case 1:
+            pico_get_unique_board_id_string(buf, 31);
+            send_string("Serial: ");
+            send_string(buf);
+            send_string("\r\n");
+            break;
+        default:
+            send_ERROR();
+            return false;
+    }
+    return true;
 }

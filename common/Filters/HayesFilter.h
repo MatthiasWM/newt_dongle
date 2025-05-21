@@ -64,6 +64,7 @@ public:
     void send_OK();
     void send_CONNECT();
     void send_ERROR();
+    bool send_info(uint32_t ix);
 
     void link(SDCardEndpoint *sdcard);
 

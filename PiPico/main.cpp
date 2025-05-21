@@ -27,7 +27,16 @@
 //  UART <--- BufferPipe <---- CDC
 
 // TODO: add three way switch and SDCard access
-
+// // https://www.makermatrix.com/blog/read-and-write-data-with-the-pi-pico-onboard-flash/
+// XIP_BASE # The base address of the flash memory
+// PICO_FLASH_SIZE_BYTES # The total size of the RP2040 flash, in bytes
+// FLASH_SECTOR_SIZE     # The size of one sector, in bytes (the minimum amount you can erase)
+// FLASH_PAGE_SIZE       # The size of one page, in bytes (the mimimum amount you can write)
+// extern "C" {
+//   #include <hardware/flash.h>
+// };
+// flash_range_erase(uint32_t flash_offs, size_t count);
+// flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
 
 #include "PicoStdioLog.h"
 #include "PicoAsyncLog.h"
@@ -48,8 +57,8 @@
 
 #include <stdio.h>
 
-void* __dso_handle = nullptr;
-void* _fini = nullptr;
+// void* __dso_handle = nullptr;
+// void* _fini = nullptr;
 
 nd::PicoAsyncLog Log(0);
 
@@ -75,6 +84,20 @@ nd::BufferedPipe buffer_to_uart(scheduler);
 int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
+
+    // Set the LED to yellow for now (0=on, 1=off).
+    gpio_init(17); // User LED red
+    gpio_put(17, 0);
+    gpio_set_dir(17, GPIO_OUT);
+
+    gpio_init(16); // User LED green
+    gpio_put(16, 0);
+    gpio_set_dir(16, GPIO_OUT);
+
+    gpio_init(25); // User LED red
+    gpio_put(25, 1);
+    gpio_set_dir(25, GPIO_OUT);
+
 
     //Log.log("Starting...\n");
     //test_sd_card();

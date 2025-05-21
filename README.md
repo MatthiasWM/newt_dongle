@@ -1,71 +1,94 @@
 
-# Newton MessagePad MP2x00 and eMate 300 USB Dongle Firmware
+# User Manual
+## Newton MessagePad MP2x00 and eMate 300 USB Dongle
 
-Welcome to the firmware repository for the Newton MessagePad 2x00 and eMate 300 USB dongle! This project brings Apple's iconic 1995 handheld PDA into the modern era by enabling seamless data transfer between the Newton devices and modern computers via a USB-C connection.
+The NewtCOM dongle connects the Apple MessagePad MP2x00 and the eMate to a PC
+or Mac over USB-C.
 
-More documentation on the [NewtCOM Dongle](hardware/README.md) currently under development.
+![Dongle Front Top View](resources/Dongle_ser_top_anno.jpg)
 
-## What Does This Firmware Do?
+The dongle plugs into the rear of the MessagePad or the left side of the eMate.
+On the top are two recessed buttons, one for resetting the device, and a second
+button to select additional functions.
 
-This firmware powers a hardware dongle that acts as a bridge between the Newton's serial port and a USB-C port. It allows you to:
-- Transfer files, packages, and data between your Newton device and a modern computer.
-- Use tools like NCX, BasiliskII, and Inspector to interact with your Newton.
-- Emulate Newton's docking protocol for advanced data handling.
+Two LEDs indicate the current state. The Power LED light up red when the 
+Dongle is either connected to a USB-C port, or when plugged into the Newton
+*and* a serial connection is requested.
 
-The firmware is designed to handle high-speed communication reliably, supporting baud rates of up to 230,400 bps.
+![Dongle Back Bottom View](resources/Dongle_USB_bot_anno.jpg)
 
-## Features
+The USB-C port is located in the back. The bottom of the dongle has a slot that
+can hold a MicroSD Card.
 
-- **Serial-to-USB Communication**: Pipes data between the Newton's serial port and the USB port.
-- **Error Handling**: Implements mechanisms to handle data loss and synchronization issues.
-- **Flexible Event System**: Uses a modular, event-driven architecture for handling data and commands.
-- **Support for Multiple Baud Rates**: Works with 38,400, 57,600, 115,200, and 230,400 bps.
-- **Extensible Design**: Includes support for filters, buffers, and switches to customize data handling.
-- **Future-Proof**: Designed to support additional features like SD card storage and advanced Newton protocols.
+> [!TIP]
+> The shape of the dongle ensures that it can't be plugged in up-side down.
+> Make sure that the interconnect plug is pushed in all the way for a secure
+> connection.
 
-## How It Works
+## Serial Mode
 
-The firmware is built around a **pipe-based architecture**:
-- **Pipes**: Modular components that process and forward events (e.g., data, commands).
-- **Events**: Compact 32-bit messages that represent actions or data to be processed.
-- **Filters**: Specialized pipes that modify or analyze data streams (e.g., Hayes command handling, MNP throttling).
-- **Devices**: Hardware interfaces like UART (serial port) and USB endpoints.
+The dongle works as a serial connection between the Newton and the PC or Mac,
+running any of the common Newton synchronization tools. It's tested with
+NCU, NCX, unixnpi, and NTK. Hammer and other tools should work too.
 
-This architecture ensures flexibility, scalability, and maintainability, making it easy to add new features or adapt to different hardware configurations.
+The transfer speed is set by the PC. If NCX for example is configured to run
+at 115'200bps instead of the standard 38'400bps, the dongle will adapt to it.
 
-## Current Status
+The NewtCOM dongle uses the Newton hardware handshake and also throttles the 
+data transfer to avoid hick-ups. 
 
-- **Working**: Reliable data transfer at 115,200 bps. Successfully tested with NCX, BasiliskII, and Inspector.
-- **In Progress**: Addressing occasional synchronization issues during large file transfers.
-- **Planned**: Adding support for advanced features like SD card storage, statistics, and Newton Docking Protocol emulation.
+> [!TIP]
+> If transfer of large fill still occasionally hangs during transfer, the 
+> throttling parameters can be adapted using Hayes commands (see below). 
+> The NewtCOM dongle is a new product. Any help to get the right values for
+> all is greatly appreciated.
 
-## Getting Started
+## Updating Firmware
 
-1. **Hardware Requirements**:
-   - Raspberry Pi Pico or compatible RP2040-based board.
-   - USB-C connection to your computer.
-   - Serial connection to your Newton device.
+All official releases of the firmware will be published [here](https://github.com/MatthiasWM/newt_dongle).
 
-2. **Building the Firmware**:
-   - Clone this repository.
-   - Follow the instructions in the `CMakeLists.txt` file to build the firmware using the Pico SDK.
+To update the firmware, download the file ending in `.uf2` to your PC. 
 
-3. **Flashing the Firmware**:
-   - Use the Raspberry Pi Pico's bootloader to flash the firmware onto the device.
+To put the dongle into firmware mode:
 
-4. **Connecting Your Newton**:
-   - Plug the dongle into your Newton's serial port and your computer's USB port.
-   - Use your favorite Newton tools to start transferring data!
+- disconnect the dongle from the Newton
+- connect the dongle to your PC or Mac via USB-C 
+- to do the firmware update dance, get two pointy tools to press the recessed buttons
+- press and hold the RESET button
+- press and hold the SELECT button
+- release the RESET button
+- release the SELECT button
+- the dongle switches into firmware mode and show up as a new USB drive on your desktop
+- now simply drag and drop the `.uf2` file onto the USB drive
+- the USB drive will disappear and the dongle will reboot into the new firmware
 
-## Contributing
+## Hayes Command Mode
 
-Contributions are welcome! Whether it's fixing bugs, adding features, or improving documentation, feel free to open a pull request or issue.
+The NewtCOM dongle can be put into Hayes command mode on both the serial port 
+and the USB port. To do this, you will need a terminal program. On the Newton
+side, this is commonly `PT100`. Baud rate must be at 38'400bps'. 
+There are an endless number of VT100 or simpler terminal programs for PCs 
+and Macs.
 
-## License
+To get into Hayes mode, don;t send any data for at least one second. 
+Then, within a second, type `+++` (three plus characters - on PT100, you can
+create a macro for that). After yet another second without any data, the 
+dongle will reply with `OK`. 
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+You are now in Hayes mode. To get back online, type `ATO` (the letter "O", 
+like Online). The dongle replies `CONNECT` and leaves Hayes mode.
 
----
+There are fe Hayes commands at this point, but there will be more:
 
-Thank you for keeping the Newton alive! If you have any questions or need help, feel free to reach out.
+- `ATO` : go back online
+- `ATI0` : get information about the firmware and the firmware version number
+- `ATS300=n` : set the MNP throttle delay to n microseconds (defaults to 400)
+- `ATS301=n` : set an additional delay in number o characters (defaults to 8)
 
+Future versions of the firmware will be able to save these setting in NVRAM,
+and they will be kept when the dongle is powered down.  
+
+
+
+ 
+ 

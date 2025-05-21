@@ -8,7 +8,7 @@ As of May 2025, `NewtCOM` supports  the RP2040 base NewtCOM Dongle.
 ## The NewtCOM Dongle
 
 The design of the dongle is OpenSource and I encourage anyone with sufficient 
-soldereing skills to build their own dongle. There is a base dongle that 
+soldering skills to build their own dongle. There is a base dongle that 
 converts the Serial Port signals on the Interconnect port to USB-C. Optionally,
 the dongle can convert the 5V form the USB-C to 7V to run the Newton. There
 is also an option for a MicroSD card slot for installing software without
