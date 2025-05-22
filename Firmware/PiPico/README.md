@@ -1,10 +1,17 @@
-
-# Pico RP2040 based Newton Dongle
-
 ```
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 ```
+
+# PiPico configuration
+
+This is the build configuration for running the NewtCOM firmware on a 
+PiPico developer card with an RP2040 CPU. The firmware installes to RAM
+for speed and to avoid Flash use.
+
+Parallel to this configuration is the NewtCOM setup for compiling the 
+same firmware directly for the RP2040 based dongle.
+
 ## My TODO List for PiPico
 
  - [x] Check if the current Workspace compiles and debugs on our current hardware
@@ -18,15 +25,18 @@
  - [x] Implement a DELAY event (absolute time, number of bytes, flush FIFO)
  - [x] Implement a MNP scanner that can insert delays after a block is received
  - [x] Test with script
- - [ ] Clean up Workspace
+ - [x] Clean up Workspace
+ - [ ] UserInterface class to control LEDs and listen to buttons
+ - [ ] Optional firmware to reset Flash memory? Or any other way to reset it?
+ - [ ] MNP Filter that extracts Dock commands and data (takes care of negotiation, blocks, replies, checksums, resends)
+ - [ ] Matrix, a filter that routes data between multiple sockets
+ - [ ] Dock, a filter that understands and handles Newton Dock commands
+ - [ ] Async class for all things that take more time than we have in a slice
+    - [ ] Async log: logging via debugging serial port or to SD Card
+    - [ ] Async SD Card data and directory reading
  - [ ] Fill in missing documentation
- - [ ] Pipe should be able to handle block data in addition streaming data
- - [ ] Check if we run on the PiPico1 for debugging, or the Dongle
- - [ ] New project name: Firmware "NewtCOM", hardware "NewtCOM Dongle"
-   - GPIO29 IP Used in ADC mode (ADC3) to measure VSYS/3 *CONFLICTS* with HSKO on Dongle!
-   - GPIO25 OP Connected to user LED
-   - GPIO24 IP VBUS sense - high if VBUS is present, else low (but n.c. on Seeed module!)
-   - GPIO23 OP Controls the on-board SMPS Power Save pin (Section 4.4)
+ - [ ] Pipe could be able to handle block data in addition streaming data
+ - [ ] Verify that we actually run on a PiPico, and not a NewtCOM dongle
 
  ## Notes
 
@@ -59,7 +69,7 @@ at 115200. Various test were done with NCX and BasiliskII and Inspector.
 ### Timing
 
 All devices are handles in a loop. The Newton typically communicates at 
-38'400bps, but also allow 57.6, 115.2, and even 230.4kbps. The main loop
+38'400bps, but also allows 57.6, 115.2, and even 230.4kbps. The main loop
 must handle at least 4'000, and at a maximum 24'000 characters per second.
 
 The RP2040 uart supports a 32 bytes rx and tx fifo buffer. To avoid overflow,
@@ -67,7 +77,7 @@ the FIFO must be handled 125 to 750 times a second, or every 8000 or 1300
 microseconds. In the current implementation, I measured a maximum of 13 
 microseconds in the CDC endpoint and 15 usec in the entire wheel.
 
-Not however that writing to stdout messes this up tremendously and makes
+Note however that writing to stdout messes this up tremendously and makes
 the dongle lose data.
 
 Talking about lost data. Even with HSKI and HSKO implemented, we still run out
@@ -83,7 +93,9 @@ Maybe we can use this for something?
 
 ### Pipes
 
-This is a firmware for a microcontroller that connects an Aeple Newton 
+(move this chapter elsewhere)
+
+This is a firmware for a microcontroller that connects an Apple Newton 
 MessagePad (MP2x00, eMate300) to the modern outside world over USB-C.
 Wifi and Bluetooth are planned, but not implemented yet.
 

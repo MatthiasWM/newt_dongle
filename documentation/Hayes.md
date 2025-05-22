@@ -30,14 +30,14 @@ To return to **data mode**, type `ATO⮐`.
 
 ### SD Card debugging Commands
 
-| Command    | Description                                             |
-|------------|---------------------------------------------------------|
-| `AT[DS`    | EXPERIMENTAL: Disk Status (NOINIT, NODISK, PROTECT)     |
-| `AT[DI`    | EXPERIMENTAL: Disk Initialize (NOINIT, NODISK, PROTECT) |
-| `AT[GL`    | EXPERIMENTAL: Get Label                                 |
-| `AT[SN...` | DON'T USE: set a serial number and hardware identifiers |
+| Command        | Description                                             |
+|----------------|---------------------------------------------------------|
+| `AT[DS`        | EXPERIMENTAL: Disk Status (NOINIT, NODISK, PROTECT)     |
+| `AT[DI`        | EXPERIMENTAL: Disk Initialize (NOINIT, NODISK, PROTECT) |
+| `AT[GL`        | EXPERIMENTAL: Get Label                                 |
+| `AT[SNs:i.v.r` | DON'T USE: set a serial number and hardware identifiers |
 
-### Commands in Development
+### Commands under evaluation
 
 | Command    | Description                                      |
 |------------|--------------------------------------------------|

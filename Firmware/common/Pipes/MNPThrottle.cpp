@@ -5,6 +5,8 @@
 
 #include "MNPThrottle.h"
 
+#include <cstdint>
+
 using namespace nd;
 
 /**
@@ -31,27 +33,28 @@ using namespace nd;
  * LT:  0x04, "logical type"
  */
 
- #include "MnPThrottle.h"
+ #include "MNPThrottle.h"
+
+ #include "main.h"
 
  #include <stdio.h>
 
 constexpr uint8_t kDLE = 0x10;
 constexpr uint8_t kETX = 0x03;
 
-constexpr bool dbg = false;
-
-uint32_t MNPThrottle::reg_absolute_delay = 400;
-uint32_t MNPThrottle::reg_num_char_delay = 8;
-
+MNPThrottle::MNPThrottle(Scheduler &scheduler) 
+:   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS) 
+{
+} 
 
 Result MNPThrottle::send(Event event) 
 {
     if (state_ == State::RESEND_DELAY) {
         if (Pipe::send(resend_event_).ok()) {
-            if (dbg) printf("Delay resent ok\n");
+            if (kDebugMNPThrottle) printf("Delay resent ok\n");
             state_ = State::WAIT_FOR_DLE;
         } else {
-            if (dbg) printf("Delay rejected again\n");
+            if (kDebugMNPThrottle) printf("Delay rejected again\n");
             return Result::REJECTED;
         }
     }
@@ -68,34 +71,34 @@ Result MNPThrottle::send(Event event)
         switch (state_) {
             case State::WAIT_FOR_DLE:
                 if (event.data() == kDLE) {
-                    if (dbg) printf("DLE ");
+                    if (kDebugMNPThrottle) printf("DLE ");
                     state_ = State::WAIT_FOR_ETX;
                 }
                 break;
             case State::WAIT_FOR_ETX:
                 if (event.data() == kETX) {
-                    if (dbg) printf("ETX ");
+                    if (kDebugMNPThrottle) printf("ETX ");
                     state_ = State::WAIT_FOR_CRC_lo;
                 } else {
-                    if (dbg) printf("esc ");
+                    if (kDebugMNPThrottle) printf("esc ");
                     state_ = State::WAIT_FOR_DLE;
                 }
                 break;
             case State::WAIT_FOR_CRC_lo:
-                if (dbg) printf("CRC ");
+                if (kDebugMNPThrottle) printf("CRC ");
                 state_ = State::WAIT_FOR_CRC_hi;
                 break;
             case State::WAIT_FOR_CRC_hi:
-                if (dbg) printf("CRC ");
+                if (kDebugMNPThrottle) printf("CRC ");
                 // Set the delay with a fixed value plus a number of characters at the curren bitrate.
                 // Hayes `ATS300`: absolute throttle delay in microseconds
                 // Hayes `ATS301`: relative MNP throttle delay in characters
-                resend_event_ = Event::make_delay_event(reg_absolute_delay + ((reg_num_char_delay * 1'000'000) / bitrate_) * 10);
+                resend_event_ = Event::make_delay_event(reg_absolute_delay_ + ((reg_num_char_delay_ * 1'000'000) / bitrate_) * 10);
                 if (Pipe::send(resend_event_).ok()) {
-                    if (dbg) printf("Delay added\n");
+                    if (kDebugMNPThrottle) printf("Delay added\n");
                     state_ = State::WAIT_FOR_DLE;
                 } else {
-                    if (dbg) printf("Delay rejected\n");
+                    if (kDebugMNPThrottle) printf("Delay rejected\n");
                     state_ = State::RESEND_DELAY;
                 }
                 break;
@@ -103,4 +106,18 @@ Result MNPThrottle::send(Event event)
     }
     return r;
 }
+
+Result MNPThrottle::signal(Event event) {
+    uint8_t value = 0;
+    if (event.type() != Event::Type::SIGNAL)
+        return Result::OK;
+    switch (event.subtype()) {
+        case Event::Subtype::USER_SETTINGS_CHANGED:
+            reg_absolute_delay_ = user_settings.data.mnpt_absolute_delay;
+            reg_num_char_delay_ = user_settings.data.mnpt_num_char_delay;
+            break;
+    }
+    return Result::OK;
+}
+
 

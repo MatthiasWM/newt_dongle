@@ -27,6 +27,7 @@ class HayesFilter: public Task {
         DownstreamPipe(HayesFilter &filter) : filter_(filter) { }
         Result send(Event event) override { return filter_.downstream_send(event); }
     };
+    uint8_t index_ = 0;
     bool data_mode_ = true;
     uint8_t command_mode_progress_ = 0;
     uint32_t command_mode_timeout_ = 0;
@@ -34,8 +35,7 @@ class HayesFilter: public Task {
     bool cmd_ready_ = false;
     bool cr_rcvd_ = false;
     uint32_t current_register_ = 0;
-    uint32_t esc_code_guard_time_ = 50; // Register S12, time in 50ths of a second
-    uint32_t esc_code_guard_timeout_ = 1'000'000; // 1 second
+    uint32_t esc_code_guard_timeout_ = 1'000'000; // 1 second (see Register 12)
 
     SDCardEndpoint *sdcard_ = nullptr;
 
@@ -45,12 +45,13 @@ public:
     UpstreamPipe upstream { *this };
     DownstreamPipe downstream { *this };
     
-    HayesFilter(Scheduler &scheduler);
+    HayesFilter(Scheduler &scheduler, uint8_t ix);
     ~HayesFilter() override;
 
     void switch_to_command_mode();
     void switch_to_data_mode();
 
+    Result signal(Event event) override;
     Result task() override;
     Result upstream_send(Event event);
     Result downstream_send(Event event);

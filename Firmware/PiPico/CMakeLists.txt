@@ -32,6 +32,13 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/carlk3/no-OS-FatFS-SD-SPI-RPi-Pico.git
         GIT_TAG        bbccc5d2deea09e128e2576ef35f72b473c5ba5f
         PATCH_COMMAND sed -i.bak s/FF_USE_LABEL.\*0/FF_USE_LABEL\ 1/ FatFs_SPI/ff15/source/ffconf.h
+        # FF_FS_READONLY 1
+        # FF_USE_STRFUNC 0
+        # FF_PRINT_FLOAT 0
+        # FF_USE_LFN 1
+        # FF_LFN_UNICODE 2 for UTF-8 (Newton is UTF-16!)
+        # FF_FS_RPATH 1
+        # FF_FS_TIMEOUT ??
         UPDATE_DISCONNECTED 1
 )
 

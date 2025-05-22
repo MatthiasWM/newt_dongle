@@ -22,6 +22,7 @@ protected:
         uint8_t sector_count_;
         uint8_t version_;
         uint32_t serial_no_;
+        uint16_t hardware_id_;
         uint16_t hardware_version_;
         uint16_t hardware_revision_;
     } Fingerprint;
@@ -42,8 +43,8 @@ public:
     typedef struct {
             uint32_t mnpt_absolute_delay;
             uint8_t mnpt_num_char_delay;
-            uint8_t hayes0_esc_code_guard_time_;
-            uint8_t hayes1_esc_code_guard_time_;
+            uint8_t hayes0_esc_code_guard_time;
+            uint8_t hayes1_esc_code_guard_time;
     } Data;
 
     static Data factory_data;
@@ -65,13 +66,15 @@ public:
     UserSettings(UserSettings&&) = delete;
     UserSettings& operator=(UserSettings&&) = delete;
 
-    virtual Result write_serial(uint32_t serial, uint16_t version, uint16_t revision);
+    virtual Result write_serial(uint32_t serial, uint16_t id, uint16_t version, uint16_t revision);
     virtual Result write();
     virtual Result read();
     void factory_reset();
 
     uint8_t version() const { return fingerprint_.version_; }
     uint32_t serial() const { return fingerprint_.serial_no_; }
+
+    uint16_t hardware_id() const { return fingerprint_.hardware_id_; }
     uint16_t hardware_version() const { return fingerprint_.hardware_version_; }
     uint16_t hardware_revision() const { return fingerprint_.hardware_revision_; }
 

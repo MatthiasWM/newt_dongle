@@ -15,12 +15,6 @@
 
 #include <stdio.h>
 
-constexpr bool log_uart = true;
-
-// \todo Hardware flow control: void uart_set_hw_flow (uart_inst_t * uart, bool cts, bool rts)
-// Built-in hardware flow control is on ports 2 and 3, but we use those for SPI.
-// We can emulate RTS and CTS using HSKI (28) and HSKO (29 on XIAO, 22 PiPico)
-
 using namespace nd;
 
 PicoUARTEndpoint::PicoUARTEndpoint(Scheduler &scheduler)
@@ -77,7 +71,7 @@ Result PicoUARTEndpoint::task() {
             return Result::OK;
         else
             event_pending_ = false;
-        if (log_uart) Log.log(pending_event_, 0);
+        if (kLogUART) Log.log(pending_event_, 0);
     }
     if (uart_is_readable(kUART)) {
         uint8_t c = uart_getc(kUART);
@@ -88,7 +82,7 @@ Result PicoUARTEndpoint::task() {
             pending_event_ = event;
             return Result::OK;
         }
-        if (log_uart) Log.log(event, 0);
+        if (kLogUART) Log.log(event, 0);
     }
     return Result::OK;
 }
@@ -125,14 +119,14 @@ Result PicoUARTEndpoint::send(Event event) {
             bool cts = gpio_get(kUART_HSKO_Pin);
             if (cts && uart_is_writable(kUART)) {
                 uart_putc_raw(kUART, event.data());
-                if (log_uart) Log.log(event, 1);
+                if (kLogUART) Log.log(event, 1);
                 return Result::OK;
             } else {
                 return Result::REJECTED;
             }
         }
     }
-    if (log_uart) Log.log(event, 1);
+    if (kLogUART) Log.log(event, 1);
     return UARTEndpoint::send(event);
 }
 

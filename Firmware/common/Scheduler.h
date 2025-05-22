@@ -6,7 +6,10 @@
 #ifndef ND_SCHEDULER_H
 #define ND_SCHEDULER_H
 
+#include "Event.h"
+
 #include <forward_list>
+#include <queue>
 #include <cstdint>
 
 namespace nd {
@@ -16,7 +19,9 @@ class Task;
 /** \brief Call the tasks of all registered Endpoints in an endless loop. */
 class Scheduler 
 {
-    std::forward_list<Task*> spoke_list_;
+    std::forward_list<Task*> task_list_;
+    std::forward_list<Task*> signal_list_;
+    std::queue<Event> signal_queue_;
 
 protected:
     uint32_t ticks_ = 0;
@@ -24,6 +29,9 @@ protected:
     virtual void update_time() = 0;
     
 public:
+    constexpr static uint8_t TASKS = 0x01;
+    constexpr static uint8_t SIGNALS = 0x02;
+
     Scheduler() = default;
     virtual ~Scheduler() = default;
     Scheduler(const Scheduler&) = delete;
@@ -32,11 +40,14 @@ public:
     Scheduler& operator=(Scheduler&&) = delete;
 
     // -- Add a Task to the scheduler
-    Scheduler &add(Task &task);
+    Scheduler &add(Task &task, uint8_t job_map);
 
     // -- Spin the scheduler
     void init();
     void run(int n=-1);
+
+    // -- Let user send a signal to all tasks.
+    void signal_all(Event event);
 
     // -- Additional scheduler features
     uint32_t ticks() const { return ticks_; }

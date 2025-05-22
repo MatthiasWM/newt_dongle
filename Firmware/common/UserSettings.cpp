@@ -28,8 +28,8 @@ UserSettings::Fingerprint UserSettings::factory_fingerprint_ = {
 UserSettings::Data UserSettings::factory_data = {
     .mnpt_absolute_delay = 400,         // S300
     .mnpt_num_char_delay = 8,           // S301
-    .hayes0_esc_code_guard_time_ = 50,  // S12, time in 50ths of a second
-    .hayes1_esc_code_guard_time_ = 50,
+    .hayes0_esc_code_guard_time = 50,   // S12, time in 50ths of a second
+    .hayes1_esc_code_guard_time = 50,
 };
 
 UserSettings::UserSettings() {
@@ -43,11 +43,12 @@ void UserSettings::factory_reset() {
     data = factory_data;
 }
 
-Result UserSettings::write_serial(uint32_t serial, uint16_t version, uint16_t revision) {
+Result UserSettings::write_serial(uint32_t serial, uint16_t id, uint16_t version, uint16_t revision) {
     fingerprint_.serial_no_ = serial;
+    fingerprint_.hardware_id_ = id;
     fingerprint_.hardware_version_ = version;
     fingerprint_.hardware_revision_ = revision;
-    return Result::OK__NOT_HANDLED;
+    return Result::OK;
 }
 
 Result UserSettings::write() {

@@ -21,6 +21,7 @@ public:
         SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
         DELAY,              // Delay transmission of data for the given time.
         HIGH_WATER,         // Receiving endpoint buffer about to flood.
+        SIGNAL,             // Signal from the scheduler.
         ERROR = 0xff,       // Not an event, but an error message.
     };
     enum class Subtype: uint8_t {
@@ -28,9 +29,10 @@ public:
         ON,
         OFF,
         RESET,
-        USECS,              // Delay in microseconds   
-        MSECS,              // Delay in milliseconds       
-        CHARS               // Delay in characters at the current bitrate 
+        USECS = 128,        // DELAY: Delay in microseconds   
+        MSECS,              // DELAY: Delay in milliseconds       
+        CHARS,              // DELAY: Delay in characters at the current bitrate 
+        USER_SETTINGS_CHANGED = 128, // SIGNAL: User settings changed
     };
 
 private:

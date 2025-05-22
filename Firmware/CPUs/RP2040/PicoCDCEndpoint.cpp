@@ -4,6 +4,8 @@
 //
 
 #include "PicoCDCEndpoint.h"
+
+#include "main.h"
 #include "common/Pipe.h"
 #include "common/Scheduler.h"
 
@@ -37,7 +39,7 @@ PicoCDCEndpoint::PicoCDCEndpoint(Scheduler &scheduler, uint32_t index)
     if (index < 4) {
         list_[index] = this;
     } else {
-        printf("**** ERROR ****: PicoCDCEndpoint: index out of range\n");
+        if (kDebugErrors) printf("**** ERROR ****: PicoCDCEndpoint: index out of range\n");
     }
 }
 
@@ -205,10 +207,10 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
   // TODO set some indicator
   if (dtr) {
     // Terminal connected
-    printf("CDC Terminal Connected\n");
+    if (kDebugCDC) printf("CDC Terminal Connected\n");
   } else {
     // Terminal disconnected
-    printf("CDC Terminal Disconnected\n");
+    if (kDebugCDC) printf("CDC Terminal Disconnected\n");
   }
 }
 

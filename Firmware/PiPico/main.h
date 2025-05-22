@@ -12,10 +12,19 @@
 #include <hardware/uart.h>
 
 extern nd::PicoAsyncLog Log;
+extern nd::PicoUserSettings user_settings;
 
 namespace nd {
 
-extern PicoUserSettings user_settings;
+// Debugger settings
+constexpr bool kDebugErrors = true; // Print errors to the console
+constexpr bool kDebugHayes = false;
+constexpr bool kDebugMNPThrottle = false;
+constexpr bool kDebugCDC = false;
+constexpr bool kDebugFlash = false;
+
+// Log settings
+constexpr bool kLogUART = true;
 
 // PiPico developer board settings
 

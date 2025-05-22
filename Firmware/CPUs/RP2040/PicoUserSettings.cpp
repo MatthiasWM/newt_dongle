@@ -5,6 +5,8 @@
 
 #include "PicoUserSettings.h"
 
+#include "main.h"
+
 #include <pico/flash.h>
 #include <hardware/flash.h>
 
@@ -32,12 +34,12 @@ void PicoUserSettings::do_factory_reset_flash_() {
 Result PicoUserSettings::factory_reset_flash_() {
     auto ret = flash_safe_execute(factory_reset_flash_cb_, (void*)this, 10);
     if (ret != PICO_OK) {
-        printf("Error factory_reset_flash_: flash_safe_execute failed (%d)\n", ret);
+        if (kDebugFlash) printf("Error factory_reset_flash_: flash_safe_execute failed (%d)\n", ret);
         return Result::REJECTED;
     }
     FingerprintPage *fp = (FingerprintPage *)(XIP_BASE + PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE);
     if (memcmp(fp->fingerprint_.magic_, factory_fingerprint_.magic_, sizeof(factory_fingerprint_.magic_)) != 0) {
-        printf("Error factory_reset_flash_: flash magic number test failed\n");
+        if (kDebugFlash) printf("Error factory_reset_flash_: flash magic number test failed\n");
         return Result::REJECTED;
     }
     return Result::OK;
@@ -49,7 +51,7 @@ void PicoUserSettings::write_flash_page_cb_(void *param) {
 }
 
 void PicoUserSettings::do_write_flash_page_(uint8_t page) {
-    printf("Writing Flash page %d\n", page);
+    if (kDebugFlash) printf("Writing Flash page %d\n", page);
     FingerprintPage *fp = (FingerprintPage *)(XIP_BASE + PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE);
     if (override_serial_) {
         // Don't copy the serial number from Flash; use the one in RAM
@@ -72,15 +74,15 @@ Result PicoUserSettings::write_flash_page_(uint8_t page) {
     current_page_ = page;
     auto ret = flash_safe_execute(write_flash_page_cb_, (void*)this, 10);
     if (ret != PICO_OK) {
-        printf("Error do_write_flash_page_: flash_safe_execute failed (%d)\n", ret);
+        if (kDebugFlash) printf("Error do_write_flash_page_: flash_safe_execute failed (%d)\n", ret);
         return Result::REJECTED;
     }
     return Result::OK;
 }
 
 
-Result PicoUserSettings::write_serial(uint32_t serial, uint16_t version, uint16_t revision) {
-    UserSettings::write_serial(serial, version, revision);
+Result PicoUserSettings::write_serial(uint32_t serial, uint16_t id, uint16_t version, uint16_t revision) {
+    UserSettings::write_serial(serial, id, version, revision);
     override_serial_ = true;
     Result res = write();
     override_serial_ = false;
@@ -117,7 +119,7 @@ Result PicoUserSettings::read() {
         || (fp->fingerprint_.page_size_ != factory_fingerprint_.page_size_)
         || (fp->fingerprint_.sector_size_ != factory_fingerprint_.sector_size_))
     {
-        printf("Error: invalid fingerprint.\n");
+        if (kDebugFlash) printf("Error: invalid fingerprint.\n");
         return Result::REJECTED;
     }
     uint32_t page_base = XIP_BASE + PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
@@ -126,9 +128,9 @@ Result PicoUserSettings::read() {
         if (fp->fingerprint_.page_map_ & (1 << j)) break;
         page_base += FLASH_PAGE_SIZE;
     }
-    printf("Reading Flash page %d\n", j-1);
+    if (kDebugFlash) printf("Reading Flash page %d\n", j-1);
     if (j == 1) {
-        printf("Error: invalid flash map.\n");
+        if (kDebugFlash) printf("Error: invalid flash map.\n");
         return Result::REJECTED;
     } else {
         memcpy(fingerprint_page_, fp->page_, FLASH_PAGE_SIZE);

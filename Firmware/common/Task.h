@@ -7,6 +7,7 @@
 #define ND_TASK_H
 
 #include "common/Pipe.h"
+#include "common/Scheduler.h"
 
 namespace nd {
 
@@ -15,7 +16,7 @@ class Scheduler;
 class Task : public Pipe {
     Scheduler &scheduler_;
 public:
-    Task(Scheduler &scheduler);
+    Task(Scheduler &scheduler, uint8_t job_map = Scheduler::TASKS);
     virtual ~Task() = default;
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
@@ -25,6 +26,7 @@ public:
     Scheduler &scheduler() const { return scheduler_; }
     virtual Result init() { return Result::OK; }
     virtual Result task() { return Result::OK; }
+    virtual Result signal(Event event) { return Result::OK; }
 };
 
 } // namespace nd

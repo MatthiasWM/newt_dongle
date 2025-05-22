@@ -5,6 +5,8 @@
 
 #include "Event.h"
 
+#include "main.h"
+
 #include <stdio.h>
 
 using namespace nd;
@@ -49,7 +51,7 @@ uint32_t Event::id_to_bitrate(uint8_t id) {
         case 10: return 115200; 
         case 11: return 230400;
         default:
-            printf("**** ERROR ***: unsupported bitrate ID %d\n", id);
+            if (kDebugErrors) printf("**** ERROR ***: unsupported bitrate ID %d\n", id);
             return 38400;
     }
 }
@@ -69,7 +71,7 @@ uint8_t Event::bitrate_to_id(uint32_t bitrate) {
         case 115200: return 10; 
         case 230400: return 11;
         default:
-            printf("**** ERROR ***: unsupported bitrate %d\n", bitrate);
+            if (kDebugErrors) printf("**** ERROR ***: unsupported bitrate %d\n", bitrate);
             return 0xff;
     }
 }

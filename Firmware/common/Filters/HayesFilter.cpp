@@ -39,10 +39,11 @@ using namespace nd;
  * 
  * \param scheduler The scheduler to use for this filter.
  */
-HayesFilter::HayesFilter(Scheduler &scheduler)
-:   Task(scheduler),
+HayesFilter::HayesFilter(Scheduler &scheduler, uint8_t ix)
+:   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS),
     upstream(*this),
-    downstream(*this)
+    downstream(*this),
+    index_(ix)
 {
 }
 
@@ -63,6 +64,24 @@ void HayesFilter::switch_to_data_mode() {
     command_mode_progress_ = 0;
 }
 
+Result HayesFilter::signal(Event event) {
+    uint8_t value = 0;
+    if (event.type() != Event::Type::SIGNAL)
+        return Result::OK;
+    switch (event.subtype()) {
+        case Event::Subtype::USER_SETTINGS_CHANGED:
+            if (index_ == 0) {
+                value = user_settings.data.hayes0_esc_code_guard_time;
+            } else {
+                value = user_settings.data.hayes1_esc_code_guard_time;
+            }
+            esc_code_guard_timeout_ = value * 20'000; // 20ms
+            break;
+    }
+    return Result::OK;
+}
+
+
 /**
  * \brief Called regularly by the scheduler to take care of the filter.
  */
@@ -76,14 +95,14 @@ Result HayesFilter::task() {
                 if (command_mode_timeout_ > esc_code_guard_timeout_) {
                     command_mode_progress_ = 1;
                     command_mode_timeout_ = 0;
-                    //printf("**** HayesFilter task: 0 -> 1 (Good: no character for a while)\n");
+                    if (kDebugHayes) printf("**** HayesFilter task: 0 -> 1 (Good: no character for a while)\n");
                 }
                 break;
             case 1: // waiting for the first '+'
                 break;
             case 2: // waiting for the second '+'
                 if (command_mode_timeout_ > esc_code_guard_timeout_) {
-                    //printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
+                    if (kDebugHayes) printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
                     command_mode_timeout_ = 0;
                     command_mode_progress_ = 0;
                     upstream.out()->send(Event('+')); // Make up for the '+' we withheld.
@@ -91,7 +110,7 @@ Result HayesFilter::task() {
                 break;
             case 3: // waiting for the third '+'
                 if (command_mode_timeout_ > esc_code_guard_timeout_) {
-                    //printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
+                    if (kDebugHayes) printf("**** HayesFilter task: %d -> 0 (Bad: no + in time)\n", command_mode_progress_);
                     command_mode_timeout_ = 0;
                     command_mode_progress_ = 0;
                     upstream.out()->send(Event('+')); // Make up for the two '+'s we withheld.
@@ -101,7 +120,7 @@ Result HayesFilter::task() {
             case 4: // waiting for the last pause
                 if (command_mode_timeout_ > esc_code_guard_timeout_) {
                     command_mode_progress_ = 0;
-                    //printf("**** HayesFilter task: COMMAND MODE (Good: no character for a while)\n");
+                    if (kDebugHayes) printf("**** HayesFilter task: COMMAND MODE (Good: no character for a while)\n");
                     switch_to_command_mode();
                     return Result::OK;        
                 }
@@ -154,10 +173,10 @@ Result HayesFilter::downstream_send(Event event)
                 if (event.data() == '+') {
                     command_mode_progress_ = 2;
                     command_mode_timeout_ = 0;
-                    //printf("**** HayesFilter send: 1 -> 2 (Good: received first +)\n");
+                    if (kDebugHayes) printf("**** HayesFilter send: 1 -> 2 (Good: received first +)\n");
                     return Result::OK; // Don't send the '+' just yet.
                 } else {
-                    //printf("**** HayesFilter send: 1 -> 0 (Bad: received unexpected character)\n");
+                    if (kDebugHayes) printf("**** HayesFilter send: 1 -> 0 (Bad: received unexpected character)\n");
                     command_mode_progress_ = 0;
                     command_mode_timeout_ = 0;
                 }
@@ -166,31 +185,31 @@ Result HayesFilter::downstream_send(Event event)
                 if (event.data() == '+') {
                     command_mode_progress_ = 3;
                     command_mode_timeout_ = 0;
-                    //printf("**** HayesFilter send: 2 -> 3 (Good: received second +)\n");
+                    if (kDebugHayes) printf("**** HayesFilter send: 2 -> 3 (Good: received second +)\n");
                     return Result::OK; // Don't send the '+' just yet.
                 } else {
                     upstream.out()->send(Event ('+')); // Make up for the '+' we withheld.
-                    //printf("**** HayesFilter send: 2 -> 0 (Bad: received unexpected character)\n");
+                    if (kDebugHayes) printf("**** HayesFilter send: 2 -> 0 (Bad: received unexpected character)\n");
                     command_mode_progress_ = 0;
                     command_mode_timeout_ = 0;
                 }
                 break; // Continue and send the latest event.
             case 3: // waiting for the third '+'
                 if (event.data() == '+') {
-                    //printf("**** HayesFilter send: 3 -> 4 (Good: received third +)\n");
+                    if (kDebugHayes) printf("**** HayesFilter send: 3 -> 4 (Good: received third +)\n");
                     command_mode_progress_ = 4;
                     command_mode_timeout_ = 0;
                     return Result::OK; // Don't send the '+' just yet.
                 } else {
                     upstream.out()->send(Event ('+')); // Make up for the two '+'s we withheld.
                     upstream.out()->send(Event ('+'));
-                    //printf("**** HayesFilter send: 3 -> 0 (Bad: received unexpected character)\n");
+                    if (kDebugHayes) printf("**** HayesFilter send: 3 -> 0 (Bad: received unexpected character)\n");
                     command_mode_progress_ = 0;
                     command_mode_timeout_ = 0;
                 }
                 break; // Continue and send the latest event. 
             case 4: // waiting for the last pause
-                //printf("**** HayesFilter send: 4 -> 0 (Bad: received unexpected character)\n");
+                if (kDebugHayes) printf("**** HayesFilter send: 4 -> 0 (Bad: received unexpected character)\n");
                 upstream.out()->send(Event ('+')); // Make up for the three '+'s we withheld.
                 upstream.out()->send(Event ('+'));
                 upstream.out()->send(Event ('+'));
@@ -317,10 +336,16 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
         case 0: // End of command line.
             send_OK();
             return nullptr;
+        // A - Answer incoming call.
+        // B - Select Communication Standard
+        // C - Carrier Control Selection
         case 'D': // The remainder of the command line is a phone number.
             cmd = nullptr; // Skip the rest of the command line.
             send_ERROR();
             return nullptr;
+        // E - Command State Character Echo Selection
+        // F - On-line State Character Echo Selection
+        // H - Hook Command Options
         case 'I':
             a = read_int(&cmd); // We can add various info strings here, depending of the command argument.
             if (!send_info(a)) {
@@ -328,9 +353,14 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
                 return nullptr;
             }
             break;
+        // L - Speaker Volume Level Selection
+        // M - Speaker On/Off Selection
+        // N - Negotiation of Handshake Options
         case 'O':
             switch_to_data_mode();
             return nullptr; // Nothing to be done after going online.
+        // P - Pulse Dialing Selection
+        // Q - Result Code Display Options
         case 'S':
             if (*cmd >= '0' && *cmd <= '9') {
                 current_register_ = read_int(&cmd);
@@ -351,14 +381,12 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
                 send_string("\r\n");
                 return cmd;
             }
-            // ATS : set current register, ATS? return value fo current register
-            // ATS3=5 : set register 3 to value 5, ATS3? return value of register 3
-            // ATS=3 : set current register to value 3
-            // S2: escape character ("+")
-            // S3: carriage return (13)
-            // S4: line feed (10)
-            // S37: Desired DCE Line Speed (http://www.messagestick.net/modem/Hayes_Ch1-3.html)
-        // Z: Reset
+        // T - Select Tone Dialing Method
+        // V - Result Code Format Options
+        // W - Negotiation Progress Message Selection
+        // X - Call Progress Options
+        // Y - Long Space Disconnect Options
+        // Zn: Reset to profile n (see &Wn)
         case '&':
             return run_ampersand_cmd(cmd);
         case '[': 
@@ -375,9 +403,9 @@ const char *HayesFilter::run_ampersand_cmd(const char *cmd) {
     if (c>32 && c<127) c = toupper(c);
     switch (c) {
         // &D1: DTR signal (0=on, 1=off) etc.
-        // &F0: factory reset
+        // &F: Recall Factory Profile
         // &K0: flow control (0=none, 1=hardware, 2=software)
-        // &T0: self test
+        // &T0: self test (various tests)
         // &Yn: reset to profile
         // &V: show current profile
         // %E0: Escape method ("+++", break, DTR?, etc.)
@@ -392,7 +420,6 @@ const char *HayesFilter::run_ampersand_cmd(const char *cmd) {
     }
     return cmd;
 }
-
 
 void HayesFilter::link(SDCardEndpoint *sdcard) {
     sdcard_ = sdcard;
@@ -429,11 +456,13 @@ const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
     if (strncasecmp(cmd, "SN", 2) == 0) { // Write a new serial number, hardware version, and revision
         cmd += 2;
         uint32_t serial = read_int(&cmd);
+        if (*cmd != ':') { send_ERROR(); return nullptr; } else cmd++;
+        uint16_t id = read_int(&cmd);
         if (*cmd != '.') { send_ERROR(); return nullptr; } else cmd++;
         uint16_t version = read_int(&cmd);
         if (*cmd != '.') { send_ERROR(); return nullptr; } else cmd++;
         uint16_t revision = read_int(&cmd);
-        Result res = user_settings.write_serial(serial, version, revision);
+        Result res = user_settings.write_serial(serial, id, version, revision);
         if (res.rejected()) {
             send_string("Rejected\r\n");
             send_ERROR();
@@ -456,31 +485,44 @@ uint32_t HayesFilter::read_int(const char **cmd) {
 
 bool HayesFilter::set_register(uint32_t reg, uint32_t value) {
     switch (reg) {
+        // S2: escape character ("+")
+        // S3: carriage return (13)
+        // S4: line feed (10)
+        // S37: Desired DCE Line Speed (http://www.messagestick.net/modem/Hayes_Ch1-3.html)
         case 12: // S12: escape code guard time (1/50th of a second)
-            user_settings.data.hayes0_esc_code_guard_time_ = value;
-            esc_code_guard_time_ = value;
-            esc_code_guard_timeout_ = value * 20'000; // 20ms per 1/50th of a second
+            if (index_ == 0) {
+                user_settings.data.hayes0_esc_code_guard_time = value;
+            } else {
+                user_settings.data.hayes1_esc_code_guard_time = value;
+            }
             break;
         case 300: // ATS300: absolute throttle delay in microseconds
-            MNPThrottle::reg_absolute_delay = value;
+            user_settings.data.mnpt_absolute_delay = value;
             break;
         case 301: // ATS301: relative MNP throttle delay in characters
-            MNPThrottle::reg_num_char_delay = value;
+            user_settings.data.mnpt_num_char_delay = value;
             break;
         default:
             return false;
     }
+    scheduler().signal_all(Event {Event::Type::SIGNAL, Event::Subtype::USER_SETTINGS_CHANGED});
     return true;
 }
 
 uint32_t HayesFilter::get_register(uint32_t reg) const {
     switch (reg) {
         case 12: // S12: escape code guard time (1/50th of a second)
-            return esc_code_guard_time_;
+            if (index_ == 0) {
+                return user_settings.data.hayes0_esc_code_guard_time;
+            } else {
+                return user_settings.data.hayes1_esc_code_guard_time;
+            }
+        case 13: // S13: escape code guard time (1/50th of a second)
+            return user_settings.data.hayes0_esc_code_guard_time;
         case 300: // ATS300: absolute throttle delay in microseconds
-            return MNPThrottle::reg_absolute_delay;
+            return user_settings.data.mnpt_absolute_delay;
         case 301: // ATS301: relative MNP throttle delay in characters
-            return MNPThrottle::reg_num_char_delay;
+            return user_settings.data.mnpt_num_char_delay;
     }
     return 0;
 }
@@ -507,7 +549,6 @@ bool HayesFilter::send_info(uint32_t ix) {
             send_string("\r\n");
             break;
         default:
-            send_ERROR();
             return false;
     }
     return true;

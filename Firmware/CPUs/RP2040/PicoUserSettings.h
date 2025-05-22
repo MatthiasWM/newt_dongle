@@ -25,7 +25,7 @@ class PicoUserSettings : public UserSettings {
 public:
     PicoUserSettings() = default;
     // DANGER: for initialization only!
-    Result write_serial(uint32_t serial, uint16_t version, uint16_t revision) override;
+    Result write_serial(uint32_t serial, uint16_t id, uint16_t version, uint16_t revision) override;
     // DANGER: for testing only!
     Result mess_up_flash();
     Result write() override;
