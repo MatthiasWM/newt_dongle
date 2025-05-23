@@ -61,6 +61,8 @@
 #include "PicoSDCard.h"
 #include "PicoSystem.h"
 
+#include "PicoDock.h"
+
 #include "common/Endpoints/StdioLog.h"
 #include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
@@ -98,6 +100,9 @@ HayesFilter cdc_hayes(scheduler, 1);
 MNPThrottle mnp_throttle(scheduler);
 BufferedPipe buffer_to_cdc(scheduler);
 BufferedPipe buffer_to_uart(scheduler);
+
+// -- Experimental MNP Endpoint
+PicoDock dock(scheduler);
 
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
@@ -142,9 +147,9 @@ int main(int argc, char *argv[])
     // Connect the UART to USB
     /**/  uart_endpoint >> uart_hayes.downstream; 
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
-    /**/      cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
+    /**/      cdc_hayes.downstream >> buffer_to_cdc >> dock; // >> cdc_endpoint;
     // Connect USB to the UART
-    /**/  cdc_endpoint >> cdc_hayes.downstream; 
+    /**/  /*cdc_endpoint >>*/ dock >> cdc_hayes.downstream; 
     /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 

@@ -22,6 +22,7 @@ public:
         DELAY,              // Delay transmission of data for the given time.
         HIGH_WATER,         // Receiving endpoint buffer about to flood.
         SIGNAL,             // Signal from the scheduler.
+        MNP,                // MNP protocol event.
         ERROR = 0xff,       // Not an event, but an error message.
     };
     enum class Subtype: uint8_t {
@@ -33,6 +34,10 @@ public:
         MSECS,              // DELAY: Delay in milliseconds       
         CHARS,              // DELAY: Delay in characters at the current bitrate 
         USER_SETTINGS_CHANGED = 128, // SIGNAL: User settings changed
+        MNP_SEND_LA = 128,  // MNP: Send Link Acknowledgement (sequence number)
+        MNP_SEND_LD,        // MNP: Send Link Disconnect (reason)
+        MNP_SEND_LR,        // MNP: Send Link Request
+        MNP_SEND_LT,        // MNP: Send Link Transfer (buffer index)
     };
 
 private:

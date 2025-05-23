@@ -33,7 +33,7 @@ protected:
     uint32_t space() const;
 
 public:
-    BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2 = 9);
+    BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2 = 11); // 2^11 = 2048
     ~BufferedPipe() override = default;
 
     // -- Task stuff

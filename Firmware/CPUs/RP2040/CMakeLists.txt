@@ -21,4 +21,7 @@ target_sources(newt_dongle
         PicoSystem.h
         PicoUserSettings.cpp
         PicoUserSettings.h
+
+        PicoDock.cpp
+        PicoDock.h
 )
