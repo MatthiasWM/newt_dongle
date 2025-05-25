@@ -15,18 +15,21 @@ namespace nd {
 class SDCardEndpoint;
 
 class HayesFilter: public Task {
+
     class UpstreamPipe: public Pipe {
     public:
         HayesFilter &filter_;
         UpstreamPipe(HayesFilter &filter) : filter_(filter) { }
         Result send(Event event) override { return filter_.upstream_send(event); }
     };
+
     class DownstreamPipe: public Pipe {
     public:
         HayesFilter &filter_;
         DownstreamPipe(HayesFilter &filter) : filter_(filter) { }
         Result send(Event event) override { return filter_.downstream_send(event); }
     };
+    
     uint8_t index_ = 0;
     bool data_mode_ = true;
     uint8_t command_mode_progress_ = 0;

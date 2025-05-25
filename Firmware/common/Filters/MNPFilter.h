@@ -3,10 +3,10 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#ifndef ND_PICO_DOCK_H
-#define ND_PICO_DOCK_H
+#ifndef ND_FILTERS_MNP_FILTER_H
+#define ND_FILTERS_MNP_FILTER_H
 
-#include "common/Endpoint.h"
+#include "common/Task.h"
 
 #include <vector>
 #include <queue>
@@ -27,12 +27,22 @@ constexpr uint8_t kMNP_Frame_LR = 1; // Link Request
 constexpr uint8_t kMNP_Frame_LD = 2; // Link Disconnect
 constexpr uint8_t kMNP_Frame_LT = 4; // Link Transfer
 constexpr uint8_t kMNP_Frame_LA = 5; // Link Acknowledgement
-constexpr uint8_t kMNP_Frame_LN = 6; // Link Attention
-constexpr uint8_t kMNP_Frame_LNA = 7; // Link Attention Acknowledgement
+constexpr uint8_t kMNP_Frame_LN = 6; // Link Attention (not supported)
+constexpr uint8_t kMNP_Frame_LNA = 7; // Link Attention Acknowledgement (not supported)
 
-class PicoDock : public Endpoint 
+class MNPFilter : public Task 
 {
+    typedef Task super;
+
     constexpr static int kPoolSize = 4;
+    constexpr static uint32_t kMaxData = 256; // DCL: 253???
+
+    class DockPipe: public Pipe {
+    public:
+        MNPFilter &filter_;
+        DockPipe(MNPFilter &filter) : filter_(filter) { }
+        Result send(Event event) override { return filter_.dock_send(event); }
+    };
 
     class Frame {
     public:
@@ -41,12 +51,12 @@ class PicoDock : public Endpoint
         uint8_t header_size = 0;
         uint16_t crc = 0;
         uint8_t type = 0;
+        uint8_t pool_index = 0;
         bool escaping_dle = false;
         bool crc_valid = false;
-        bool busy = false;
+        bool in_use = false;
 
         Frame();
-        Frame(const std::vector<uint8_t> &preset_header, const std::vector<uint8_t> &preset_data);
         void clear();
         uint16_t calculate_crc();
         void prepare_to_send();
@@ -58,8 +68,8 @@ class PicoDock : public Endpoint
     Frame *in_frame = nullptr;
     uint8_t in_seq_no_ = 0;
     enum class InState {  // TODO: move to class Frame?
-        ABORT,
-        WAIT_FOR_SYN = ABORT,   // synchronous idle
+        ABORT,                  // clear the in_buffer and start over
+        WAIT_FOR_SYN,           // synchronous idle
         WAIT_FOR_DLE,           // data link escape
         WAIT_FOR_STX,           // start of text
         WAIT_FOR_HDR_SIZE,      // 0..254
@@ -95,23 +105,38 @@ class PicoDock : public Endpoint
         NEGOTIATING,
         CONNECTED,
     } mnp_state_ = MNPState::DISCONNECTED;
-    std::queue<Event> job_list;
+    std::queue<Event> newton_job_list;
+    std::queue<Event> dock_job_list;
+
+    uint8_t dock_state_ = 0;
+
+    Frame *dock_out_frame = nullptr;
+    uint16_t dock_out_index_ = 0;
+
+    Frame *dock_in_frame = nullptr;
+    void flush_dock_in_frame();
 
 public:
-    PicoDock(Scheduler &scheduler);
-    ~PicoDock() override;
-    Result init() override;
+    DockPipe dock { *this };
+
+    MNPFilter(Scheduler &scheduler);
+    ~MNPFilter() override = default;
     Result task() override;
     Result send(Event event) override;
     Result signal(Event event) override;
 
-    void handle_valid_in_frame(Frame *frame);
-    void handle_LT(Frame *frame);
+    Result dock_send(Event event);
 
-    void reply_to_LR(Frame *frame);
-    void reply_with_LD();
-    void reply_with_LA();
-    void reply_newtdockdock();
+    Frame *acquire_in_frame();
+    void release_in_frame(Frame *frame);
+    Frame *acquire_out_frame();
+    void release_out_frame(Frame *frame);
+
+    void handle_valid_in_frame(Frame *frame);
+
+    void prepare_LR_frame(Frame *lr, uint8_t in_index);
+    void prepare_LD_frame(Frame *ld, uint8_t reason);
+    void prepare_LA_frame(Frame *la, uint8_t seq_no);
 
     void state_machine_reply(Frame *frame);
 
@@ -122,4 +147,4 @@ public:
 
 } // namespace nd
 
-#endif // ND_PICO_DOCK_H
+#endif // ND_FILTERS_MNP_FILTER_H

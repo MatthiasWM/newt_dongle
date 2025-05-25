@@ -10,6 +10,8 @@ target_sources(newt_dongle
         Endpoint.h
         Event.cpp
         Event.h
+        Logger.cpp
+        Logger.h
         Pipe.cpp
         Pipe.h
         Scheduler.cpp
@@ -19,6 +21,8 @@ target_sources(newt_dongle
         UserSettings.cpp
         UserSettings.h
 
+        Endpoints/Dock.cpp
+        Endpoints/Dock.h
         Endpoints/SDCardEndpoint.cpp
         Endpoints/SDCardEndpoint.h
         Endpoints/StdioLog.cpp
@@ -30,6 +34,8 @@ target_sources(newt_dongle
 
         Filters/HayesFilter.cpp
         Filters/HayesFilter.h
+        Filters/MNPFilter.cpp
+        Filters/MNPFilter.h
 
         Pipes/BufferedPipe.cpp
         Pipes/BufferedPipe.h

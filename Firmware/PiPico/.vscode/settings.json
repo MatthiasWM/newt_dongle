@@ -38,6 +38,7 @@
     "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
     "files.associations": {
         "cmath": "cpp",
-        "text_encoding": "cpp"
+        "text_encoding": "cpp",
+        "cstdint": "cpp"
     }
 }

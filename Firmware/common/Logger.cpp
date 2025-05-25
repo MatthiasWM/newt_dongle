@@ -3,48 +3,26 @@
 // Copyright (c) 2025 Matthias Melcher, robowerk.de
 //
 
-#include "PicoAsyncLog.h"
+#include "Logger.h"
 
-#include "pico/multicore.h"
-#include "pico/stdlib.h"
-#include <pico/flash.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 using namespace nd;
 
-PicoAsyncLog *PicoAsyncLog::the_instance_ = nullptr;
-queue_t PicoAsyncLog::queue_ = {};
-
-/**
- * @brief PicoAsyncLog constructor
- * @param dest 0 to log to stdio, 1 to log to sd card
- */
-PicoAsyncLog::PicoAsyncLog(int dest) {
-    the_instance_ = this;
-    dest_ = dest;
-    queue_init(&queue_, sizeof(Event), 1024);
-    multicore_launch_core1(run_);
+Logger::Logger() {
 }
 
-void PicoAsyncLog::log(Event event, int pipe) {
-    uint32_t e = event.raw();
-    if (pipe == 1) e |= 0x8000'0000;
-    queue_try_add(&queue_, &e);
+void Logger::log(Event event, int pipe) {
 }
 
-void PicoAsyncLog::log(Result result, int pipe) {
-    uint32_t e = result.raw() | 0x4000'0000;
-    if (pipe == 1) e |= 0x8000'0000;
-    queue_try_add(&queue_, &e);
+void Logger::log(Result result, int pipe) {
 }
 
-void PicoAsyncLog::log(const char *message, int pipe) {
-    for (const char *src = message; *src != 0; src++) {
-        log(Event(Event::Type::TEXT, *src), pipe);
-    }
+void Logger::log(const char *message, int pipe) {
 }
 
-void PicoAsyncLog::logf(const char *message, ...) {
+void Logger::logf(const char *message, ...) {
     va_list args;
     va_start(args, message);
     char buffer[256];
@@ -52,6 +30,11 @@ void PicoAsyncLog::logf(const char *message, ...) {
     va_end(args);
     log(buffer, 0);
 }
+
+
+#if 0
+
+// TODO: Event::to_string(buffer, size);
 
 /**
  * @brief Run the logging on the second processor
@@ -119,3 +102,5 @@ void PicoAsyncLog::run() {
         }
     }
 }
+
+#endif

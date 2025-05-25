@@ -26,6 +26,7 @@ same firmware directly for the RP2040 based dongle.
  - [x] Implement a MNP scanner that can insert delays after a block is received
  - [x] Test with script
  - [x] Clean up Workspace
+ - [ ] Rename `send()` to `relay()` to make it clearer what the function does?
  - [ ] UserInterface class to control LEDs and listen to buttons
  - [ ] Optional firmware to reset Flash memory? Or any other way to reset it?
  - [ ] MNP Filter that extracts Dock commands and data (takes care of negotiation, blocks, replies, checksums, resends)

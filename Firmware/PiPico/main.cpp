@@ -61,11 +61,11 @@
 #include "PicoSDCard.h"
 #include "PicoSystem.h"
 
-#include "PicoDock.h"
-
+#include "common/Endpoints/Dock.h"
 #include "common/Endpoints/StdioLog.h"
 #include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
+#include "common/Filters/MNPFilter.h"
 #include "common/Pipes/BufferedPipe.h"
 #include "common/Pipes/MNPThrottle.h"
 #include "common/Pipes/Tee.h"
@@ -91,18 +91,19 @@ PicoSystemTask system_task(scheduler);
 PicoUARTEndpoint uart_endpoint { scheduler };
 PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
 PicoSDCardEndpoint sdcard_endpoint { scheduler };
+Dock dock_endpoint(scheduler);
 
 // -- Instantiate filters and loggers.
 HayesFilter uart_hayes(scheduler, 0);
 HayesFilter cdc_hayes(scheduler, 1);
+// -- Experimental MNP Filter
+MNPFilter mnp_filter(scheduler);
 
 // -- Instantiate pipes to connect everything.
 MNPThrottle mnp_throttle(scheduler);
 BufferedPipe buffer_to_cdc(scheduler);
 BufferedPipe buffer_to_uart(scheduler);
 
-// -- Experimental MNP Endpoint
-PicoDock dock(scheduler);
 
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
@@ -144,14 +145,27 @@ int main(int argc, char *argv[])
     //                                                          ↑↓
     //                                                        SDCard    
 
+#if 0
     // Connect the UART to USB
     /**/  uart_endpoint >> uart_hayes.downstream; 
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
-    /**/      cdc_hayes.downstream >> buffer_to_cdc >> dock; // >> cdc_endpoint;
+    /**/      cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
     // Connect USB to the UART
-    /**/  /*cdc_endpoint >>*/ dock >> cdc_hayes.downstream; 
+    /**/  cdc_endpoint >> cdc_hayes.downstream; 
     /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
+#else
+    // Connect the UART to Dock
+    /**/  uart_endpoint >> uart_hayes.downstream; 
+    /**/    uart_hayes.upstream >> cdc_hayes.upstream;
+    /**/      cdc_hayes.downstream >> buffer_to_cdc >> mnp_filter;
+    /**/        mnp_filter.dock >> dock_endpoint;
+    // Connect USB to the UART
+    /**/  dock_endpoint >> mnp_filter.dock;
+    /**/    mnp_filter >> cdc_hayes.downstream; 
+    /**/      cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
+    /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
+#endif
 
     // -- Give both serial ports access to the SD Card (currently for debugging only)
     uart_hayes.link(&sdcard_endpoint);
