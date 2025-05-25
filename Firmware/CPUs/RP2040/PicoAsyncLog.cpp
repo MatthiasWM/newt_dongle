@@ -22,7 +22,7 @@ queue_t PicoAsyncLog::queue_ = {};
 PicoAsyncLog::PicoAsyncLog(int dest) {
     the_instance_ = this;
     dest_ = dest;
-    queue_init(&queue_, sizeof(Event), 1024);
+    queue_init(&queue_, sizeof(Event), 4096);
     multicore_launch_core1(run_);
 }
 

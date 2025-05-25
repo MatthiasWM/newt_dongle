@@ -38,6 +38,7 @@ public:
         MNP_SEND_LD,        // MNP: Send Link Disconnect (reason)
         MNP_SEND_LR,        // MNP: Send Link Request (in buffer index)
         MNP_SEND_LT,        // MNP: Send Link Transfer (out buffer index)
+        MNP_RECEIVED_LA,    // MNP: Received Link Acknowledgement (sequence number)
         MNP_DATA_TO_DOCK,   // MNP: Stream data on to dock (in buffer index)
         MNP_NEGOTIATING,    // MNP: sent from MNP to Dock if a connection is about to be established
         MNP_CONNECTED,      // MNP: sent from MNP to Dock if a connection was established

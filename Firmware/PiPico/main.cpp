@@ -109,6 +109,7 @@ BufferedPipe buffer_to_uart(scheduler);
 int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
+    Log.log("Starting Newton Dongle...\n");
 
     // user_settings.mess_up_flash();
     user_settings.read();
@@ -158,11 +159,11 @@ int main(int argc, char *argv[])
     // Connect the UART to Dock
     /**/  uart_endpoint >> uart_hayes.downstream; 
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
-    /**/      cdc_hayes.downstream >> buffer_to_cdc >> mnp_filter;
-    /**/        mnp_filter.dock >> dock_endpoint;
+    /**/      cdc_hayes.downstream >> buffer_to_cdc >> mnp_filter.newt;
+    /**/        mnp_filter.newt >> dock_endpoint;
     // Connect USB to the UART
     /**/  dock_endpoint >> mnp_filter.dock;
-    /**/    mnp_filter >> cdc_hayes.downstream; 
+    /**/    mnp_filter.dock >> cdc_hayes.downstream; 
     /**/      cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 #endif
