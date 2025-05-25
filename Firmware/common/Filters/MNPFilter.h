@@ -36,7 +36,7 @@ class MNPFilter : public Task
     friend class DockToNewtPipe;
 
     constexpr static int kPoolSize = 8;
-    constexpr static uint32_t kMaxData = 35; // DCL: 253???
+    constexpr static uint32_t kMaxData = 251; // DCL: 253???
     // constexpr static uint32_t kMaxData = 256; // DCL: 253???
 
     // -- MNP state machine
