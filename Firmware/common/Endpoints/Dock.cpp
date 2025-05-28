@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <cstring>
+#include <malloc.h>
 
 
 typedef unsigned short UniChar;
@@ -384,6 +385,9 @@ void Dock::process_command() {
 			//			  {name: "Business", type: folder} ]
 			//		type: desktop = 0, file = 1, folder = 2, disk = 3
 			//		diskType: kHardDrive = 0, kFloppyDisk = 1, kCDROM = 2, kNetworkDisk = 3
+		case kDGetFilesAndFolders: // gfil, get files and folders
+			send_cmd_file();
+			break;
 			// < kDGetFilesAndFolders
 			//		ULong 'gfil'
 			//		ULong length = 0;
@@ -429,6 +433,9 @@ void Dock::process_command() {
 			//		icon: is an icon to display. This is optional.
 			//		path: is the "user understandable" path description
 
+		case kDLoadPackageFile: // lpfl
+			send_lpkg();
+			break;
 			// < kDLoadPackageFile
 			//		ULong 'lpfl'
 			//		ULong length
@@ -582,52 +589,79 @@ void Dock::send_cmd_wicn(uint32_t icon_map) {
 
 }
 
+
+
+// uint32_t getTotalHeap(void) {
+//    extern char __StackLimit, __bss_end__;
+   
+//    return &__StackLimit  - &__bss_end__;
+// }
+
+// uint32_t getFreeHeap(void) {
+//    struct mallinfo m = mallinfo();
+
+//    return getTotalHeap() - m.uordblks;
+// }
+
+
 void Dock::send_cmd_path() {
 //			[ {name: "Desktop", type: kDesktop},
 //			  {name: "My HD", type: kDesktopDisk, diskType: kHardDrive, whichvol: 0},
 //			  {name: "Business", type: folder} ]
 //		type: desktop = 0, file = 1, folder = 2, disk = 3
 //		diskType: kHardDrive = 0, kFloppyDisk = 1, kCDROM = 2, kNetworkDisk = 3
-	static const std::vector<uint8_t> data = {
+	static const std::vector<uint8_t> cmd_data = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'p',  'a',  't',  'h', 0x00, 0x00, 0x00, 0x00,
+		 'p',  'a',  't',  'h', //0x00, 0x00, 0x00, 0x00,
+
+		 0x00, 0x00, 0x00, 0x65, 
+		 0x02, 0x05, 0x04, 0x06, 0x02, 0x07, 0x04, 0x6E, 
+		 0x61, 0x6D, 0x65, 0x07, 0x04, 0x74, 0x79, 0x70, 
+		 0x65, 0x08, 0x18, 0x00, 0x4D, 0x00, 0x61, 0x00, 
+		 0x63, 0x00, 0x42, 0x00, 0x6F, 0x00, 0x6F, 0x00, 
+		 0x6B, 0x00, 0x20, 0x00, 0x50, 0x00, 0x72, 0x00, 
+		 0x6F, 0x00, 0x00, 0x00, 0x00, 0x06, 0x02, 0x09, 
+		 0x02, 0x09, 0x03, 0x08, 0x04, 0x00, 0x2F, 0x00, 
+		 0x00, 0x00, 0x0C, 0x06, 0x02, 0x09, 0x02, 0x09, 
+		 0x03, 0x08, 0x0C, 0x00, 0x55, 0x00, 0x73, 0x00, 
+		 0x65, 0x00, 0x72, 0x00, 0x73, 0x00, 0x00, 0x00, 
+		 0x08, 0x06, 0x02, 0x09, 0x02, 0x09, 0x03, 0x08, 
+		 0x0A, 0x00, 0x6D, 0x00, 0x61, 0x00, 0x74, 0x00, 
+		 0x74, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 
 	};
 
-	// NSOF array of folder frames
-	SymbolRef symName = std::make_shared<Symbol>("name");
-	SymbolRef symType = std::make_shared<Symbol>("type");
-	SymbolRef symDiskType = std::make_shared<Symbol>("diskType");
-	SymbolRef symWhichVol = std::make_shared<Symbol>("whichvol");
+	// NSOF path as an array of folder frames:
 
-	Ref desktop = std::make_shared<Frame>(
-		std::unordered_map<SymbolRef, Ref>{
-			{symType, Ref(0)},
-			{symName, std::make_shared<String>(u"NewtCOM")}
-		}
-    );
-	Ref disk = std::make_shared<Frame>(
-		std::unordered_map<SymbolRef, Ref>{
-			{symWhichVol, Ref(0)}, // whichvol: 0
-			{symDiskType, Ref(0)}, // kHardDrive
-			{symType, Ref(3)}, // kDesktopDisk
-			{symName, std::make_shared<String>(u"MicroSD")},
-		}
-	);
-	Ref file = std::make_shared<Frame>(
-		std::unordered_map<SymbolRef, Ref>{
-			{symType, Ref(2)}, // folder
-			{symName, std::make_shared<String>(u"Business")},
-		}
-	);
+	String desktop_name( u"NewtCOM" );
+	String disk_name( u"MicroSD" ); // TODO: we can retrieve the name from the SD card
+	String folder_name( u"Business" );
 
-	Ref ref = std::make_shared<Array>(
-		Array{desktop, disk, file}
-	);
+	// Frame desktop;
+	// desktop.add(nd::symType, Ref(int32_t(0)));
+	// desktop.add(nd::symName, Ref(desktop_name));
 
-	NSOF nsof;
-	nsof.to_nsof(ref);
-	nsof.log();
+	// Frame disk;
+	// disk.add(nd::symWhichVol, Ref(int32_t(0))); // whichvol: 0
+	// disk.add(nd::symDiskType, Ref(int32_t(0))); // kHardDrive
+	// disk.add(nd::symType, Ref(int32_t(3))); // kDesktopDisk
+	// disk.add(nd::symName, Ref(disk_name));
+	
+	// Frame folder;
+	// folder.add(nd::symType, Ref(int32_t(2))); // folder
+	// folder.add(nd::symName, Ref(folder_name));
 
+	// Array path;
+	// path.add(new Ref(desktop));
+	// path.add(new Ref(disk));
+	// path.add(new Ref(folder));
+
+	// Ref(path).logln();
+
+	// NSOF nsof;
+	// nsof.to_nsof(path);
+	// nsof.log();
+
+#if 0
 	uint32_t block_size = data.size() + nsof.data().size();
 	uint32_t aligned_size = (block_size + 3) & 0xffffff00; // align to 4 bytes
 	uint8_t *d = new uint8_t[aligned_size];
@@ -638,20 +672,46 @@ void Dock::send_cmd_path() {
 	memcpy(d + data.size(), nsof.data().data(), nsof.data().size());
 
 	uint32_t size = nsof.data().size();
-	d[16] = (size >> 24) & 0xff;
-	d[17] = (size >> 16) & 0xff;
-	d[18] = (size >> 8) & 0xff;
-	d[19] = size & 0xff;
+	d[12] = (size >> 24) & 0xff;
+	d[13] = (size >> 16) & 0xff;
+	d[14] = (size >> 8) & 0xff;
+	d[15] = size & 0xff;
+#endif
 	data_queue_.push(Dock::Data {
-		.data_ = d,
-		.size_ = aligned_size,
+		.data_ = (uint8_t*)&cmd_data[0],
+		.size_ = cmd_data.size(),
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
-		.free_after_send_ = true, // we don't want to free the data after sending
+		.free_after_send_ = false, // we don't want to free the data after sending
 	});
-	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d\r\n", block_size);
+	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d\r\n", cmd_data.size());
+	//if (kLogDock) Log.logf("\n\nHeap size = %d\n\n", getFreeHeap());
 
+}
+
+void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
+	static const std::vector<uint8_t> cmd_data = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'f',  'i',  'l',  'e', //0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 33, // 33
+		0x02, 0x05, 0x01, // array
+		0x06, 0x02, // frame
+		0x07, 0x04, 0x6E, 0x61, 0x6D, 0x65, // name
+		0x07, 0x04, 0x74, 0x79, 0x70, 0x65, // type
+		0x08, 0x0C, 0x00, 'n', 0x00, '.', 0x00, 'p', 0x00, 'k', 0x00, 'g', 0x00, 0x00, 
+		0x00, 0x04, // 04 = 1 = File
+		0x00, 0x00, 0x00 // align to 4
+	};
+	data_queue_.push(Dock::Data {
+		.data_ = (uint8_t*)&cmd_data[0],
+		.size_ = cmd_data.size(),
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d\r\n", cmd_data.size());
 }
 
 void Dock::send_cmd_pass() {

@@ -54,7 +54,10 @@ class Dock : public Endpoint
     void send_cmd_path();
     constexpr static uint32_t kDPath = ND_FOURCC('p', 'a', 't', 'h'); // Dock -> Newt
     constexpr static uint32_t kDGetFilesAndFolders = ND_FOURCC('g', 'f', 'i', 'l'); // Newt -> Dock
+    void send_cmd_file();
     constexpr static uint32_t kDFilesAndFolders = ND_FOURCC('f', 'i', 'l', 'e'); // Dock -> Newt
+
+    constexpr static uint32_t kDLoadPackageFile = ND_FOURCC('l', 'p', 'f', 'l'); // Newt -> Dock
 
     struct Data {
         uint8_t *data_ = nullptr;

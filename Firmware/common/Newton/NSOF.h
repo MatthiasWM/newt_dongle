@@ -16,90 +16,124 @@
 
 namespace nd {
 
-/*
-
-  
-
- */
-
-
-
-
 class Ref;
+class Object;
 class Symbol;
-using SymbolRef = std::shared_ptr<Symbol>;
 class String;
-using StringRef = std::shared_ptr<String>;
 class Array;
-using ArrayRef = std::shared_ptr<Array>;
 class Frame;
-using FrameRef = std::shared_ptr<Frame>;
+class NSOF;
 
-using RefBaseType = std::variant<
-    int,                // Integer value
-    bool,               // Boolean value
-    char16_t,           // Unicode character
-    double,             // Floating point number
-    SymbolRef,          // Symbol reference
-    StringRef,          // String reference
-    ArrayRef,           // Array reference
-    FrameRef            // Frame reference
->;
+using real = float;
 
-class Ref : public RefBaseType
+class Ref
 {
 public:
-    Ref() = default;
-    Ref(int value) : RefBaseType(value) {}
-    Ref(bool value) : RefBaseType(value) {}
-    Ref(char16_t value) : RefBaseType(value) {}
-    Ref(double value) : RefBaseType(value) {}
-    Ref(SymbolRef value) : RefBaseType(value) {}
-    Ref(StringRef value) : RefBaseType(value) {}
-    Ref(ArrayRef value) : RefBaseType(value) {}
-    Ref(FrameRef value) : RefBaseType(value) {}
-    Ref(nullptr_t value) : RefBaseType(false) {}
-    Ref(const char *value) : RefBaseType(std::make_shared<Symbol>(value)) {}
-    Ref(const char16_t *value) : RefBaseType(std::make_shared<String>(value)) {}
-    void log(uint32_t depth=999, uint32_t indent=0);
-    void logln(uint32_t depth=999, uint32_t indent=0);
-    void logcomma(uint32_t depth=999, uint32_t indent=0);
-    void to_nsof(std::vector<uint8_t> &vec);
-    void to_nsof(std::vector<uint8_t> *vec, int32_t &precedent);
-};
-
-class Symbol : public std::string {
-    int32_t precedent_ = 0;
+    enum class Type {
+        INT, BOOL, CHAR16, REAL, OBJECT
+    };
+private:    
+    union {
+        int32_t     int_ = 0;
+        bool        bool_;
+        char16_t    char_;
+        real        real_;
+        Object      *object_;
+    };
+    Type type_ = Type::INT;
 public:
-    Symbol(const char *name) : std::string(name) {}
-    void log(uint32_t depth=999, uint32_t indent=0);
-    void to_nsof(std::vector<uint8_t> *vec, int32_t &precedent);
+    Ref() : bool_(false), type_(Type::BOOL) {}
+    Ref(int32_t i) : int_(i), type_(Type::INT) {}
+    Ref(bool b) : bool_(b), type_(Type::BOOL) {}
+    Ref(char16_t c) : char_(c), type_(Type::CHAR16) {}
+    Ref(real d) : real_(d), type_(Type::REAL) {}
+    Ref(Object *obj) : object_(obj), type_(Type::OBJECT) {}
+    Ref(Object &obj) : object_(&obj), type_(Type::OBJECT) {}
+    Ref(const Ref &other) = default;
+
+    Type type() const { return type_; }
+    bool is_int() const { return type_ == Type::INT; }
+    bool is_bool() const { return type_ == Type::BOOL; }
+    bool is_char16() const { return type_ == Type::CHAR16; }
+    bool is_real() const { return type_ == Type::REAL; }
+    bool is_object() const { return type_ == Type::OBJECT; }
+    int32_t as_int() const { return int_; }
+    bool as_bool() const { return bool_; }
+    char16_t as_char16() const { return char_; }
+    real as_real() const { return real_; }
+    Object *as_object() const { return object_; }
+
+    void log(uint32_t depth=999, uint32_t indent=0) const;
+    void logln(uint32_t depth=999, uint32_t indent=0) const;
+    void logcomma(uint32_t depth=999, uint32_t indent=0) const;
+    void to_nsof(NSOF &nsof) const;
 };
 
-class String : public std::u16string {
-    int32_t precedent_ = 0;
+class Object {
+public:    
+    enum class Type {
+        UNKNOWN, SYMBOL, STRING, ARRAY, FRAME
+    };
+protected:
+    Type type_ = Type::UNKNOWN;
 public:
-    String(const char16_t *name) : std::u16string(name) {}
-    void log(uint32_t depth=999, uint32_t indent=0);
-    void to_nsof(std::vector<uint8_t> *vec, int32_t &precedent);
+    Object() = default;
+    virtual ~Object() = default;
+    virtual void log(uint32_t depth=999, uint32_t indent=0) const = 0;
+    virtual void to_nsof(NSOF &nsof) const = 0;
+    Type type() const { return type_; }
+    bool is_symbol() const { return type_ == Type::SYMBOL; }
+    bool is_string() const { return type_ == Type::STRING; }
+    bool is_array() const { return type_ == Type::ARRAY; }
+    bool is_frame() const { return type_ == Type::FRAME; }
 };
 
-class Array : public std::vector<Ref> {
-    int32_t precedent_ = 0;
+class Symbol : public Object {
+protected:
+    std::string sym_;
+public:
+    Symbol(const char *name) : sym_(name) {}
+    Symbol(const std::string &name) : sym_(name) {}
+    void log(uint32_t depth=999, uint32_t indent=0) const override;
+    void to_nsof(NSOF &nsof) const override;
+
+};
+
+extern const Symbol symName;
+extern const Symbol symType;
+extern const Symbol symDiskType;
+extern const Symbol symWhichVol;
+
+class String : public Object {
+protected:
+    std::u16string str_;
+public:
+    String(const char16_t *name) : str_(name) {}
+    String(const std::u16string &name) : str_(name) {}
+    void log(uint32_t depth=999, uint32_t indent=0) const override;
+    void to_nsof(NSOF &nsof) const override;
+};
+
+class Array : public Object {
+protected:
+    std::vector<Ref> elements_;
 public:
     Array() = default;
-    Array(std::initializer_list<Ref> init) : std::vector<Ref>(init) {}
-    void log(uint32_t depth=999, uint32_t indent=0);
-    void to_nsof(std::vector<uint8_t> *vec, int32_t &precedent);
+    Array(std::initializer_list<Ref> init) : elements_(init) {}
+    void add(const Ref &ref) { elements_.push_back(ref); }
+    void log(uint32_t depth=999, uint32_t indent=0) const override;
+    void to_nsof(NSOF &nsof) const override;
 };
 
-class Frame : public std::unordered_map<SymbolRef, Ref> {
-    int32_t precedent_ = 0;
+class Frame : public Object {
+    std::vector<std::pair<const Symbol*, Ref>> frame_;
 public:
-    Frame() = default;
-    Frame(const std::unordered_map<SymbolRef, Ref> &other) : std::unordered_map<SymbolRef, Ref>(other) {}
-    void log(uint32_t depth=999, uint32_t indent=0);
-    void to_nsof(std::vector<uint8_t> *vec, int32_t &precedent);
+    Frame() { type_ = Type::FRAME; }
+    void add(const Symbol &key, const Ref &value) {
+        frame_.push_back(std::make_pair(&key, value));
+    }
+    void log(uint32_t depth=999, uint32_t indent=0) const override;
+    void to_nsof(NSOF &nsof) const override;
 };
 
 class NSOF {
@@ -112,7 +146,7 @@ public:
     void clear() { data_.clear(); }
     int size() const { return data_.size(); }
     Ref to_ref() { return Ref(false); }
-    std::vector<uint8_t> &to_nsof(Ref ref) { ref.to_nsof(data_); return data_; }
+    std::vector<uint8_t> &to_nsof(Ref ref) { ref.to_nsof(*this); return data_; }
     std::vector<uint8_t> &data() { return data_; }
     void log();
 };
