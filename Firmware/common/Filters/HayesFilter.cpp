@@ -468,6 +468,9 @@ const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
             send_ERROR();
             return nullptr;
         }
+        char buf[64];
+        snprintf(buf, 64, "Flashed %d %d %d %d\r\n", serial, id, version, revision);
+        send_string(buf);
         return cmd; 
     }
     send_ERROR();

@@ -37,6 +37,9 @@ target_sources(newt_dongle
         Filters/MNPFilter.cpp
         Filters/MNPFilter.h
 
+        Newton/NSOF.cpp
+        Newton/NSOF.h
+
         Pipes/BufferedPipe.cpp
         Pipes/BufferedPipe.h
         Pipes/MNPThrottle.cpp

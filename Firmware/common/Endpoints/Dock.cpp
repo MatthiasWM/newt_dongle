@@ -5,12 +5,37 @@
 
 #include "common/Endpoints/Dock.h"
 
+#include "common/Newton/NSOF.h"
+
 #include "main.h"
 
 #include <stdio.h>
 #include <cstring>
 
+
+typedef unsigned short UniChar;
+
+typedef struct
+{
+	uint32_t hi;
+	uint32_t lo;
+} SNewtNonce;
+
+
+void DESCharToKey(UniChar * inString, SNewtNonce * outKey);
+void DESKeySched(SNewtNonce * inKey, SNewtNonce * outKeys);
+void DESPermute(const unsigned char * inPermuteTable, uint32_t inHi, uint32_t inLo, SNewtNonce * outKey);
+
+void DESEncode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr);
+void DESEncodeNonce(SNewtNonce * initVect, SNewtNonce * outNonce);
+
+void DESDecode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr);
+void DESCBCDecode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr, SNewtNonce * a4);
+void DESDecodeNonce(SNewtNonce * initVect, SNewtNonce * outNonce);
+
+
 using namespace nd; 
+
 
 /**
  * \class nd::Dock
@@ -51,6 +76,7 @@ using namespace nd;
 
 Result Dock::task() {
 	if (!data_queue_.empty()) {
+		// hello_timer_ = 0; // reset the hello timer if we have data to send
 		Data &data = data_queue_.front();
 		if (data.start_frame_) {
 			// If we have a start frame, we send it first.
@@ -82,6 +108,14 @@ Result Dock::task() {
 		if (data.free_after_send_ && data.data_) {
 			delete[] data.data_;
 		}
+	} else if (connected_) {
+		// If we are conected, but have not sent any data for more than 5 seconds, 
+		// we remind the Newton that we are still alive.
+		// NOTE: this does not work as expected. The Netwon shows "Waiting for response" when receiving hello.
+		// hello_timer_ += scheduler().cycle_time();
+		// if (hello_timer_ > 5'000'000) {
+		// 	send_cmd_helo();
+		// }
 	}
 	return super::task();
 }
@@ -93,9 +127,11 @@ Result Dock::send(Event event) {
 		switch (event.subtype()) {
 			case Event::Subtype::MNP_CONNECTED: // data() is index in out_pool
 				if (kLogDock) Log.log("Dock::send: MNP_CONNECTED\r\n");
+				connected_ = true;
 				break;
 			case Event::Subtype::MNP_DISCONNECTED: // data() is index in out_pool
 				if (kLogDock) Log.log("Dock::send: MNP_DISCONNECTED\r\n");
+				connected_ = false;
 				break;
 			case Event::Subtype::MNP_FRAME_START: // data() is index in out_pool
 				if (kLogDock) Log.log("Dock::send: MNP_FRAME_START\r\n");
@@ -110,51 +146,61 @@ Result Dock::send(Event event) {
 	} else if (event.type() == Event::Type::DATA) {
 		if (kLogDock) Log.logf("#%02x ", event.data());
 		uint8_t c = event.data();
-		switch (state_) {
+		switch (in_stream_state_) {
 			case  0: 
 				if (c == 'n') {
-					state_++; 
+					in_stream_state_++; 
 				} else {
 					Log.logf("\r\nERROR: Dock::send: State out of sync!\r\n", cmd_, size);
 				}
 				break; // 'n'
-			case  1: if (c == 'e') state_++; else state_ = 0; break; // 'e'
-			case  2: if (c == 'w') state_++; else state_ = 0; break; // 'w'
-			case  3: if (c == 't') state_++; else state_ = 0; break; // 't'
-			case  4: if (c == 'd') state_++; else state_ = 0; break; // 'd'
-			case  5: if (c == 'o') state_++; else state_ = 0; break; // 'o'
-			case  6: if (c == 'c') state_++; else state_ = 0; break; // 'c'
-			case  7: if (c == 'k') state_++; else state_ = 0; break; // 'k'
-			case  8: cmd_[0] = c; state_++; break;
-			case  9: cmd_[1] = c; state_++; break;
-			case 10: cmd_[2] = c; state_++; break;
-			case 11: cmd_[3] = c; state_++; break;
-			case 12: size = (c<<24); state_++; break;
-			case 13: size |= (c<<16); state_++; break;
-			case 14: size |= (c<<8); state_++; break;
+			case  1: if (c == 'e') in_stream_state_++; else in_stream_state_ = 0; break; // 'e'
+			case  2: if (c == 'w') in_stream_state_++; else in_stream_state_ = 0; break; // 'w'
+			case  3: if (c == 't') in_stream_state_++; else in_stream_state_ = 0; break; // 't'
+			case  4: if (c == 'd') in_stream_state_++; else in_stream_state_ = 0; break; // 'd'
+			case  5: if (c == 'o') in_stream_state_++; else in_stream_state_ = 0; break; // 'o'
+			case  6: if (c == 'c') in_stream_state_++; else in_stream_state_ = 0; break; // 'c'
+			case  7: if (c == 'k') in_stream_state_++; else in_stream_state_ = 0; break; // 'k'
+			case  8: cmd_[0] = c; in_stream_state_++; break;
+			case  9: cmd_[1] = c; in_stream_state_++; break;
+			case 10: cmd_[2] = c; in_stream_state_++; break;
+			case 11: cmd_[3] = c; in_stream_state_++; break;
+			case 12: size = (c<<24); in_stream_state_++; break;
+			case 13: size |= (c<<16); in_stream_state_++; break;
+			case 14: size |= (c<<8); in_stream_state_++; break;
 			case 15: 
 				size |= c;
 				if (kLogDock) Log.logf("\r\nDock::send: Receiving '%s' stream with %d bytes.\r\n", cmd_, size);
 				in_data_.clear();
 				in_index_ = 0;
+				// TODO: call some `preprocess_command()`, returning the startegy for reading the rest of the data.
 				if (size==0) {
 					process_command();
-					state_ = 0; 
+					in_stream_state_ = 0; 
+				} else if (size == 0xffffffff) {
+					// This is a special case, we don't know how much data to expect.
+					// Depending on the command, one or two NSOF objects will follow.
+					// Note that the end of the MNP block does not neccessarily mean the end of the NSOF!
+					size = 0; // TODO: this is of course wrong, but the best we can currently do
+					aligned_size = 0; // no alignment, we will receive data until the next command
+					in_stream_state_ = 0; // reset state and wait for the next "newtdock" sequence
 				} else {
 					aligned_size = (size + 3) & ~3;
-					state_++;
+					in_stream_state_++;
 				}
 				break;
 			case 16:
-				if (in_index_ < size) {
-					in_data_.push_back(c);
+				if (in_index_ < aligned_size) {
+					if (in_index_ < size) {
+						in_data_.push_back(c);
+					}
 					in_index_++;
-				}
+				} 
 				if (in_index_ == aligned_size) {
 					// We have received all the data, process the command.
 					if (kLogDock) Log.logf("Dock::send: Received '%s' command with %d bytes.\r\n", cmd_, size);
 					process_command();
-					state_ = 0; // reset state
+					in_stream_state_ = 0; // reset state
 				}
 				break;
 		}
@@ -165,21 +211,242 @@ Result Dock::send(Event event) {
 	return super::send(event);
 }
 
+
+/*
+ * This is the command flow to install a package the simple way.
+ * Newton | Dock
+ *     LR >
+ *        < LR
+ *     LA >
+ *   rtdk > LA			request to dock: len = 4, uint32 protocol version (1 or 4)
+ *     LA < dock    	initiate docking: len = 4, uint32 session type
+ *   name > LA			Newton name: length, version info, name (UTF-16z)
+ *     LA < stim		Set Timeout: timeout in seconds (usually 30 secs)
+ *   dres > LA			Result: reply to Frames that don't need any other reply
+ *  -- repeat for every file:
+ *     LA < lpkg		Load Package: size in byte, binary data (pad to 4)
+ *     LA < <data>*n	More binary data until all data is sent
+ *   dres > LA			Result: so we know the Newton is still alive
+ * -- all files sent:
+ *     LA < disc		Disconnect: no data
+ *     LD >
+ */
+
+/*
+ * Dock protocol for an interactive dock (also see DanteConnectionProtocol.pdf)
+ * Newton | Dock
+ *   rtdk > 			kDRequestToDock	'rtdk'	// Ask PC to start docking process
+ *        < dock    	kDInitiateDocking	'dock'	// data = session type
+ *   name > 			kDNewtonName	'name'	// The name of the newton
+ *        < dinf        Desktop Info
+ *   ninf > 			Newton Info
+ *        < wicn        Which Icons
+ *   dres >             Result
+ *        < stim        kDSetTimeout	'stim' 	// data = # of seconds
+ *   pass >             kDPassword	'pass'	// data = encrypted key
+ *        < pass		When sent by the Newton, this command returns the key received in the kDDesktopInfo message
+						encrypted using the password.
+						When sent by the desktop, this command returns the key received in the kDNewtonInfo message
+						encrypted using the password.
+						See UDES::CreateNewtonKey and UDES::NewtonEncodeBlock in DCL
+ * 
+ *        < gsto	    kDGetStoreNames	'gsto'	// no data
+ *   stor >             NSOF: 02.05.02.06.0A.07.04.name.07.09.signature07.09. (...)
+ * 		  < dsnc        kDDesktopControl (desktop is now in control, no reply by Newton), ends in `opdn`
+ *        < cgfn        kDCallGlobalFunction 		 'cgfn'
+ *   cres >             kDCallResult			'cres'
+ *        < stme        kDLastSyncTIme	'stme'	// The time of the last sync
+ *   time >             kDCurrentTime	'time'	// The current time on the Newton
+ *        < cgfn
+ *   cres >
+ *        < cgfn
+ *   cres >
+ *        < opdn        kDOperationDone 'opdn', desktop no longer in control (see `dsnc`)
+ *   helo >             kDHello	'helo'	// no data  about every 5 sec
+ * 	      < rtbr        kDRequestToBrowse		'rtbr'
+ *        < dres
+ *   dpth >             kDGetDefaultPath			'dpth' // Get the starting path
+ *        < path        kDPath				'path'
+ *   gfil >             kDGetFilesAndFolders		'gfil'	// Ask the desktop for files and folders
+ *        < file		NOSF
+ *   gfin >             kDGetFileInfo			'gfin'
+ * 	      < ffin		kDFileInfo				'finf'
+ *   lpfl >             kDLoadPackageFile			'lpfl'
+ *        < sdef        kDSetStoreToDefault
+ *   dres >
+ *        < lpkg		kDLoadPackage	'lpkg'	// data = package
+ *   dres >
+ * 
+ *        < disc		kDDisconnect	'disc'	// no data
+ *     LD >
+ */
+
+
 void Dock::process_command() {
+	// TODO: a command can span many MNP frames. The size indicator will tell us hom many bytes we have to read.
+	// TODO: `cgfn` gives 0xFFFFFFFF as its size, followed by a NSOF stream. I don't know yet when the command is finished.
+	// <16. <10. <02. <02. <04. <0B."newtdockcgfn" <FF. <FF. <FF. <FF. 
+	//		NSOF Name: <02. <07. <0D. <47G <65e <74t <55U <73s <65e <72r <43C <6Fo <6En <66f <69i <67g 
+	//      NSOF args array: <02. <05. <01. array of 1, followe by the symbol
+	//			<07. <0B. <75u <73s <65e <72r <46F <6Fo <6Cl <64d <65e <72r <73s 
+	// <10. <03. <D8. <B2. 
 	switch (cmd) {
-		case ND_FOURCC('r', 't', 'd', 'k'): // rtdk, ready to dock
-			reply_dock(); break;
-		case ND_FOURCC('n', 'a', 'm', 'e'): // name, and lots of other data
-			reply_stim(); break;
+#if 0 // download a fixed package
+		case kDRequestToDock: 
+			send_cmd_dock(kLoadPackageSession); break;
+		case kDNewtonName: // name, and lots of other data
+			send_stim(); break;
 		case ND_FOURCC('d', 'r', 'e', 's'): // dres, some result for on of the previous messages?
 			if (!package_sent) {
 				// We have not sent a package yet, so we send the lpkg.
-				reply_lpkg();
+				send_lpkg();
 				package_sent = true; // we sent a package
 			} else {
-				reply_disc(); break;
+				send_disc(); break;
 			}
 			break;
+#else
+		case kDRequestToDock: 
+			send_cmd_dock(kSettingUpSession); break;
+		case kDNewtonName: // name, and lots of other data
+			dres_next_ = kDSetTimeout; // If we don't get kDNewtonInfo but dres, just continue
+			send_cmd_dinf(); break; // <5F_ <FE. <F6. <6Aj <5B[ <E3. <DA. <62b
+		case kDNewtonInfo: // protocol version, encryption key
+			// >00. >65e >E0. >BC. >FF. >A7. >74t >1B.
+			dres_next_ = kDSetTimeout; // next command to send
+			newt_challenge_hi = in_data_[4] << 24 | in_data_[5] << 16 | in_data_[6] << 8 | in_data_[7];
+			newt_challenge_lo = in_data_[8] << 24 | in_data_[9] << 16 | in_data_[10] << 8 | in_data_[11];
+			send_cmd_wicn(kInstallIcon); break;
+		case kDResult:
+			if (kLogDock) Log.logf("Dock::process_command: kDResult %d, next command is %08x\r\n", in_data_[3], dres_next_);
+			if (kLogDock) Log.log("\r\nDRES: ");
+			for (int i=0; i<in_data_.size(); i++) {
+				uint8_t c = in_data_[i];
+				if (kLogDock) Log.logf("%02x%c ", in_data_[i], (c>0x20 && c<0x7f) ? c : '.');
+			}
+			if (kLogDock) Log.log("\r\n");
+			if (dres_next_ == kDSetTimeout) {
+				dres_next_ = 0;
+				send_cmd_stim();
+			}
+			break;
+		case kDPassword:
+			send_cmd_pass(); 
+			//        >00. >00. >00. >08. >40@ >54T >49I >A1. >CA. >56V >6Cl >4EN
+			// 'pass' <00. <00. <00. <08. <366 <5AZ <08. <FF. <A1. <D8. <FC
+			// or kDPWWrong and after 3 attempts kDResult / kDBadPassword
+			break;
+
+		case kDRequestToBrowse: // rtbr, we assume 'packages
+			send_cmd_dres(0); // reply with 0, ok
+			break;
+			// < kDRequestToBrowse
+			// 		ULong 'rtbr'
+			// 		ULong length
+			// 		NSOF file type: 'import, 'packages(!), 'syncFiles
+			// vv-- net needed
+			// kDGetInternalStore > optional
+			//  	ULong 'gist'
+			//		ULong length = 0;
+			//		This command requests the Newton to return info about the internal store. The result is described
+			//		with the kDInternalStore command.
+			// < kDInternalStore
+			//		ULong 'isto'
+			//		ULong length
+			//		NSOF store frame
+			//		This command returns information about the internal store. The info is in the form of a frame that
+			//		looks like this:
+			//		{ name: "Internal",
+			//			signature: 27675205,
+			//			totalSize: 3608096,
+			//			usedSize: 535972,
+			//			kind: "Internal"
+			//		}
+			// ^^-- optional vv-- Windows only
+			// kDResult >		// reply with 0
+			// < kDGetDevices Windows only
+			// kDDevices > Windows only
+			// < kDGetFilters Windows only
+			// kDFilters > Windows only
+			// ^^-- not needed
+		case kDGetDefaultPath: // dpth, get the default path
+			send_cmd_path();
+			break;
+			// < kDGetDefaultPath
+			//		ULong 'dpth'
+			//		ULong length = 0;
+			// kDPath >
+			//		ULong 'path'
+			//		ULong length = 0;
+			//		NSOF array of folder frames
+			//			[ {name: "Desktop", type: kDesktop},
+			//			  {name: "My HD", type: kDesktopDisk, diskType: kHardDrive, whichvol: 0},
+			//			  {name: "Business", type: folder} ]
+			//		type: desktop = 0, file = 1, folder = 2, disk = 3
+			//		diskType: kHardDrive = 0, kFloppyDisk = 1, kCDROM = 2, kNetworkDisk = 3
+			// < kDGetFilesAndFolders
+			//		ULong 'gfil'
+			//		ULong length = 0;
+			// kDFilesAndFolders->
+			//		ULong 'file'
+			//		ULong length = 0;
+			//		NSOF array of file/folder frames
+			//			{ name: "Whatever",
+			//			  type: kDesktopFolder,
+			//			  disktype: 0, // optional if type = disk 
+			//			  whichVol: 0, // optional if name is on the desktop
+			//			  alias: nil } // optional if it's an alias
+			//			[ {name: "Applications", type: kDesktopFolder},
+			//			  {name: "important info", type: kDesktopFile},
+			//			  {name: "System", type: kDesktopFolder}]
+			//		}
+			// < kDSetPath
+			//		ULong 'spth'
+			//		ULong length = 0;
+			//		NSOF array of strings: [ "Desktop", {name:"My hard disk", whichVol:0}, "Business" ]
+			// kDFilesAndFolders >
+
+			// < kDGetFileInfo
+			//		ULong 'gfin'
+			//		ULong length
+			//		NSOF filename 
+			//		The filename is normally a string, but if the selected item is at the Desktop level, a frame
+			//		{ name:"Business", whichVol:-1 }
+			// kDFileInfo >
+			//		ULong 'finf'
+			//		ULong length
+			//		NSOF info frame
+			//		This command is sent in response to a kDGetFileInfo command. It returns a frame that looks like
+			//		this:
+			//		{ kind: "Microsoft Word document", size: 20480,
+			//			created: 3921837, modified: 3434923,
+			//			icon: <binary object of icon>,
+			//			path: "hd:files:another folder:" }
+			//		kind: is a description of the file.
+			//		size: is the number of bytes (actual, not the amount used on the disk).
+			//		created: is the creation date in Newton date format.
+			//		modified: is the modification date of the file.
+			//		icon: is an icon to display. This is optional.
+			//		path: is the "user understandable" path description
+
+			// < kDLoadPackageFile
+			//		ULong 'lpfl'
+			//		ULong length
+			//		NSOF filename
+			//		If the selected item is at the Desktop level, a frame
+			//		{ name:"Business", whichVol:-1 }
+			// kDLoadPackage >
+			//		ULong 'lpkg'
+			//		ULong length
+			//		UChar package data []
+			// < kDResult
+
+		case kDHello:
+			if (kLogDock) Log.log("Dock::process_command: kDHello\r\n");
+			// Don't do anything. Receiving the MNP LA Frame seems to be enough for the Newton.
+			break;
+
+#endif
 		default:
 			if (kLogDock) Log.logf("Dock::process_command: Unknown command '%s' (%08x)\r\n", cmd_, cmd);
 			break;
@@ -187,13 +454,14 @@ void Dock::process_command() {
 }
 
 
-void Dock::reply_dock() {
-	if (kLogDock) Log.log("Dock: reply_dock\r\n");
+void Dock::send_cmd_dock(uint32_t session_type) {
+	if (kLogDock) Log.log("Dock: send_cmd_dock\r\n");
 	static uint8_t data[] = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x64, 0x6f, 0x63, 0x6b, 0x00, 0x00, 0x00, 0x04,
 		0x00, 0x00, 0x00, 0x04
 	};
+	data[19] = session_type;
 	data_queue_.push(Dock::Data {
 		.data_ = data,
 		.size_ = sizeof(data),
@@ -204,12 +472,12 @@ void Dock::reply_dock() {
 	});
 }
 
-void Dock::reply_stim() {
-	if (kLogDock) Log.log("Dock: reply_stim\r\n");
+void Dock::send_cmd_stim() {
+	if (kLogDock) Log.log("Dock: send_cmd_stim\r\n");
 	static uint8_t data[] = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x73, 0x74, 0x69, 0x6d, 0x00, 0x00, 0x00, 0x04,
-		0x00, 0x00, 0x00, 0x5A
+		 's',  't',  'i',  'm', 0x00, 0x00, 0x00, 0x04,
+		0x00, 0x00, 0x00, 0x0A // 0x00, 0x00, 0x00, 0x5A // TODO: 10 seconds for debugging
 	};
 	data_queue_.push(Dock::Data {
 		.data_ = data,
@@ -221,8 +489,210 @@ void Dock::reply_stim() {
 	});
 }
 
-void Dock::reply_disc() {
-	if (kLogDock) Log.log("Dock: reply_disc\r\n");
+void Dock::send_cmd_helo() {
+	if (kLogDock) Log.log("Dock: send_cmd_helo\r\n");
+	static uint8_t data[] = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'h',  'e',  'l',  'o', 0x00, 0x00, 0x00, 0x00,
+	};
+	data_queue_.push(Dock::Data {
+		.data_ = data,
+		.size_ = sizeof(data),
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+}
+
+void Dock::send_cmd_dres(uint32_t error_code) {
+	if (kLogDock) Log.log("Dock: send_cmd_dres\r\n");
+	static uint8_t data[] = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'd',  'r',  'e',  's', 0x00, 0x00, 0x00, 0x04,
+		0x00, 0x00, 0x00, 0x00
+	};
+	data[16] = (error_code >> 24) & 0xFF;
+	data[17] = (error_code >> 16) & 0xFF;
+	data[18] = (error_code >> 8) & 0xFF;
+	data[19] = error_code & 0xFF;
+	data_queue_.push(Dock::Data {
+		.data_ = data,
+		.size_ = sizeof(data),
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+}
+
+void Dock::send_cmd_dinf() {
+	if (kLogDock) Log.log("Dock: send_cmd_dinf\r\n");
+	static uint8_t data[] = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		0x64, 0x69, 0x6e, 0x66, 0x00, 0x00, 0x00, 0x66,
+
+		0x00, 0x00, 0x00, 0x0A, // protocol version (9 or 10)
+		0x00, 0x00, 0x00, 0x00, // Desktop Type (0=Mac, 1=Windows)
+		0x5F, 0xFE, 0xF6, 0x6A, 0x5B, 0xE3, 0xDA, 0x62, // encrypted key (random challange)
+		0x00, 0x00, 0x00, 0x01, // Session Type (kSettingUpSession = 1)
+		0x00, 0x00, 0x00, 0x01, // selective sync allowed (only if there was a prevoious sync)
+		0x02, 0x05, 0x01, 0x06, 0x04, 0x07, 0x04, 0x6E, 
+		0x61, 0x6D, 0x65, 0x07, 0x02, 0x69, 0x64, 0x07, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6F, 0x6E, 
+		0x07, 0x08, 0x64, 0x6F, 0x65, 0x73, 0x41, 0x75, 0x74, 0x6F, 0x08, 0x24, 0x00, 0x4E, 0x00, 0x65, 
+		0x00, 0x77, 0x00, 0x74, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x20, 0x00, 0x43, 0x00, 0x6F, 0x00, 0x6E, 
+		0x00, 0x6E, 0x00, 0x65, 0x00, 0x63, 0x00, 0x74, 0x00, 0x69, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x00, 
+		0x00, 0x08, 0x00, 0x04, 0x00, 0x1A, 0x00, 0x00, 
+		// [ 
+		// 	 { name: "Newton Connection"
+		//     id: 2
+		//     version: 1
+		//     doesAuto: true
+		// 	 }
+		// ]
+
+	};
+	// TDCLDockCmdPassword::CreateChallenge( theChallenge );
+	data_queue_.push(Dock::Data {
+		.data_ = data,
+		.size_ = sizeof(data),
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+}
+
+void Dock::send_cmd_wicn(uint32_t icon_map) {
+	if (kLogDock) Log.log("Dock: send_cmd_wicn\r\n");
+	static uint8_t data[] = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		0x77, 0x69, 0x63, 0x6e, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x04
+	};
+	data[19] = icon_map; 
+	data_queue_.push(Dock::Data {
+		.data_ = data,
+		.size_ = sizeof(data),
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+
+}
+
+void Dock::send_cmd_path() {
+//			[ {name: "Desktop", type: kDesktop},
+//			  {name: "My HD", type: kDesktopDisk, diskType: kHardDrive, whichvol: 0},
+//			  {name: "Business", type: folder} ]
+//		type: desktop = 0, file = 1, folder = 2, disk = 3
+//		diskType: kHardDrive = 0, kFloppyDisk = 1, kCDROM = 2, kNetworkDisk = 3
+	static const std::vector<uint8_t> data = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'p',  'a',  't',  'h', 0x00, 0x00, 0x00, 0x00,
+	};
+
+	// NSOF array of folder frames
+	SymbolRef symName = std::make_shared<Symbol>("name");
+	SymbolRef symType = std::make_shared<Symbol>("type");
+	SymbolRef symDiskType = std::make_shared<Symbol>("diskType");
+	SymbolRef symWhichVol = std::make_shared<Symbol>("whichvol");
+
+	Ref desktop = std::make_shared<Frame>(
+		std::unordered_map<SymbolRef, Ref>{
+			{symType, Ref(0)},
+			{symName, std::make_shared<String>(u"NewtCOM")}
+		}
+    );
+	Ref disk = std::make_shared<Frame>(
+		std::unordered_map<SymbolRef, Ref>{
+			{symWhichVol, Ref(0)}, // whichvol: 0
+			{symDiskType, Ref(0)}, // kHardDrive
+			{symType, Ref(3)}, // kDesktopDisk
+			{symName, std::make_shared<String>(u"MicroSD")},
+		}
+	);
+	Ref file = std::make_shared<Frame>(
+		std::unordered_map<SymbolRef, Ref>{
+			{symType, Ref(2)}, // folder
+			{symName, std::make_shared<String>(u"Business")},
+		}
+	);
+
+	Ref ref = std::make_shared<Array>(
+		Array{desktop, disk, file}
+	);
+
+	NSOF nsof;
+	nsof.to_nsof(ref);
+	nsof.log();
+
+	uint32_t block_size = data.size() + nsof.data().size();
+	uint32_t aligned_size = (block_size + 3) & 0xffffff00; // align to 4 bytes
+	uint8_t *d = new uint8_t[aligned_size];
+	d[aligned_size-1] = 0;
+	d[aligned_size-2] = 0;
+	d[aligned_size-3] = 0;
+	memcpy(d, data.data(), data.size());
+	memcpy(d + data.size(), nsof.data().data(), nsof.data().size());
+
+	uint32_t size = nsof.data().size();
+	d[16] = (size >> 24) & 0xff;
+	d[17] = (size >> 16) & 0xff;
+	d[18] = (size >> 8) & 0xff;
+	d[19] = size & 0xff;
+	data_queue_.push(Dock::Data {
+		.data_ = d,
+		.size_ = aligned_size,
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = true, // we don't want to free the data after sending
+	});
+	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d\r\n", block_size);
+
+}
+
+void Dock::send_cmd_pass() {
+	if (kLogDock) Log.log("Dock: send_cmd_pass\r\n");
+	static uint8_t data[] = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		0x70, 0x61, 0x73, 0x73, 0x00, 0x00, 0x00, 0x08,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	};
+
+	SNewtNonce key;
+	SNewtNonce newtNonce = { newt_challenge_hi, newt_challenge_lo };
+	SNewtNonce response = newtNonce;
+	UniChar password[] = { 0x0000 };
+
+	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08lx'%08lx\r\n", newt_challenge_hi, newt_challenge_lo);
+	DESCharToKey(password, &key); // hi = 4060593999, lo = 2233144957
+	DESEncodeNonce(&key, &response);
+	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08lx'%08lx\r\n", response.hi, response.lo);
+
+	data[16] = (response.hi >> 24) & 0xff;
+	data[17] = (response.hi >> 16) & 0xff;
+	data[18] = (response.hi >> 8) & 0xff;
+	data[19] = response.hi & 0xff;
+	data[20] = (response.lo >> 24) & 0xff;
+	data[21] = (response.lo >> 16) & 0xff;
+	data[22] = (response.lo >> 8) & 0xff;
+	data[23] = response.lo & 0xff;
+
+	data_queue_.push(Dock::Data {
+		.data_ = data,
+		.size_ = sizeof(data),
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+}
+
+void Dock::send_disc() {
+	if (kLogDock) Log.log("Dock: send_disc\r\n");
 	static uint8_t data[] = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x64, 0x69, 0x73, 0x63, 0x00, 0x00, 0x00, 0x00
@@ -237,8 +707,8 @@ void Dock::reply_disc() {
 	});
 }
 
-void Dock::reply_lpkg() {
-	if (kLogDock) Log.log("Dock: reply_lpkg\r\n");
+void Dock::send_lpkg() {
+	if (kLogDock) Log.log("Dock: send_lpkg\r\n");
 	static uint8_t data[] = {
 
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b, 
@@ -442,876 +912,476 @@ void Dock::reply_lpkg() {
 }
 
 
-#if 0
 
-bool MNPFilter::reply_newtdockdock() {
-	if (kLogMNDock) Log.log("MNP: Pushing newtdockdock\r\n");
-	Frame *lt = acquire_out_frame();
-	if (!lt) {
-		if (kLogMNDock) Log.log("MNP: newtdockdock: no out frame available\r\n");
-		return false;
-	}
-	// reply with <16. <10. <02. <02. <04. <01. "newtdockdock" <00. <00. <00. <04. <00. <00. <00. <01. <10. <03. <BA. <4FO
-	// 'newt', 'dock', 'dock', 4, 1
-	out_seq_no_++;
-	lt->header.push_back(kMNP_Frame_LT);
-	lt->header.push_back(out_seq_no_);
-	lt->data = { 
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x64, 0x6f, 0x63, 0x6b, 0x00, 0x00, 0x00, 0x04,
-		0x00, 0x00, 0x00, 0x04
-		// 0x00, 0x00, 0x00, 0x01
-	};
-	lt->prepare_to_send();
-	// TODO: enqueue the frame to the outgoing pipe
-	newton_job_list.push(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LT, lt->pool_index));
-	return true;
-}
+// Taken from https://github.com/newtonresearch/newton-framework
 
-bool MNPFilter::reply_newtdockstim() {
-	if (kLogMNDock) Log.log("MNP: Pushing newtdockstim\r\n");
-	Frame *lt = acquire_out_frame();
-	if (!lt) {
-		if (kLogMNDock) Log.log("MNP: newtdockstim: no out frame available\r\n");
-		return false;
-	}
-	out_seq_no_++;
-	lt->header.push_back(kMNP_Frame_LT);
-	lt->header.push_back(out_seq_no_);
-	// <04. <04. "newtdockstim"  <00. <00. <00. <04. <00. <00. <00. <5AZ
-	lt->data = { 
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x73, 0x74, 0x69, 0x6d, 0x00, 0x00, 0x00, 0x04,
-		0x00, 0x00, 0x00, 0x5A
-	};
-	lt->prepare_to_send();
-	// TODO: enqueue the frame to the outgoing pipe
-	newton_job_list.push(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LT, lt->pool_index));
-	return true;
-}
-
-bool MNPFilter::reply_newtdocklpkg() {
-	if (kLogMNDock) Log.log("MNP: Pushing newtdocklpkg\r\n");
-	Frame *lt = acquire_out_frame();
-	if (!lt) {
-		if (kLogMNDock) Log.log("MNP: newtdocklpkg: no out frame available\r\n");
-		return false;
-	}
-	out_seq_no_++;
-	lt->header.push_back(kMNP_Frame_LT);
-	lt->header.push_back(out_seq_no_);
-	// <04. <04. "newtdocklpkg"  
-	lt->data = { 
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x6c, 0x70, 0x6b, 0x67,
-		// length of package (32)
-		// package data, padded to 4 bytes
-		0x00, 0x00, 0x00, 0x04, 0x31, 0x31, 0x31, 0x31
-	};
-	lt->prepare_to_send();
-	// TODO: enqueue the frame to the outgoing pipe
-	newton_job_list.push(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LT, lt->pool_index));
-	return true;
-}
-
-
-bool MNPFilter::reply_newtdockdisc() {
-	if (kLogMNDock) Log.log("MNP: Pushing newtdockdisc\r\n");
-	Frame *lt = acquire_out_frame();
-	if (!lt) {
-		if (kLogMNDock) Log.log("MNP: newtdockdisc: no out frame available\r\n");
-		return false;
-	}
-	out_seq_no_++;
-	lt->header.push_back(kMNP_Frame_LT);
-	lt->header.push_back(out_seq_no_);
-	// <04. <04. "newtdockdisc"  <00. <00. <00. <00
-	lt->data = { 
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x64, 0x69, 0x73, 0x63, 0x00, 0x00, 0x00, 0x00
-	};
-	lt->prepare_to_send();
-	// TODO: enqueue the frame to the outgoing pipe
-	newton_job_list.push(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LT, lt->pool_index));
-	return true;
-}
-
-/*
- * To send a pacage, we get the following flow:
- * Newton | Dock
- *     LR |
- *        | LR
- *     LA |
- *   rtdk | LA			request to dock: len = 4, uint32 protocol version (1 or 4)
- *     LA | dock    	initiate docking: len = 4, uint32 session type
- *   name | LA			Newton name: length, version info, name (UTF-16z)
- *     LA | stim		Set Timeout: timeout in seconds (usually 30 secs)
- *   dres | LA			Result: reply to Frames that don't need any other reply
- *  -- repeat for every file:
- *     LA | lpkg		Load Package: size in byte, binary data (pad to 4)
- *     LA | <data>*n	More binary data until all data is sent
- *   dres | LA			Result: so we know the Newton is still alive
- * -- all files sent:
- *     LA | disc		Disconnect: no data
- *     LD |
- */
-
-bool MNPFilter::handle_LT(Frame *frame) {
-	// TODO: make a super quick marker in the frame if we need a new LT frame, so we don't hold ourselves up here reinterpreting the job
-	bool job_done = true;
-	// frame->print();
-	if ((frame->data.size() >= 12) && (strncmp((const char*)frame->data.data(), "newtdock", 8) == 0)) {
-		char buf[5];
-		uint32_t cmd; memcpy(&cmd, (const char*)frame->data.data() + 8, 4);
-		strncpy(buf, (const char*)frame->data.data() + 8, 4);
-		buf[4] = 0;
-		if (kLogMNDock) Log.log("\r\nNewton Dock command: ");
-		if (kLogMNDock) Log.log(buf);
-		if (kLogMNDock) Log.log("\r\n");
-#if 0
-		if (cmd == ND_FOURCC('r','t','d','k')) {
-			job_done = reply_newtdockdock();
-		} else if (cmd == ND_FOURCC('n','a','m','e')) {
-			job_done = reply_newtdockstim();
-		} else if (cmd == ND_FOURCC('d','r','e','s')) {
-			if (dock_state_==0) {
-				job_done = reply_newtdocklpkg();
-				dock_state_ = 1;
-			} else {
-				job_done = reply_newtdockdisc();
-			}
-		}
-#else
-        // TODO: place this Frame in the out_to_dock job pipeline
-        dock.out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_FRAME_START));
-        for (auto c: frame->data) {
-            dock.out()->send(c);
-        }
-        dock.out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_FRAME_END));
-        job_done = true; // we don't handle this here, but in the Dock class
-#endif
-	} else {
-		if (kLogMNDock) Log.log("Newton Dock: no signature found\r\n");
-	}
-	if (job_done)
-	 	release_in_frame(frame);	
-	return job_done;
-}
-
-
-#if 0
-
-/* Structure definition */
-#define uchar unsigned char
-#define ushort unsigned short
-typedef struct {
-	char devName[256];
-	int speed;
-	} NewtDevInfo;
-
-/* Constants definition */
-#define MaxHeadLen 256
-#define MaxInfoLen 256
-extern uchar LRFrame[];
-extern uchar LDFrame[];
-
-/* Function prototype */
-int InitNewtDev(NewtDevInfo *newtDevInfo);
-void FCSCalc(ushort *fcsWord, uchar octet);
-void SendFrame(int newtFd, uchar *head, uchar *info, int infoLen);
-void SendLTFrame(int newtFd, uchar seqNo, uchar *info, int infoLen);
-void SendLAFrame(int newtFd, uchar seqNo);
-int RecvFrame(int newtFd, uchar *frame);
-int WaitLAFrame(int newtFd, uchar seqNo);
-int WaitLDFrame(int newtFd);
-void ErrHandler(char *errMesg);
-void SigInt(int sigNo);
-
-/* UnixNPI */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
-#include "newtmnp.h"
-
-#define VERSION "1.1.5"
-
-#define TimeOut 30
-
-/* Function prototype */
-void SigAlrm(int sigNo);
-
-#define NUM_STARS 32
-
-static char* stars(int number) {
-	static char string[NUM_STARS+1];
-	int i;
-	for(i=0; i<NUM_STARS; i++) {
-		if(i<number) string[i]='*';
-		else string[i]=' ';
-	}
-	string[NUM_STARS]='\0';
-	return string;
-}
-
-int main(int argc, char *argv[])
+/* Permuted Choice 1 */
+const unsigned char DESPC1Tbl[] =
 {
-	FILE *inFile;
-	long inFileLen;
-	long tmpFileLen;
-	uchar sendBuf[MaxHeadLen + MaxInfoLen];
-	uchar recvBuf[MaxHeadLen + MaxInfoLen];
-	NewtDevInfo newtDevInfo;
-	int newtFd;
-	uchar ltSeqNo;
-	int i, j, k;
+	 7, 15, 23, 31, 39, 47, 55,
+	63,  6, 14, 22, 30, 38, 46,
+	54, 62,  5, 13, 21, 29, 37,
+	45, 53, 61,  4, 12, 20, 28,
+	64,
+	 1,  9, 17, 25, 33, 41, 49,
+	57,  2, 10, 18, 26, 34, 42,
+	50, 58,  3, 11, 19, 27, 35,
+	43, 51, 59, 36, 44, 52, 60,
+	128
+};
 
-	k = 1;
+/* Permuted Choice 2 */
+const unsigned char DESPC2Tbl[] =
+{
+	50, 47, 53, 40, 63, 59, 61, 36,
+	49, 58, 43, 54, 41, 45, 52, 60,
+	64,
+	38, 56, 48, 57, 37, 44, 51, 62,
+	19,  8, 29, 23, 13,  5, 30, 20,
+	 9, 15, 27, 12, 16, 11, 21,  4,
+	26,  7, 14, 18, 10, 24, 31, 28,
+	128
+};
 
-	/* Initialization */
-	fprintf(stdout, "\n");
-	fprintf(stdout, "UnixNPI - a Newton Package Installer for Unix platforms\n");
-	fprintf(stdout, "Version " VERSION " by Richard C. L. Li, Victor Rehorst, Chayam Kirshen\n");
-	fprintf(stdout, "patches by Phil <phil@squack.COM>, Heinrik Lipka\n");
-	fprintf(stdout, "This program is distributed under the terms of the GNU GPL: see the file COPYING\n");
+const unsigned char DESIPInvTbl[] =
+{
+	24, 56, 16, 48,  8, 40,  0, 32,
+	25, 57, 17, 49,  9, 41,  1, 33,
+	26, 58, 18, 50, 10, 42,  2, 34,
+	27, 59, 19, 51, 11, 43,  3, 35,
+	64,
+	28, 60, 20, 52, 12, 44,  4, 36,
+	29, 61, 21, 53, 13, 45,  5, 37,
+	30, 62, 22, 54, 14, 46,  6, 38,
+	31, 63, 23, 55, 15, 47,  7, 39,
+	128
+};
 
-	strcpy(newtDevInfo.devName, "/dev/newton");
+const unsigned char DESPTbl[] = {
+	16, 25, 12, 11,
+	 3, 20,  4, 15,
+	31, 17,  9,  6,
+	27, 14,  1, 22,
+	30, 24,  8, 18,
+	 0,  5, 29, 23,
+	13, 19,  2, 26,
+	10, 21, 28,  7,
+	128
+};
 
-	/* Install time out function */
-	if(signal(SIGALRM, SigAlrm) == SIG_ERR)
-		ErrHandler("Error in setting up timeout function!!");
+const unsigned char DESSBoxes[8][64] = {
+	{	13,  1,  2, 15,  8, 13,  4,  8,  6, 10, 15,  3, 11,  7,  1,  4,
+		10, 12,  9,  5,  3,  6, 14, 11,  5,  0,  0, 14, 12,  9,  7,  2,
+		 7,  2, 11,  1,  4, 14,  1,  7,  9,  4, 12, 10, 14,  8,  2, 13,
+		 0, 15,  6, 12, 10,  9, 13,  0, 15,  3,  3,  5,  5,  6,  8, 11 },
+	{	 4, 13, 11,  0,  2, 11, 14,  7, 15,  4,  0,  9,  8,  1, 13, 10,
+		 3, 14, 12,  3,  9,  5,  7, 12,  5,  2, 10, 15,  6,  8,  1,  6,
+		 1,  6,  4, 11, 11, 13, 13,  8, 12,  1,  3,  4,  7, 10, 14,  7,
+		10,  9, 15,  5,  6,  0,  8, 15,  0, 14,  5,  2,  9,  3,  2, 12 },
+	{	12, 10,  1, 15, 10,  4, 15,  2,  9,  7,  2, 12,  6,  9,  8,  5,
+		 0,  6, 13,  1,  3, 13,  4, 14, 14,  0,  7, 11,  5,  3, 11,  8,
+		 9,  4, 14,  3, 15,  2,  5, 12,  2,  9,  8,  5, 12, 15,  3, 10,
+		 7, 11,  0, 14,  4,  1, 10,  7,  1,  6, 13,  0, 11,  8,  6, 13 },
+	{	 2, 14, 12, 11,  4,  2,  1, 12,  7,  4, 10,  7, 11, 13,  6,  1,
+		 8,  5,  5,  0,  3, 15, 15, 10, 13,  3,  0,  9, 14,  8,  9,  6,
+		 4, 11,  2,  8,  1, 12, 11,  7, 10,  1, 13, 14,  7,  2,  8, 13,
+		15,  6,  9, 15, 12,  0,  5,  9,  6, 10,  3,  4,  0,  5, 14,  3 },
+	{	 7, 13, 13,  8, 14, 11,  3,  5,  0,  6,  6, 15,  9,  0, 10,  3,
+		 1,  4,  2,  7,  8,  2,  5, 12, 11,  1, 12, 10,  4, 14, 15,  9,
+		10,  3,  6, 15,  9,  0,  0,  6, 12, 10, 11,  1,  7, 13, 13,  8,
+		15,  9,  1,  4,  3,  5, 14, 11,  5, 12,  2,  7,  8,  2,  4, 14 },
+	{	10, 13,  0,  7,  9,  0, 14,  9,  6,  3,  3,  4, 15,  6,  5, 10,
+		 1,  2, 13,  8, 12,  5,  7, 14, 11, 12,  4, 11,  2, 15,  8,  1,
+		13,  1,  6, 10,  4, 13,  9,  0,  8,  6, 15,  9,  3,  8,  0,  7,
+		11,  4,  1, 15,  2, 14, 12,  3,  5, 11, 10,  5, 14,  2,  7, 12 },
+	{	15,  3,  1, 13,  8,  4, 14,  7,  6, 15, 11,  2,  3,  8,  4, 14,
+		 9, 12,  7,  0,  2,  1, 13, 10, 12,  6,  0,  9,  5, 11, 10,  5,
+		 0, 13, 14,  8,  7, 10, 11,  1, 10,  3,  4, 15, 13,  4,  1,  2,
+		 5, 11,  8,  6, 12,  7,  6, 12,  9,  0,  3,  5,  2, 14, 15,  9 },
+	{	14,  0,  4, 15, 13,  7,  1,  4,  2, 14, 15,  2, 11, 13,  8,  1,
+		 3, 10, 10,  6,  6, 12, 12, 11,  5,  9,  9,  5,  0,  3,  7,  8,
+		 4, 15,  1, 12, 14,  8,  8,  2, 13,  4,  6,  9,  2,  1, 11,  7,
+		15,  5, 12, 11,  9,  3,  7, 14,  3, 10, 10,  0,  5,  6,  0, 13 }
+};
 
-	/* Check arguments */
-	if(argc < 2)
-		ErrHandler("Usage: unixnpi [-s speed] [-d device] PkgFiles...");
-	else
-	{
-		if (strcmp(argv[1],"-s") == 0)
+// --------- Odd Bit Number ---------
+// Table to fix the parity of a byte.
+
+const unsigned char kParitizedByte[256] =
+{
+	0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x07, 0x07, 0x08, 0x09, 0x0B, 0x0B, 0x0D, 0x0D, 0x0E, 0x0F,
+	0x10, 0x11, 0x13, 0x13, 0x15, 0x15, 0x16, 0x17, 0x19, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1F, 0x1F,
+	0x20, 0x21, 0x23, 0x23, 0x25, 0x25, 0x26, 0x27, 0x29, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2F, 0x2F,
+	0x31, 0x31, 0x32, 0x33, 0x34, 0x35, 0x37, 0x37, 0x38, 0x39, 0x3B, 0x3B, 0x3D, 0x3D, 0x3E, 0x3F,
+	0x40, 0x41, 0x43, 0x43, 0x45, 0x45, 0x46, 0x47, 0x49, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4F, 0x4F,
+	0x51, 0x51, 0x52, 0x53, 0x54, 0x55, 0x57, 0x57, 0x58, 0x59, 0x5B, 0x5B, 0x5D, 0x5D, 0x5E, 0x5F,
+	0x61, 0x61, 0x62, 0x63, 0x64, 0x65, 0x67, 0x67, 0x68, 0x69, 0x6B, 0x6B, 0x6D, 0x6D, 0x6E, 0x6F,
+	0x70, 0x71, 0x73, 0x73, 0x75, 0x75, 0x76, 0x77, 0x79, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7F, 0x7F,
+	0x80, 0x81, 0x83, 0x83, 0x85, 0x85, 0x86, 0x87, 0x89, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8F, 0x8F,
+	0x91, 0x91, 0x92, 0x93, 0x94, 0x95, 0x97, 0x97, 0x98, 0x99, 0x9B, 0x9B, 0x9D, 0x9D, 0x9E, 0x9F,
+	0xA1, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA7, 0xA7, 0xA8, 0xA9, 0xAB, 0xAB, 0xAD, 0xAD, 0xAE, 0xAF,
+	0xB0, 0xB1, 0xB3, 0xB3, 0xB5, 0xB5, 0xB6, 0xB7, 0xB9, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBF, 0xBF,
+	0xC1, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC7, 0xC7, 0xC8, 0xC9, 0xCB, 0xCB, 0xCD, 0xCD, 0xCE, 0xCF,
+	0xD0, 0xD1, 0xD3, 0xD3, 0xD5, 0xD5, 0xD6, 0xD7, 0xD9, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDF, 0xDF,
+	0xE0, 0xE1, 0xE3, 0xE3, 0xE5, 0xE5, 0xE6, 0xE7, 0xE9, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEF, 0xEF,
+	0xF1, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF7, 0xF7, 0xF8, 0xF9, 0xFB, 0xFB, 0xFD, 0xFD, 0xFE, 0xFF
+};
+
+
+/*------------------------------------------------------------------------------
+	P r o t o t y p e s
+------------------------------------------------------------------------------*/
+
+static void DESip(uint32_t inKeyHi, uint32_t inKeyLo, SNewtNonce * outKey);
+static uint32_t DESfrk(uint32_t Khi, uint32_t Klo, uint32_t R);
+
+
+/*------------------------------------------------------------------------------
+	Permute a 64 bit number using the given permute choice table.
+	The number is handled in two 32 bit longs.
+------------------------------------------------------------------------------*/
+
+void DESPermute(const unsigned char * inPermuteTable, uint32_t inKeyHi, uint32_t inKeyLo, SNewtNonce * outKey)
+{
+	uint32_t permutedHi, permutedLo;
+	uint32_t srcBits;
+	unsigned int bitPos;
+
+	do {
+		permutedHi = 0;
+		// set chosen bit in output
+		while ((bitPos = *inPermuteTable++) < 64)
 		{
-			if (argc < 4)
-				ErrHandler("Usage: unixnpi [-s speed] [-d device] PkgFiles...");
-			newtDevInfo.speed = atoi(argv[2]);
-			k = 3;
+			permutedHi <<= 1;
+			if (bitPos < 32)
+				srcBits = inKeyLo;
+			else
+			{
+				srcBits = inKeyHi;
+				bitPos -= 32;
+			}
+			if (srcBits & (1 << bitPos))
+				permutedHi |= 1;
+		}
+		// swap high <-> low	
+		srcBits = permutedLo;
+		permutedLo = permutedHi;
+		permutedHi = srcBits;
+	} while (bitPos < 128);
+
+	outKey->hi = permutedHi;
+	outKey->lo = permutedLo;
+}
+
+
+/*------------------------------------------------------------------------------
+	Calculate the Key Schedule.
+------------------------------------------------------------------------------*/
+
+void DESKeySched(SNewtNonce * inKey, SNewtNonce * outKeys)
+{
+	uint32_t rotateSchedule;
+	uint32_t permuteKeyHi, permuteKeyLo;
+	SNewtNonce permutedKey;
+
+	DESPermute(DESPC1Tbl, inKey->hi << 1, inKey->lo << 1, &permutedKey);
+	permuteKeyHi = permutedKey.hi << 4;
+	permuteKeyLo = permutedKey.lo << 4;
+	for (rotateSchedule = 0xC0810000; rotateSchedule != 0; rotateSchedule <<= 1)
+	{
+		if (rotateSchedule & 0x80000000)
+		{
+			permuteKeyHi = (permuteKeyHi << 1) | ((permuteKeyHi >> 27) & 0x0010);
+			permuteKeyLo = (permuteKeyLo << 1) | ((permuteKeyLo >> 27) & 0x0010);
 		}
 		else
 		{
-			newtDevInfo.speed = 38400;
-			k = 1;
+			permuteKeyHi = (permuteKeyHi << 2) | ((permuteKeyHi >> 26) & 0x0030);
+			permuteKeyLo = (permuteKeyLo << 2) | ((permuteKeyLo >> 26) & 0x0030);
 		}
-		if (strcmp(argv[k],"-d")==0)
+		DESPermute(DESPC2Tbl, permuteKeyHi, permuteKeyLo, outKeys++);
+	}
+}
+
+
+/*------------------------------------------------------------------------------
+	Generate a key from a unicode string.
+	NOTE	This function relies on big-endian byte order!
+------------------------------------------------------------------------------*/
+
+void DESCharToKey(UniChar * inString, SNewtNonce * outKey)
+{
+	SNewtNonce key0 = { 0x57406860, 0x626D7464 };
+	SNewtNonce key1;
+	SNewtNonce * pKey1;
+	SNewtNonce keysArray[16];
+	UniChar buf[4];
+	unsigned char * src, * dst;
+	int i;
+	int moreChars;
+
+	for (moreChars = 1; moreChars == 1; )
+	{
+		// set up keys array
+		DESKeySched(&key0, keysArray);
+
+		// initialize buf with 4 UniChars (64 bits) from string
+		for (i = 0; i < 4; i++)
 		{
-			if (argc<(k+1))
-				ErrHandler("Usage: unixnpi [-s speed] [-d device] PkgFiles...");
-			strcpy(newtDevInfo.devName, argv[k+1]);
-			k+=2;
+			if (moreChars)
+			{
+				if ((buf[i] = *inString) != 0)
+					inString++;
+				else
+					moreChars = 0;
+			}
+			else
+			{
+				buf[i] = 0;
+			}
+		}
+
+		// set up key1
+		key1.hi = (buf[0] << 16) | buf[1];
+		key1.lo = (buf[2] << 16) | buf[3];
+
+		// encode it
+		pKey1 = &key1;
+		DESEncode(keysArray, sizeof(SNewtNonce), &pKey1);
+
+		// use this key to set up next keysArray
+		src = (unsigned char *) &key1;
+		dst = (unsigned char *) &key0;
+		for (i = 0; i < 8; i++)
+		{
+			// ensure key has odd parity
+			*dst++ = kParitizedByte[*src++];
 		}
 	}
 
-	/* Initialize Newton device */
-	if((newtFd = InitNewtDev(&newtDevInfo)) < 0)
-		ErrHandler("Error in opening Newton device!!\nDo you have a symlink to /dev/newton?");
-	ltSeqNo = 0;
+	// return the final key
+	*outKey = key0;
+}
 
-	/* Waiting to connect */
-	fprintf(stdout, "\nWaiting to connect\n");
-	do {
-		while(RecvFrame(newtFd, recvBuf) < 0);
-	} while(recvBuf[1] != '\x01');
-	fprintf(stdout, "Connected\n");
-	fprintf(stdout, "Handshaking");
-	fflush(stdout);
 
-	/* Send LR frame */
-	alarm(TimeOut);
-	do {
-		SendFrame(newtFd, LRFrame, NULL, 0);
-		} while(WaitLAFrame(newtFd, ltSeqNo) < 0);
-	ltSeqNo++;
-	fprintf(stdout, ".");
-	fflush(stdout);
+/*------------------------------------------------------------------------------
+	DESip
+------------------------------------------------------------------------------*/
 
-	/* Wait LT frame newtdockrtdk */
-	while(RecvFrame(newtFd, recvBuf) < 0 || recvBuf[1] != '\x04');
-	SendLAFrame(newtFd, recvBuf[2]);
-	fprintf(stdout, ".");
-	fflush(stdout);
+static void DESip(uint32_t inKeyHi, uint32_t inKeyLo, SNewtNonce * outKey)
+{
+	uint32_t d6 = inKeyHi;
+	uint32_t d7 = inKeyHi << 16;
+	uint32_t a1 = inKeyLo;
+	uint32_t a3 = inKeyLo << 16;
+	uint32_t resultHi = 0;
+	uint32_t resultLo = 0;
+	uint32_t temp;
+	int i, j;
 
-	/* Send LT frame newtdockdock */
-	alarm(TimeOut);
-	do {
-		SendLTFrame(newtFd, ltSeqNo, "newtdockdock\0\0\0\4\0\0\0\4", 20);
-	} while(WaitLAFrame(newtFd, ltSeqNo) < 0);
-	ltSeqNo++;
-	fprintf(stdout, ".");
-	fflush(stdout);
-
-	/* Wait LT frame newtdockname */
-	alarm(TimeOut);
-	while(RecvFrame(newtFd, recvBuf) < 0 || recvBuf[1] != '\x04');
-	SendLAFrame(newtFd, recvBuf[2]);
-	fprintf(stdout, ".");
-	fflush(stdout);
-
-	/* Get owner name */
-	i = recvBuf[19] * 256 * 256 * 256 + recvBuf[20] * 256 * 256 + recvBuf[21] *
-		256 + recvBuf[22];
-	i += 24;
-	j = 0;
-	while(recvBuf[i] != '\0') {
-		sendBuf[j] = recvBuf[i];
-		j++;
-		i += 2;
-		}
-	sendBuf[j] = '\0';
-
-	/* Send LT frame newtdockstim */
-	alarm(TimeOut);
-	do {
-		SendLTFrame(newtFd, ltSeqNo, "newtdockstim\0\0\0\4\0\0\0\x1e", 20);
-	} while(WaitLAFrame(newtFd, ltSeqNo) < 0);
-	ltSeqNo++;
-	fprintf(stdout, ".");
-	fflush(stdout);
-
-	/* Wait LT frame newtdockdres */
-	alarm(TimeOut);
-	while(RecvFrame(newtFd, recvBuf) < 0 || recvBuf[1] != '\x04');
-	SendLAFrame(newtFd, recvBuf[2]);
-	fprintf(stdout, ".\n");
-	fflush(stdout);
-
-	/* batch install all of the files */
-	for (k; k < argc; k++)
+	for (j = 0; j < 2; j++)
 	{
-		/* load the file */
-		if((inFile = fopen(argv[k], "rb")) == NULL)
-			ErrHandler("Error in opening package file!!");
-		fseek(inFile, 0, SEEK_END);
-		inFileLen = ftell(inFile);
-		rewind(inFile);
-		/* printf("File is '%s'\n", argv[k]); */
+		resultHi = (resultHi >> 1) | (resultHi << 31);
+		resultLo = (resultLo >> 1) | (resultLo << 31);
 
-		/* Send LT frame newtdocklpkg */
-		alarm(TimeOut);
-		strcpy(sendBuf, "newtdocklpkg");
-		tmpFileLen = inFileLen;
-		for(i = 15; i >= 12; i--) {
-			sendBuf[i] = tmpFileLen % 256;
-			tmpFileLen /= 256;
-			}
-		do {
-			SendLTFrame(newtFd, ltSeqNo, sendBuf, 16);
-		} while(WaitLAFrame(newtFd, ltSeqNo) < 0);
-		ltSeqNo++;
-		/* fprintf(stdout, ".\n"); */
+		for (i = 0; i < 8; i++)
+		{
+			resultLo = (a3 >> 31) | (resultLo << 1);
+			a3 <<= 1;
+			resultLo = (resultLo >> 31) | (resultLo << 1);
 
-		/* fprintf(stdout, "Sending %d / %d\r", 0, inFileLen); */
-		fprintf(stdout, "%20s %3d%% |%s| %d\r",
-			argv[k], 0, stars(0), 0);
-		fflush(stdout);
+			resultLo = (a1 >> 31) | (resultLo << 1);
+			a1 <<= 1;
+			resultLo = (resultLo >> 31) | (resultLo << 1);
 
-		/* Send package data */
-		while(!feof(inFile)) {
-                        int bytes;
-			alarm(TimeOut);
-			i = fread(sendBuf, sizeof(uchar), MaxInfoLen, inFile);
-			while(i % 4 != 0)
-				sendBuf[i++] = '\0';
-			do {
-				SendLTFrame(newtFd, ltSeqNo, sendBuf, i);
-			} while(WaitLAFrame(newtFd, ltSeqNo) < 0);
-			ltSeqNo++;
-			if(ltSeqNo % 4 == 0) {
-				/* fprintf(stdout, "Sending %d / %d\r", ftell(inFile), inFileLen); */
-				bytes=ftell(inFile);
-				fprintf(stdout, "%20s %3d%% |%s| %d\r",
-					argv[k],
-					(int)(((float)bytes/(float)inFileLen)*100),
-					stars(((float)bytes/(float)inFileLen)*NUM_STARS),
-					bytes);
-				fflush(stdout);
-			}
+			resultLo = (d7 >> 31) | (resultLo << 1);
+			d7 <<= 1;
+			resultLo = (resultLo >> 31) | (resultLo << 1);
+
+			resultLo = (d6 >> 31) | (resultLo << 1);
+			d6 <<= 1;
+			resultLo = (resultLo >> 31) | (resultLo << 1);
+
+			temp = resultLo;
+			resultLo = resultHi;
+			resultHi = temp;
 		}
-		/* fprintf(stdout, "Sending %d / %d\n", inFileLen, inFileLen); */
-		fprintf(stdout, "\n");
-
-		/* Wait LT frame newtdockdres */
-		alarm(TimeOut);
-		while(RecvFrame(newtFd, recvBuf) < 0 || recvBuf[1] != '\x04');
-		SendLAFrame(newtFd, recvBuf[2]);
-
-		fclose (inFile);
-
-	} /* END OF FOR LOOP */
-
-	/* Send LT frame newtdockdisc */
-	alarm(TimeOut);
-	do {
-		SendLTFrame(newtFd, ltSeqNo, "newtdockdisc\0\0\0\0", 16);
-	} while(WaitLAFrame(newtFd, ltSeqNo) < 0);
-
-	/* Wait disconnect */
-	alarm(0);
-	WaitLDFrame(newtFd);
-	fprintf(stdout, "Finished!!\n\n");
-
-	/* fclose(inFile); */
-	close(newtFd);
-	return 0;
+	}
+	outKey->hi = resultHi;
+	outKey->lo = resultLo;
 }
 
-void SigAlrm(int sigNo)
+
+/*------------------------------------------------------------------------------
+	The cipher function f(R,K)
+	Define 8 blocks of 6 bits each from the 32 bit input R.
+------------------------------------------------------------------------------*/
+
+static uint32_t DESfrk(uint32_t Khi, uint32_t Klo, uint32_t R)
 {
-	ErrHandler("Timeout error, connection stopped!!");
-}
-  
-
-
-#include <stdio.h>
-#include <termios.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <unistd.h>
-#include "newtmnp.h"
-
-/* Constants definition */
-uchar FrameStart[] = "\x16\x10\x02";
-uchar FrameEnd[] = "\x10\x03";
-uchar LRFrame[] = {
-	'\x17', /* Length of header */
-	'\x01', /* Type indication LR frame */
-	'\x02', /* Constant parameter 1 */
-	'\x01', '\x06', '\x01', '\x00', '\x00', '\x00', '\x00', '\xff',
-		/* Constant parameter 2 */
-	'\x02', '\x01', '\x02', /* Octet-oriented framing mode */
-	'\x03', '\x01', '\x01', /* k = 1 */
-	'\x04', '\x02', '\x40', '\x00', /* N401 = 64 */
-	'\x08', '\x01', '\x03' /* N401 = 256 & fixed LT, LA frames */
-	};
-uchar LDFrame[] = {
-	'\x04', /* Length of header */
-	'\x02', /* Type indication LD frame */
-	'\x01', '\x01', '\xff'
-	};
-
-int intNewtFd;
-
-int InitNewtDev(NewtDevInfo *newtDevInfo)
-{
-	int newtFd;
-	struct termios newtTty;
-
-	/*  Install Ctrl-C function */
-	intNewtFd = -1;
-	if(signal(SIGINT, SigInt) == SIG_ERR)
-		ErrHandler("Error in setting up interrupt function!!");
-
-	/* Open the Newton device */
-	if((newtFd = open(newtDevInfo->devName, O_RDWR)) == -1)
-		return -1;
-
-	/* Get the current device settings */
-	tcgetattr(newtFd, &newtTty);
-
-	/* Change the device settings */
-	newtTty.c_iflag = IGNBRK | INPCK;
-	newtTty.c_oflag = 0;
-	newtTty.c_cflag = CREAD | CLOCAL | CS8 & ~PARENB & ~PARODD & ~CSTOPB;
-	newtTty.c_lflag = 0;
-	newtTty.c_cc[VMIN] = 1;
-	newtTty.c_cc[VTIME] = 0;
-
-	/* Select the communication speed */
-	switch(newtDevInfo->speed) {
-		#ifdef B2400
-		case 2400:
-			cfsetospeed(&newtTty, B2400);
-			cfsetispeed(&newtTty, B2400);
-			break;
-		#endif
-		#ifdef B4800
-		case 4800:
-			cfsetospeed(&newtTty, B4800);
-			cfsetispeed(&newtTty, B4800);
-			break;
-		#endif
-		#ifdef B9600
-		case 9600:
-			cfsetospeed(&newtTty, B9600);
-			cfsetispeed(&newtTty, B9600);
-			break;
-		#endif
-		#ifdef B19200
-		case 19200:
-			cfsetospeed(&newtTty, B19200);
-			cfsetispeed(&newtTty, B19200);
-			break;
-		#endif
-		#ifdef B38400
-		case 38400:
-			cfsetospeed(&newtTty, B38400);
-			cfsetispeed(&newtTty, B38400);
-			break;
-		#endif
-		#ifdef B57600
-		case 57600:
-			cfsetospeed(&newtTty, B57600);
-			cfsetispeed(&newtTty, B57600);
-			break;
-		#endif
-		#ifdef B115200
-		case 115200:
-			cfsetospeed(&newtTty, B115200);
-			cfsetispeed(&newtTty, B115200);
-			break;
-		#endif
-		#ifdef B230400
-		case 230400:
-			cfsetospeed(&newtTty, B230400);
-			cfsetispeed(&newtTty, B230400);
-			break;
-		#endif
-		default:
-			close(newtFd);
-			return -1;
-		}
-
-	/* Flush the device and restarts input and output */
-	tcflush(newtFd, TCIOFLUSH);
-	tcflow(newtFd, TCOON);
-
-	/* Update the new device settings */
-	tcsetattr(newtFd, TCSANOW, &newtTty);
-
-	/* Return with file descriptor */
-	intNewtFd = newtFd;
-	return newtFd;
-}
-
-void FCSCalc(ushort *fcsWord, unsigned char octet)
-{
-	int i;
-	uchar pow;
-
-	pow = 1;
-	for(i = 0; i < 8; i++) {
-		if((((*fcsWord % 256) & 0x01) == 0x01) ^ ((octet & pow) == pow))
-			*fcsWord = (*fcsWord / 2) ^ 0xa001;
-		else
-			*fcsWord /= 2;
-		pow *= 2;
-		}
-}
-
-void SendFrame(int newtFd, uchar *head, uchar *info, int infoLen)
-{
-	char errMesg[] = "Error in writing to Newton device, connection stopped!!";
-	int i;
-	ushort fcsWord;
-	uchar buf;
-
-	/* Initialize */
-	fcsWord = 0;
-
-	/* Send frame start */
-	if(write(newtFd, FrameStart, 3) < 0)
-		ErrHandler(errMesg);
-
-	/* Send frame head */
-	for(i = 0; i <= head[0]; i++) {
-		FCSCalc(&fcsWord, head[i]);
-		if(write(newtFd, &head[i], 1) < 0)
-			ErrHandler(errMesg);
-		if(head[i] == FrameEnd[0]) {
-			if(write(newtFd, &head[i], 1) < 0)
-				ErrHandler(errMesg);
-			}
-		}
-
-	/* Send frame information */
-	if(info != NULL) {
-		for(i = 0; i < infoLen; i++) {
-			FCSCalc(&fcsWord, info[i]);
-			if(write(newtFd, &info[i], 1) < 0)
-				ErrHandler(errMesg);
-			if(info[i] == FrameEnd[0]) {
-				if(write(newtFd, &info[i], 1) < 0)
-					ErrHandler(errMesg);
-				}
-			}
-		}
-
-	/* Send frame end */
-	if(write(newtFd, FrameEnd, 2) < 0)
-		ErrHandler(errMesg);
-	FCSCalc(&fcsWord, FrameEnd[1]);
-
-	/* Send FCS */
-	buf = fcsWord % 256;
-	if(write(newtFd, &buf, 1) < 0)
-		ErrHandler(errMesg);
-	buf = fcsWord / 256;
-	if(write(newtFd, &buf, 1) < 0)
-		ErrHandler(errMesg);
-
-	return;
-}
-
-void SendLTFrame(int newtFd, uchar seqNo, uchar *info, int infoLen)
-{
-	uchar ltFrameHead[3] = {
-		'\x02', /* Length of header */
-		'\x04', /* Type indication LT frame */
-		};
-
-	ltFrameHead[2] = seqNo;
-	SendFrame(newtFd, ltFrameHead, info, infoLen);
-
-	return;
-}
-
-void SendLAFrame(int newtFd, uchar seqNo)
-{
-	uchar laFrameHead[4] = {
-		'\x03', /* Length of header */
-		'\x05', /* Type indication LA frame */
-		'\x00', /* Sequence number */
-		'\x01' /* N(k) = 1 */
-		};
-
-	laFrameHead[2] = seqNo;
-	SendFrame(newtFd, laFrameHead, NULL, 0);
-
-	return;
-}
-
-int RecvFrame(int newtFd, unsigned char *frame)
-{
-	char errMesg[] = "Error in reading from Newton device, connection stopped!!";
-	int state;
-	unsigned char buf;
-	unsigned short fcsWord;
+	uint32_t L;
+	SNewtNonce permutedR;
 	int i;
 
-	/* Initialize */
-	fcsWord = 0;
-	i = 0;
+	L = 0;
+	R = (R >> 31) + (R << 1);			// rotate left 1 bit initially
+	for (i = 0; i < 8; i++)
+	{
+		L |= DESSBoxes[i][(R ^ Klo) & 0x3F];
+		L = (L << 28) | (L >> 4);		// rotate LR right 4 bits for next iter
+		R = (R << 28) | (R >> 4);
+		Klo = (Khi << 26) + (Klo >> 6);	// rotate K right 6 bits
+		Khi = Khi >> 6;
+	}
+	// apply permutation function P(L)
+	DESPermute(DESPTbl, 0, L, &permutedR);
 
-	/* Wait for head */
-	state = 0;
-	while(state < 3) {
-		if(read(newtFd, &buf, 1) < 0)
-			ErrHandler(errMesg);
-    //printf("Received %02x\n", buf);
-		switch(state) {
-			case 0:
-				if(buf == FrameStart[0])
-					state++;
-				break;
-			case 1:
-				if(buf == FrameStart[1])
-					state++;
-				else
-					state = 0;
-				break;
-			case 2:
-				if(buf == FrameStart[2])
-					state++;
-				else
-					state = 0;
-				break;
-			}
-		}
-
-	/* Wait for tail */
-	state = 0;
-	while(state < 2) {
-		if(read(newtFd, &buf, 1) < 0)
-			ErrHandler(errMesg);
-		switch(state) {
-			case 0:
-				if(buf == '\x10')
-					state++;
-				else {
-					FCSCalc(&fcsWord, buf);
-					if(i < MaxHeadLen + MaxInfoLen) {
-						frame[i] = buf;
-						i++;
-						}
-					else
-						return -1;
-					}
-				break;
-			case 1:
-				if(buf == '\x10') {
-					FCSCalc(&fcsWord, buf);
-					if(i < MaxHeadLen + MaxInfoLen) {
-						frame[i] = buf;
-						i++;
-						}
-					else
-						return -1;
-					state = 0;
-					}
-				else {
-					if(buf == '\x03') {
-						FCSCalc(&fcsWord, buf);
-						state++;
-						}
-					else
-						return -1;
-					}
-				break;
-			}
-		}
-
-	/* Check FCS */
-	if(read(newtFd, &buf, 1) < 0)
-		ErrHandler(errMesg);
-	if(fcsWord % 256 != buf)
-		return -1;
-	if(read(newtFd, &buf, 1) < 0)
-		ErrHandler(errMesg);
-	if(fcsWord / 256 != buf)
-		return -1;
-
-	if(frame[1] == '\x02')
-		ErrHandler("Newton device disconnected, connection stopped!!");
-	return 0;
+	// return 32 bit result
+	return permutedR.lo;
 }
 
-int WaitLAFrame(int newtFd, uchar seqNo)
-{
-	uchar frame[MaxHeadLen + MaxInfoLen];
 
-	do {
-		while(RecvFrame(newtFd, frame) < 0);
-		if(frame[1] == '\x04')
-			SendLAFrame(newtFd, frame[2]);
-		} while(frame[1] != '\x05');
-	if(frame[2] == seqNo)
-		return 0;
-	else
-		return -1;
-}
+/*------------------------------------------------------------------------------
+	Encode.
+------------------------------------------------------------------------------*/
 
-int WaitLDFrame(int newtFd)
+void DESEncode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr)
 {
-	char errMesg[] = "Error in reading from Newton device, connection stopped!!";
-	int state;
-	unsigned char buf;
-	unsigned short fcsWord;
 	int i;
+	SNewtNonce permutedData;
+	SNewtNonce * keyPtr = *memPtr;
+	SNewtNonce * kPtr;
+	uint32_t keyHi, keyLo;
 
-	/* Initialize */
-	fcsWord = 0;
-	i = 0;
-
-	/* Wait for head */
-	state = 0;
-	while(state < 5) {
-		if(read(newtFd, &buf, 1) < 0)
-			ErrHandler(errMesg);
-		switch(state) {
-			case 0:
-				if(buf == FrameStart[0])
-					state++;
-				break;
-			case 1:
-				if(buf == FrameStart[1])
-					state++;
-				else
-					state = 0;
-				break;
-			case 2:
-				if(buf == FrameStart[2])
-					state++;
-				else
-					state = 0;
-				break;
-			case 3:
-				FCSCalc(&fcsWord, buf);
-				state++;
-				break;
-			case 4:
-				if(buf == '\x02') {
-					FCSCalc(&fcsWord, buf);
-					state++;
-					}
-				else {
-					state = 0;
-					fcsWord = 0;
-					}
-				break;
-			}
+	while ((byteCount -= sizeof(SNewtNonce)) >= 0)
+	{
+		kPtr = keys;
+		keyHi = keyPtr->hi;
+		keyLo = keyPtr->lo;
+		DESip(keyHi, keyLo, &permutedData);
+		keyHi = permutedData.hi;
+		keyLo = permutedData.lo;
+		for (i = 0; i < 8; i++)
+		{
+			keyHi ^= DESfrk(kPtr->hi, kPtr->lo, keyLo);	kPtr++;
+			keyLo ^= DESfrk(kPtr->hi, kPtr->lo, keyHi);	kPtr++;
 		}
-
-	/* Wait for tail */
-	state = 0;
-	while(state < 2) {
-		if(read(newtFd, &buf, 1) < 0)
-			ErrHandler(errMesg);
-		switch(state) {
-			case 0:
-				if(buf == '\x10')
-					state++;
-				else
-					FCSCalc(&fcsWord, buf);
-				break;
-			case 1:
-				if(buf == '\x10') {
-					FCSCalc(&fcsWord, buf);
-					state = 0;
-					}
-				else {
-					if(buf == '\x03') {
-						FCSCalc(&fcsWord, buf);
-						state++;
-						}
-					else
-						return -1;
-					}
-				break;
-			}
-		}
-
-	/* Check FCS */
-	if(read(newtFd, &buf, 1) < 0)
-		ErrHandler(errMesg);
-	if(fcsWord % 256 != buf)
-		return -1;
-	if(read(newtFd, &buf, 1) < 0)
-		ErrHandler(errMesg);
-	if(fcsWord / 256 != buf)
-		return -1;
-
-	return 0;
+		DESPermute(DESIPInvTbl, keyLo, keyHi, &permutedData);
+		*keyPtr++ = permutedData;
+	}
+	*memPtr = keyPtr;
 }
 
-void ErrHandler(char *errMesg)
+
+void DESCBCEncode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr, SNewtNonce * a4)
 {
-	fprintf(stderr, "\n");
-	fprintf(stderr, errMesg);
-	fprintf(stderr, "\n\n");
-	_exit(0);
-}
+	int i;
+	SNewtNonce permutedData;
+	SNewtNonce * keyPtr = *memPtr;
+	SNewtNonce * kPtr;
+	uint32_t keyHi, keyLo;
 
-void SigInt(int sigNo)
-{
-	if(intNewtFd >= 0) {
-		/* Wait for all buffer sent */
-		tcdrain(intNewtFd);
-
-		SendFrame(intNewtFd, LDFrame, NULL, 0);
+	while ((byteCount -= sizeof(SNewtNonce)) >= 0)
+	{
+		kPtr = keys;
+		keyHi = keyPtr->hi;
+		keyLo = keyPtr->lo;
+		keyHi = (a4->hi ^= keyHi);
+		keyLo = (a4->lo ^= keyLo);
+		DESip(keyHi, keyLo, &permutedData);
+		keyHi = permutedData.hi;
+		keyLo = permutedData.lo;
+		for (i = 0; i < 8; i++)
+		{
+			keyHi ^= DESfrk(kPtr->hi, kPtr->lo, keyLo);	kPtr++;
+			keyLo ^= DESfrk(kPtr->hi, kPtr->lo, keyHi);	kPtr++;
 		}
-	ErrHandler("User interrupted, connection stopped!!");
+		DESPermute(DESIPInvTbl, keyLo, keyHi, &permutedData);
+		*keyPtr++ = permutedData;
+	}
+	*memPtr = keyPtr;
 }
 
 
-#endif
+void DESEncodeNonce(SNewtNonce * initVect, SNewtNonce * outNonce)
+{
+	SNewtNonce * pNonce;
+	SNewtNonce   keysArray[16];
 
-#endif
+	DESKeySched(initVect, keysArray);
+	pNonce = outNonce;
+	DESEncode(keysArray, sizeof(SNewtNonce), &pNonce);
+}
+
+
+/*------------------------------------------------------------------------------
+	Decode.
+------------------------------------------------------------------------------*/
+
+void DESDecode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr)
+{
+	int i;
+	SNewtNonce permutedData;
+	SNewtNonce * keyPtr = *memPtr;
+	SNewtNonce * kPtr;
+	uint32_t keyHi, keyLo;
+
+	while ((byteCount -= sizeof(SNewtNonce)) >= 0)
+	{
+		kPtr = keys;
+		DESip(keyPtr->hi, keyPtr->lo, &permutedData);
+		keyHi = permutedData.hi;
+		keyLo = permutedData.lo;
+		for (i = 0; i < 8; i++)
+		{
+			keyHi ^= DESfrk(kPtr->hi, kPtr->lo, keyLo);	kPtr++;
+			keyLo ^= DESfrk(kPtr->hi, kPtr->lo, keyHi);	kPtr++;
+		}
+		DESPermute(DESIPInvTbl, keyLo, keyHi, keyPtr++);
+	}
+	*memPtr = keyPtr;
+}
+
+
+void DESCBCDecode(SNewtNonce * keys, int byteCount, SNewtNonce ** memPtr, SNewtNonce * a4)
+{
+	int i;
+	SNewtNonce permutedData, huh;
+	SNewtNonce * keyPtr = *memPtr;
+	SNewtNonce * kPtr;
+	uint32_t dataHi, dataLo;
+
+	while ((byteCount -= sizeof(SNewtNonce)) >= 0)
+	{
+		kPtr = keys;
+		huh = **memPtr;
+		DESip(huh.hi, huh.lo, &permutedData);
+		dataHi = permutedData.hi;
+		dataLo = permutedData.lo;
+		for (i = 0; i < 8; i++)
+		{
+			dataHi ^= DESfrk(kPtr->hi, kPtr->lo, dataLo);	kPtr++;
+			dataLo ^= DESfrk(kPtr->hi, kPtr->lo, dataHi);	kPtr++;
+		}
+		DESPermute(DESIPInvTbl, dataLo, dataHi, &permutedData);
+		dataHi = permutedData.hi ^ a4->hi;
+		dataLo = permutedData.lo ^ a4->lo;
+		*a4 = huh;
+		keyPtr->hi = dataHi;
+		keyPtr->lo = dataLo;
+		keyPtr++;
+	}
+	*memPtr = keyPtr;
+}
+
+
+void DESDecodeNonce(SNewtNonce * initVect, SNewtNonce * outNonce)
+{
+	SNewtNonce *	pNonce;
+	SNewtNonce		keysArray[16];
+
+	DESKeySched(initVect, keysArray);
+	pNonce = outNonce;
+	DESDecode(keysArray, sizeof(SNewtNonce), &pNonce);
+}
+

@@ -105,11 +105,15 @@ BufferedPipe buffer_to_cdc(scheduler);
 BufferedPipe buffer_to_uart(scheduler);
 
 
+void nsof_test();
+
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
     stdio_uart_init_full(uart1, 115200, 8, 9);
     Log.log("Starting Newton Dongle...\n");
+
+    //nsof_test();
 
     // user_settings.mess_up_flash();
     user_settings.read();
@@ -140,7 +144,7 @@ int main(int argc, char *argv[])
     // UART ---------------> UART_Hayes --------------------> Matrix ---> CDC Hayes ---> buffer ---> CDC
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Matrix <--- CDC Hayes <--------------- CDC
     //                                                          ↑↓
-    //                                                       MNP/V.24
+    //                                                          MNP
     //                                                          ↑↓
     //                                                         Dock    
     //                                                          ↑↓

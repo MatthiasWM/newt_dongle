@@ -865,7 +865,7 @@ Result DockToNewtPipe::send(Event event)
     if (event.type() == Event::Type::MNP) {
         if ((event.subtype() == Event::Subtype::MNP_FRAME_START) || (event.subtype() == Event::Subtype::MNP_FRAME_END)){
             if (in_frame) {
-                // if (kLogMNPErrors) Log.log("MNPFilter::dock_send: flush dock_in_frame on new frame\r\n");
+                // if (kLogMNPErrors) Log.log("MNPFilter::dock_send: xmit on new frame\r\n");
                 flush_in_frame();
             }
             return Result::OK;

@@ -88,6 +88,9 @@ target_compile_definitions(newt_dongle PRIVATE
 pico_enable_stdio_uart(newt_dongle 1)
 pico_enable_stdio_usb(newt_dongle 0)
 
+# Diable Note about ABI compatibility warnings in NSOF.
+target_compile_options(newt_dongle PRIVATE -Wno-psabi)
+
 # Add the standard library to the build
 target_link_libraries(newt_dongle
         pico_stdlib)

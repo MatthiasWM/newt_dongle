@@ -31,6 +31,12 @@ void Logger::logf(const char *message, ...) {
     log(buffer, 0);
 }
 
+void Logger::indent(uint32_t level) {
+    for (uint32_t i = 0; i < level; ++i) {
+        log("  ");
+    }
+}
+
 
 #if 0
 

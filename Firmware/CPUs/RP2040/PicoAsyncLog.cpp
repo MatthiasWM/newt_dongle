@@ -5,6 +5,8 @@
 
 #include "PicoAsyncLog.h"
 
+#include "main.h"
+
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
 #include <pico/flash.h>
@@ -68,7 +70,7 @@ void PicoAsyncLog::run() {
         } else {
             absolute_time_t now = get_absolute_time();
             uint32_t diff = absolute_time_diff_us(prev_event_time_, now);
-            if (diff > 4000) {
+            if (kLogTime && (diff > 4000)) {
                 uint32_t sec = diff / 1'000'000;
                 uint32_t msec = (diff % 1'000'000) / 1000;
                 uint32_t usec = diff % 1000;

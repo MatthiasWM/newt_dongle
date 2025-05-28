@@ -20,6 +20,7 @@ public:
     virtual void log(Result result, int pipe=0);
     virtual void log(const char *message, int pipe=0);
     virtual void logf(const char *message, ...);
+    void indent(uint32_t level);
 };
 
 } // namespace nd
