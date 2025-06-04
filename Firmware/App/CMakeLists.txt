@@ -60,7 +60,7 @@ add_executable(NewtCU
 
 # Modify the below lines to enable/disable output over UART/USB
 target_compile_definitions(NewtCU PRIVATE
-        NEWT_CU_EXAMPLE =1
+        NEWT_CU_EXAMPLE=1
 )
 
 # Compiler options
@@ -70,6 +70,7 @@ target_compile_definitions(NewtCU PRIVATE
 
 # Add the standard library to the build
 target_link_libraries(NewtCU
+	fltk::fltk
 )
 
 # Add the standard include files to the build
@@ -78,6 +79,7 @@ target_include_directories(NewtCU PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/Posix
 )
 
+set(APP NewtCU)
 add_subdirectory(common)
 add_subdirectory(Posix)
 

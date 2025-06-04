@@ -8,6 +8,8 @@
 
 #include "Event.h"
 
+extern int itoa10(int value, char *buffer);
+
 namespace nd {
 
 class Logger {

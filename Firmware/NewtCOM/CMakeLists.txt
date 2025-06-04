@@ -107,6 +107,7 @@ target_link_libraries(newt_dongle
         FatFs_SPI
         )
 
+set(APP newt_dongle)
 add_subdirectory(common)
 add_subdirectory(RP2040)
 

@@ -53,6 +53,12 @@
 
 #include "main.h"
 
+
+#include <FL/Fl_Window.H>
+#include <FL/Fl.H>
+
+#if 0
+
 #include "PicoStdioLog.h"
 #include "PicoAsyncLog.h"
 #include "PicoUARTEndpoint.h"
@@ -78,10 +84,14 @@
 void* __dso_handle = nullptr;
 void* _fini = nullptr;
 
+#endif
+
 using namespace nd;
 
-PicoUserSettings user_settings;
-PicoAsyncLog Log(0);
+nd::UserSettings user_settings;
+nd::Logger Log;
+
+#if 0
 
 // -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
 PicoScheduler scheduler;
@@ -107,9 +117,17 @@ BufferedPipe buffer_to_uart(scheduler);
 
 void nsof_test();
 
+#endif
+
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
+    Fl_Window win (400, 300, "Newton Dongle");
+    win.end();
+    win.show(argc, argv);
+
+#if 0
+
     stdio_uart_init_full(uart1, 115200, 8, 9);
     Log.log("Starting Newton Dongle...\n");
 
@@ -182,6 +200,8 @@ int main(int argc, char *argv[])
     // -- Now we can start the scheduler. It will call all spokes in a loop.
     scheduler.run();
 
-    // -- Never reached.
+#endif
+
+    Fl::run();
     return 0;
 } 

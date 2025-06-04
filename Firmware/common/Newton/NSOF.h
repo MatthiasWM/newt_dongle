@@ -146,7 +146,7 @@ public:
     void clear() { data_.clear(); }
     int size() const { return data_.size(); }
     Ref to_ref() { return Ref(false); }
-    std::vector<uint8_t> &to_nsof(Ref ref) { ref.to_nsof(*this); return data_; }
+    std::vector<uint8_t> &to_nsof(Ref ref) { data_.push_back(0x02); ref.to_nsof(*this); return data_; }
     std::vector<uint8_t> &data() { return data_; }
     void log();
 };

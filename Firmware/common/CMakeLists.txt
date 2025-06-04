@@ -4,8 +4,7 @@
 #
 
 
-target_sources(newt_dongle
-    PRIVATE
+target_sources(${APP} PRIVATE
         Endpoint.cpp
         Endpoint.h
         Event.cpp
@@ -46,5 +45,4 @@ target_sources(newt_dongle
         Pipes/MNPThrottle.h
         Pipes/Tee.cpp
         Pipes/Tee.h
-
 )

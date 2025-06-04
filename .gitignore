@@ -39,15 +39,16 @@
 
 # CMake build paths and build components
 
+/Firmware/App/build/
 /Firmware/CommandLine/build/
 /Firmware/PiPico/build/
 /Firmware/NewtCOM/build/
 
 # Not really needed. These directories are included and have no build dir
 
-/Firmware/CPUs/ESP32S3/build/
-/Firmware/CPUs/ESP32S3/managed_components/
-/Firmware/CPUs/ESP32C6/build/
-/Firmware/CPUs/ESP32C6/managed_components/
+/Firmware/Systems/ESP32S3/build/
+/Firmware/Systems/ESP32S3/managed_components/
+/Firmware/Systems/ESP32C6/build/
+/Firmware/Systems/ESP32C6/managed_components/
 
 

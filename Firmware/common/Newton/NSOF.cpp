@@ -191,10 +191,12 @@ void Array::to_nsof(NSOF &nsof) const {
 }
 
 void Frame::to_nsof(NSOF &nsof) const {
-    nsof.data().push_back(9);
+    nsof.data().push_back(6);
     push_xlong(nsof.data(), frame_.size());
     for (auto &v: frame_) {
         v.first->to_nsof(nsof);
+    }
+    for (auto &v: frame_) {
         v.second.to_nsof(nsof);
     }
 }

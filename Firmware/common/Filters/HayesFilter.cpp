@@ -11,9 +11,10 @@
 #include "common/Endpoints/SDCardEndpoint.h"
 #include "common/Pipes/MNPThrottle.h"
 
-#include <pico/unique_id.h>
+//#include <pico/unique_id.h>
 #include <stdio.h>
 #include <cstring>
+#include <stdlib.h>
 
 using namespace nd;
 
@@ -376,7 +377,7 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
             if (*cmd == '?') {
                 cmd++;
                 char buf[16];
-                itoa(get_register(current_register_), buf, 10);
+                itoa10(get_register(current_register_), buf);
                 send_string(buf);
                 send_string("\r\n");
                 return cmd;
@@ -537,17 +538,17 @@ bool HayesFilter::send_info(uint32_t ix) {
             send_string("NewtDongle V0.0.4\r\n");
             break;
         case 1:
-            itoa(user_settings.serial(), buf, 10);
+            itoa10(user_settings.serial(), buf);
             send_string("Serial No.: ");
             send_string(buf);
             send_string("\r\n");
             break;
         case 2:
             send_string("Hardware: V");
-            itoa(user_settings.hardware_version(), buf, 10);
+            itoa10(user_settings.hardware_version(), buf);
             send_string(buf);
             send_string(".");
-            itoa(user_settings.hardware_revision(), buf, 10);
+            itoa10(user_settings.hardware_revision(), buf);
             send_string(buf);
             send_string("\r\n");
             break;

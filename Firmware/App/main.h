@@ -6,13 +6,15 @@
 #ifndef ND_MAIN_H
 #define ND_MAIN_H
 
-#include "PicoAsyncLog.h"
-#include "PicoUserSettings.h"
+#include <cstdint>
 
-#include <hardware/uart.h>
+#include "common/Logger.h"
+#include "common/UserSettings.h"
 
-extern nd::PicoAsyncLog Log;
-extern nd::PicoUserSettings user_settings;
+//#include <hardware/uart.h>
+
+extern nd::Logger Log;
+extern nd::UserSettings user_settings;
 
 namespace nd {
 
@@ -32,16 +34,6 @@ constexpr bool kLogMNPState = false;
 constexpr bool kLogMNFlow = false;
 constexpr bool kLogMNDock = false;
 constexpr bool kLogDock = true;
-
-// PiPico developer board settings
-
-// Newton Interconnect Port serial UART
-#define kUART uart0
-constexpr uint kUART_BaudRate = 38400;
-constexpr uint kUART_TX_Pin = 0;   // TX pin
-constexpr uint kUART_RX_Pin = 1;   // RX pin
-constexpr uint kUART_HSKI_Pin = 28; // HSKI pin
-constexpr uint kUART_HSKO_Pin = 29; // HSKO pin on PiPico
 
 } // namespace nd
 

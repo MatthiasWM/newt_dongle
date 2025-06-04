@@ -60,8 +60,7 @@ class Dock : public Endpoint
     constexpr static uint32_t kDLoadPackageFile = ND_FOURCC('l', 'p', 'f', 'l'); // Newt -> Dock
 
     struct Data {
-        uint8_t *data_ = nullptr;
-        uint32_t size_ = 0; // size of the data in bytes
+        const std::vector<uint8_t> *bytes_;
         uint32_t pos_ = 0; // current position in the data
         bool start_frame_ = false; // if true, send a start frame marker
         bool end_frame_ = false; // if true, send an end frame marker

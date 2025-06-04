@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 #include <cstring>
-#include <malloc.h>
+//#include <malloc.h>
 
 
 typedef unsigned short UniChar;
@@ -88,9 +88,9 @@ Result Dock::task() {
 				return Result::OK;
 			}
 		}
-		if (data.pos_ < data.size_) {
+		if (data.pos_ < data.bytes_->size()) {
 			// If we have data to send, we send it.
-			if (out()->send(Event(Event::Type::DATA, Event::Subtype::NIL, data.data_[data.pos_])).rejected()) {
+			if (out()->send(Event(Event::Type::DATA, Event::Subtype::NIL, (*data.bytes_)[data.pos_])).rejected()) {
 				return Result::REJECTED;
 			} else {
 				data.pos_++; // we sent the next byte
@@ -106,8 +106,9 @@ Result Dock::task() {
 			}
 		}
 		data_queue_.pop();
-		if (data.free_after_send_ && data.data_) {
-			delete[] data.data_;
+		if (data.free_after_send_ && data.bytes_) {
+			delete data.bytes_; 
+			data.bytes_ = nullptr; // free the data if we are done with it
 		}
 	} else if (connected_) {
 		// If we are conected, but have not sent any data for more than 5 seconds, 
@@ -463,15 +464,14 @@ void Dock::process_command() {
 
 void Dock::send_cmd_dock(uint32_t session_type) {
 	if (kLogDock) Log.log("Dock: send_cmd_dock\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x64, 0x6f, 0x63, 0x6b, 0x00, 0x00, 0x00, 0x04,
 		0x00, 0x00, 0x00, 0x04
 	};
-	data[19] = session_type;
+	cmd[19] = session_type;
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -481,14 +481,13 @@ void Dock::send_cmd_dock(uint32_t session_type) {
 
 void Dock::send_cmd_stim() {
 	if (kLogDock) Log.log("Dock: send_cmd_stim\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 's',  't',  'i',  'm', 0x00, 0x00, 0x00, 0x04,
 		0x00, 0x00, 0x00, 0x0A // 0x00, 0x00, 0x00, 0x5A // TODO: 10 seconds for debugging
 	};
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -498,13 +497,12 @@ void Dock::send_cmd_stim() {
 
 void Dock::send_cmd_helo() {
 	if (kLogDock) Log.log("Dock: send_cmd_helo\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'h',  'e',  'l',  'o', 0x00, 0x00, 0x00, 0x00,
 	};
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -514,18 +512,17 @@ void Dock::send_cmd_helo() {
 
 void Dock::send_cmd_dres(uint32_t error_code) {
 	if (kLogDock) Log.log("Dock: send_cmd_dres\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'd',  'r',  'e',  's', 0x00, 0x00, 0x00, 0x04,
 		0x00, 0x00, 0x00, 0x00
 	};
-	data[16] = (error_code >> 24) & 0xFF;
-	data[17] = (error_code >> 16) & 0xFF;
-	data[18] = (error_code >> 8) & 0xFF;
-	data[19] = error_code & 0xFF;
+	cmd[16] = (error_code >> 24) & 0xFF;
+	cmd[17] = (error_code >> 16) & 0xFF;
+	cmd[18] = (error_code >> 8) & 0xFF;
+	cmd[19] = error_code & 0xFF;
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -535,7 +532,7 @@ void Dock::send_cmd_dres(uint32_t error_code) {
 
 void Dock::send_cmd_dinf() {
 	if (kLogDock) Log.log("Dock: send_cmd_dinf\r\n");
-	static uint8_t data[] = {
+	static const std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x64, 0x69, 0x6e, 0x66, 0x00, 0x00, 0x00, 0x66,
 
@@ -561,8 +558,7 @@ void Dock::send_cmd_dinf() {
 	};
 	// TDCLDockCmdPassword::CreateChallenge( theChallenge );
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -572,15 +568,14 @@ void Dock::send_cmd_dinf() {
 
 void Dock::send_cmd_wicn(uint32_t icon_map) {
 	if (kLogDock) Log.log("Dock: send_cmd_wicn\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x77, 0x69, 0x63, 0x6e, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x04
 	};
-	data[19] = icon_map; 
+	cmd[19] = icon_map;
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -610,88 +605,118 @@ void Dock::send_cmd_path() {
 //			  {name: "Business", type: folder} ]
 //		type: desktop = 0, file = 1, folder = 2, disk = 3
 //		diskType: kHardDrive = 0, kFloppyDisk = 1, kCDROM = 2, kNetworkDisk = 3
-	static const std::vector<uint8_t> cmd_data = {
+#if 1 // Fixed (cheat) path return
+	static const std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'p',  'a',  't',  'h', //0x00, 0x00, 0x00, 0x00,
 
-		 0x00, 0x00, 0x00, 0x65, 
-		 0x02, 0x05, 0x04, 0x06, 0x02, 0x07, 0x04, 0x6E, 
-		 0x61, 0x6D, 0x65, 0x07, 0x04, 0x74, 0x79, 0x70, 
-		 0x65, 0x08, 0x18, 0x00, 0x4D, 0x00, 0x61, 0x00, 
-		 0x63, 0x00, 0x42, 0x00, 0x6F, 0x00, 0x6F, 0x00, 
-		 0x6B, 0x00, 0x20, 0x00, 0x50, 0x00, 0x72, 0x00, 
-		 0x6F, 0x00, 0x00, 0x00, 0x00, 0x06, 0x02, 0x09, 
-		 0x02, 0x09, 0x03, 0x08, 0x04, 0x00, 0x2F, 0x00, 
-		 0x00, 0x00, 0x0C, 0x06, 0x02, 0x09, 0x02, 0x09, 
-		 0x03, 0x08, 0x0C, 0x00, 0x55, 0x00, 0x73, 0x00, 
-		 0x65, 0x00, 0x72, 0x00, 0x73, 0x00, 0x00, 0x00, 
-		 0x08, 0x06, 0x02, 0x09, 0x02, 0x09, 0x03, 0x08, 
-		 0x0A, 0x00, 0x6D, 0x00, 0x61, 0x00, 0x74, 0x00, 
-		 0x74, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 
+		0x00, 0x00, 0x00, 0x65, 
+		0x02, //nsof start
+		      0x05, 0x04, // Array of four
+			              0x06, 0x02, // Frame of 2
+						               0x07, 0x04, 0x6E, 
+		0x61, 0x6D, 0x65, // Frame.key[0] = 'name
+		                  0x07, 0x04, 0x74, 0x79, 0x70, 
+		0x65, // Frame.key[1] = 'type
+		 
+		      0x08, 0x18, 0x00, 0x4D, 0x00, 0x61, 0x00, 
+		0x63, 0x00, 0x42, 0x00, 0x6F, 0x00, 0x6F, 0x00, 
+	    0x6B, 0x00, 0x20, 0x00, 0x50, 0x00, 0x72, 0x00, 
+		0x6F, 0x00, 0x00, // Frame.value[0] = "text"
+		                  0x00, 0x00, // Frame.value[1] = 0 (kDesktop)
+                                      0x06, 0x02, // Frame of 2
+									              0x09, 
+		0x02, // Precendent 2 = 'name
+		      0x09, 0x03, // Precendent 2 = 'type
+			              0x08, 0x04, 0x00, 0x2F, 0x00, 
+		0x00, // Name = "/" ?!?!
+		      0x00, 0x0C, 
+			  0x06, 0x02, 0x09, 0x02, 0x09, 
+		0x03, 0x08, 0x0C, 0x00, 0x55, 0x00, 0x73, 0x00, 
+		0x65, 0x00, 0x72, 0x00, 0x73, 0x00, 0x00, 0x00, 
+		0x08, 0x06, 0x02, 0x09, 0x02, 0x09, 0x03, 0x08, 
+		0x0A, 0x00, 0x6D, 0x00, 0x61, 0x00, 0x74, 0x00, 
+		0x74, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 
 	};
-
+	data_queue_.push(Dock::Data {
+		.bytes_ = &cmd,
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d\r\n", cmd.size());
+	//if (kLogDock) Log.logf("\n\nHeap size = %d\n\n", getFreeHeap());
+#else
+	static const std::vector<uint8_t> cmd_header = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'p',  'a',  't',  'h', 0x00, 0x00, 0x00, 0x00,
+	};
+	
 	// NSOF path as an array of folder frames:
 
 	String desktop_name( u"NewtCOM" );
 	String disk_name( u"MicroSD" ); // TODO: we can retrieve the name from the SD card
 	String folder_name( u"Business" );
 
-	// Frame desktop;
-	// desktop.add(nd::symType, Ref(int32_t(0)));
-	// desktop.add(nd::symName, Ref(desktop_name));
+	Frame desktop;
+	desktop.add(nd::symName, Ref(desktop_name));
+	desktop.add(nd::symType, Ref(int32_t(0)));
 
-	// Frame disk;
-	// disk.add(nd::symWhichVol, Ref(int32_t(0))); // whichvol: 0
-	// disk.add(nd::symDiskType, Ref(int32_t(0))); // kHardDrive
-	// disk.add(nd::symType, Ref(int32_t(3))); // kDesktopDisk
-	// disk.add(nd::symName, Ref(disk_name));
+	Frame disk;
+	disk.add(nd::symName, Ref(disk_name));
+	disk.add(nd::symType, Ref(int32_t(3))); // kDesktopDisk
+	disk.add(nd::symDiskType, Ref(int32_t(0))); // kHardDrive
+	disk.add(nd::symWhichVol, Ref(int32_t(0))); // whichvol: 0
 	
-	// Frame folder;
-	// folder.add(nd::symType, Ref(int32_t(2))); // folder
-	// folder.add(nd::symName, Ref(folder_name));
+	Frame folder;
+	folder.add(nd::symName, Ref(folder_name));
+	folder.add(nd::symType, Ref(int32_t(2))); // folder
 
-	// Array path;
-	// path.add(new Ref(desktop));
-	// path.add(new Ref(disk));
-	// path.add(new Ref(folder));
+	Array path;
+	path.add(Ref(desktop));
+	path.add(Ref(disk));
+	// *************************************************************************
+	// This call breaks things!
+	// Adding 'disk' makes the cmd invalid and we receive a NACK from the Newton.
+	// Is it the missing "precedent" feature?
+	//
+	//path.add(Ref(folder));
 
-	// Ref(path).logln();
+	Ref(path).logln();
 
-	// NSOF nsof;
-	// nsof.to_nsof(path);
-	// nsof.log();
+	NSOF nsof;
+	nsof.to_nsof(path);
+	nsof.log();
 
-#if 0
-	uint32_t block_size = data.size() + nsof.data().size();
-	uint32_t aligned_size = (block_size + 3) & 0xffffff00; // align to 4 bytes
-	uint8_t *d = new uint8_t[aligned_size];
-	d[aligned_size-1] = 0;
-	d[aligned_size-2] = 0;
-	d[aligned_size-3] = 0;
-	memcpy(d, data.data(), data.size());
-	memcpy(d + data.size(), nsof.data().data(), nsof.data().size());
+	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
+	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
 
-	uint32_t size = nsof.data().size();
-	d[12] = (size >> 24) & 0xff;
-	d[13] = (size >> 16) & 0xff;
-	d[14] = (size >> 8) & 0xff;
-	d[15] = size & 0xff;
-#endif
+	uint32_t nsof_size = nsof.data().size();
+	uint32_t aligned_size = (nsof_size + 3) & 0xfffffffc; // align to 4 bytes
+	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
+	for (uint32_t i = nsof_size; i < aligned_size; i++) {
+		cmd->push_back(0); // fill with 0s to align to 4 bytes
+	}
+	// The size of the NSOF data is stored at offset 12 in the command data
+	(*cmd)[12] = (nsof_size >> 24) & 0xff;
+	(*cmd)[13] = (nsof_size >> 16) & 0xff;
+	(*cmd)[14] = (nsof_size >> 8) & 0xff;
+	(*cmd)[15] = nsof_size & 0xff;
+
 	data_queue_.push(Dock::Data {
-		.data_ = (uint8_t*)&cmd_data[0],
-		.size_ = cmd_data.size(),
+		.bytes_ = cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
-		.free_after_send_ = false, // we don't want to free the data after sending
+		.free_after_send_ = true, // delete the vector after sending it
 	});
-	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d\r\n", cmd_data.size());
-	//if (kLogDock) Log.logf("\n\nHeap size = %d\n\n", getFreeHeap());
-
+	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
+#endif
 }
 
 void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
-	static const std::vector<uint8_t> cmd_data = {
+	static const std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'f',  'i',  'l',  'e', //0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 33, // 33
@@ -704,19 +729,18 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 		0x00, 0x00, 0x00 // align to 4
 	};
 	data_queue_.push(Dock::Data {
-		.data_ = (uint8_t*)&cmd_data[0],
-		.size_ = cmd_data.size(),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
 		.free_after_send_ = false, // we don't want to free the data after sending
 	});
-	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d\r\n", cmd_data.size());
+	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d\r\n", cmd.size());
 }
 
 void Dock::send_cmd_pass() {
 	if (kLogDock) Log.log("Dock: send_cmd_pass\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x70, 0x61, 0x73, 0x73, 0x00, 0x00, 0x00, 0x08,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -732,18 +756,17 @@ void Dock::send_cmd_pass() {
 	DESEncodeNonce(&key, &response);
 	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08lx'%08lx\r\n", response.hi, response.lo);
 
-	data[16] = (response.hi >> 24) & 0xff;
-	data[17] = (response.hi >> 16) & 0xff;
-	data[18] = (response.hi >> 8) & 0xff;
-	data[19] = response.hi & 0xff;
-	data[20] = (response.lo >> 24) & 0xff;
-	data[21] = (response.lo >> 16) & 0xff;
-	data[22] = (response.lo >> 8) & 0xff;
-	data[23] = response.lo & 0xff;
+	cmd[16] = (response.hi >> 24) & 0xff;
+	cmd[17] = (response.hi >> 16) & 0xff;
+	cmd[18] = (response.hi >> 8) & 0xff;
+	cmd[19] = response.hi & 0xff;
+	cmd[20] = (response.lo >> 24) & 0xff;
+	cmd[21] = (response.lo >> 16) & 0xff;
+	cmd[22] = (response.lo >> 8) & 0xff;
+	cmd[23] = response.lo & 0xff;
 
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -753,13 +776,12 @@ void Dock::send_cmd_pass() {
 
 void Dock::send_disc() {
 	if (kLogDock) Log.log("Dock: send_disc\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		0x64, 0x69, 0x73, 0x63, 0x00, 0x00, 0x00, 0x00
 	};
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
@@ -769,7 +791,7 @@ void Dock::send_disc() {
 
 void Dock::send_lpkg() {
 	if (kLogDock) Log.log("Dock: send_lpkg\r\n");
-	static uint8_t data[] = {
+	static std::vector<uint8_t> cmd = {
 
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b, 
 		0x6c, 0x70, 0x6b, 0x67, 0x00, 0x00, 0x08, 0xa4, // lpkg, 184*12+4
@@ -961,14 +983,13 @@ void Dock::send_lpkg() {
   0x00, 0x00, 0x03, 0x65
 	};
 	data_queue_.push(Dock::Data {
-		.data_ = data,
-		.size_ = sizeof(data),
+		.bytes_ = &cmd,
 		.pos_ = 0,
 		.start_frame_ = true, // we want to start with a start frame marker
 		.end_frame_ = true, // we want to end with an end frame marker
 		.free_after_send_ = false, // we don't want to free the data after sending
 	});
-	Log.logf("\r\n---------- %d ---------\r\n", sizeof(data));
+	Log.logf("\r\n---------- %d ---------\r\n", cmd.size());
 }
 
 
