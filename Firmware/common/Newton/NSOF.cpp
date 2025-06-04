@@ -163,7 +163,28 @@ void Ref::to_nsof(NSOF &nsof) const
     }
 }
 
+/** 
+ * \brief Write a precedent marker if the object was previously written.
+ * If it was not, add the object to the precedent list and return false, so the
+ * caller will write the object.
+ */
+bool NSOF::write_precedent(const Object *obj) {
+    if (!obj) return false;
+    int i = 0;
+    for (i = 0; i<precedent_.size(); i++) {
+        if (precedent_[i] == obj) {
+            // Object was already written, write a precedent marker
+            data().push_back(0x09);
+            push_xlong(data(), i);
+            return true; // Indicate that the object was already written
+        }
+    }
+    precedent_.push_back(obj);
+    return false;
+}
+
 void Symbol::to_nsof(NSOF &nsof) const {
+    if (nsof.write_precedent(this)) return; // If already written, just return
     nsof.data().push_back(7);
     push_xlong(nsof.data(), sym_.size());
     for (auto &c: sym_) {
@@ -172,6 +193,7 @@ void Symbol::to_nsof(NSOF &nsof) const {
 }
 
 void String::to_nsof(NSOF &nsof) const {
+    if (nsof.write_precedent(this)) return; // If already written, just return
     nsof.data().push_back(8);
     push_xlong(nsof.data(), str_.size()*2 + 2);
     for (auto &c: str_) {
@@ -183,6 +205,7 @@ void String::to_nsof(NSOF &nsof) const {
 }
 
 void Array::to_nsof(NSOF &nsof) const {
+    if (nsof.write_precedent(this)) return; // If already written, just return
     nsof.data().push_back(5);
     push_xlong(nsof.data(), elements_.size());
     for (auto &ref: elements_) {
@@ -191,6 +214,7 @@ void Array::to_nsof(NSOF &nsof) const {
 }
 
 void Frame::to_nsof(NSOF &nsof) const {
+    if (nsof.write_precedent(this)) return; // If already written, just return
     nsof.data().push_back(6);
     push_xlong(nsof.data(), frame_.size());
     for (auto &v: frame_) {

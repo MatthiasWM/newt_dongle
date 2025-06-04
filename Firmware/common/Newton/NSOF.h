@@ -138,17 +138,19 @@ public:
 
 class NSOF {
     std::vector<uint8_t> data_;
+    std::vector<const Object*> precedent_;
 public:
     NSOF() = default;
     NSOF(const std::vector<uint8_t> &data) : data_(data) {}
     bool append(uint8_t byte); // return true when the stream reached its end
     void assign(const std::vector<uint8_t> &vec) { data_ = vec; }
-    void clear() { data_.clear(); }
+    void clear() { data_.clear(); precedent_.clear(); }
     int size() const { return data_.size(); }
-    Ref to_ref() { return Ref(false); }
+    //Ref to_ref() { return Ref(false); }
     std::vector<uint8_t> &to_nsof(Ref ref) { data_.push_back(0x02); ref.to_nsof(*this); return data_; }
     std::vector<uint8_t> &data() { return data_; }
     void log();
+    bool write_precedent(const Object *obj);
 };
 
 } // namespace nd

@@ -58,6 +58,10 @@ class Dock : public Endpoint
     constexpr static uint32_t kDFilesAndFolders = ND_FOURCC('f', 'i', 'l', 'e'); // Dock -> Newt
 
     constexpr static uint32_t kDLoadPackageFile = ND_FOURCC('l', 'p', 'f', 'l'); // Newt -> Dock
+    constexpr static uint32_t kDOperationCanceled = ND_FOURCC('o', 'p', 'c', 'a'); // Newt <-> Dock
+    void send_cmd_opca();
+    constexpr static uint32_t kDOpCanceledAck = ND_FOURCC('o', 'c', 'a', 'a'); // Dock <-> Newt
+    void send_cmd_ocaa();
 
     struct Data {
         const std::vector<uint8_t> *bytes_;

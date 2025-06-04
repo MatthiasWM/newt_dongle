@@ -449,6 +449,11 @@ void Dock::process_command() {
 			//		UChar package data []
 			// < kDResult
 
+		case kDOperationCanceled:
+			if (kLogDock) Log.log("Dock::process_command: kDOperationCanceled\r\n");
+			send_cmd_ocaa(); // Confirm operation canceled
+			break;
+
 		case kDHello:
 			if (kLogDock) Log.log("Dock::process_command: kDHello\r\n");
 			// Don't do anything. Receiving the MNP LA Frame seems to be enough for the Newton.
@@ -485,6 +490,36 @@ void Dock::send_cmd_stim() {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 's',  't',  'i',  'm', 0x00, 0x00, 0x00, 0x04,
 		0x00, 0x00, 0x00, 0x0A // 0x00, 0x00, 0x00, 0x5A // TODO: 10 seconds for debugging
+	};
+	data_queue_.push(Dock::Data {
+		.bytes_ = &cmd,
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+}
+
+void Dock::send_cmd_opca() {
+	if (kLogDock) Log.log("Dock: send_cmd_opca\r\n");
+	static std::vector<uint8_t> cmd = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'o',  'p',  'c',  'a', 0x00, 0x00, 0x00, 0x00,
+	};
+	data_queue_.push(Dock::Data {
+		.bytes_ = &cmd,
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+}
+
+void Dock::send_cmd_ocaa() {
+	if (kLogDock) Log.log("Dock: send_cmd_ocaa\r\n");
+	static std::vector<uint8_t> cmd = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'o',  'c',  'a',  'a', 0x00, 0x00, 0x00, 0x00,
 	};
 	data_queue_.push(Dock::Data {
 		.bytes_ = &cmd,
@@ -605,7 +640,7 @@ void Dock::send_cmd_path() {
 //			  {name: "Business", type: folder} ]
 //		type: desktop = 0, file = 1, folder = 2, disk = 3
 //		diskType: kHardDrive = 0, kFloppyDisk = 1, kCDROM = 2, kNetworkDisk = 3
-#if 1 // Fixed (cheat) path return
+#if 0 // Fixed (cheat) path return
 	static const std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'p',  'a',  't',  'h', //0x00, 0x00, 0x00, 0x00,
@@ -618,23 +653,26 @@ void Dock::send_cmd_path() {
 		0x61, 0x6D, 0x65, // Frame.key[0] = 'name
 		                  0x07, 0x04, 0x74, 0x79, 0x70, 
 		0x65, // Frame.key[1] = 'type
-		 
 		      0x08, 0x18, 0x00, 0x4D, 0x00, 0x61, 0x00, 
 		0x63, 0x00, 0x42, 0x00, 0x6F, 0x00, 0x6F, 0x00, 
 	    0x6B, 0x00, 0x20, 0x00, 0x50, 0x00, 0x72, 0x00, 
-		0x6F, 0x00, 0x00, // Frame.value[0] = "text"
+		0x6F, 0x00, 0x00, // "MacBook Pro" 
 		                  0x00, 0x00, // Frame.value[1] = 0 (kDesktop)
                                       0x06, 0x02, // Frame of 2
 									              0x09, 
 		0x02, // Precendent 2 = 'name
-		      0x09, 0x03, // Precendent 2 = 'type
+		      0x09, 0x03, // Precendent 3 = 'type
 			              0x08, 0x04, 0x00, 0x2F, 0x00, 
-		0x00, // Name = "/" ?!?!
-		      0x00, 0x0C, 
-			  0x06, 0x02, 0x09, 0x02, 0x09, 
-		0x03, 0x08, 0x0C, 0x00, 0x55, 0x00, 0x73, 0x00, 
-		0x65, 0x00, 0x72, 0x00, 0x73, 0x00, 0x00, 0x00, 
-		0x08, 0x06, 0x02, 0x09, 0x02, 0x09, 0x03, 0x08, 
+		0x00, // Name = "/" , "Users", "matt"
+		      0x00, 0x0C, // type = 3 // kDesktopDisk
+			              0x06, 0x02, // Frame of 2
+						              0x09, 0x02, 0x09, 
+		0x03, // 'name, 'type
+		      0x08, 0x0C, 0x00, 0x55, 0x00, 0x73, 0x00, 
+		0x65, 0x00, 0x72, 0x00, 0x73, 0x00, 0x00, // "Users"
+		                                          0x00, 
+		0x08, // type 2, // kFolder
+		      0x06, 0x02, 0x09, 0x02, 0x09, 0x03, 0x08, 
 		0x0A, 0x00, 0x6D, 0x00, 0x61, 0x00, 0x74, 0x00, 
 		0x74, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 
 	};
@@ -655,9 +693,10 @@ void Dock::send_cmd_path() {
 	
 	// NSOF path as an array of folder frames:
 
-	String desktop_name( u"NewtCOM" );
-	String disk_name( u"MicroSD" ); // TODO: we can retrieve the name from the SD card
-	String folder_name( u"Business" );
+	String desktop_name( u"MackBook Pro" );
+	String disk_name( u"/" ); // TODO: we can retrieve the name from the SD card
+	String folder1_name( u"Users" );
+	String folder2_name( u"matt" );
 
 	Frame desktop;
 	desktop.add(nd::symName, Ref(desktop_name));
@@ -666,16 +705,22 @@ void Dock::send_cmd_path() {
 	Frame disk;
 	disk.add(nd::symName, Ref(disk_name));
 	disk.add(nd::symType, Ref(int32_t(3))); // kDesktopDisk
-	disk.add(nd::symDiskType, Ref(int32_t(0))); // kHardDrive
-	disk.add(nd::symWhichVol, Ref(int32_t(0))); // whichvol: 0
+	//disk.add(nd::symDiskType, Ref(int32_t(0))); // kHardDrive
+	//disk.add(nd::symWhichVol, Ref(int32_t(0))); // whichvol: 0
 	
-	Frame folder;
-	folder.add(nd::symName, Ref(folder_name));
-	folder.add(nd::symType, Ref(int32_t(2))); // folder
+	Frame folder1;
+	folder1.add(nd::symName, Ref(folder1_name));
+	folder1.add(nd::symType, Ref(int32_t(2))); // folder
+
+	Frame folder2;
+	folder2.add(nd::symName, Ref(folder2_name));
+	folder2.add(nd::symType, Ref(int32_t(2))); // folder
 
 	Array path;
 	path.add(Ref(desktop));
 	path.add(Ref(disk));
+	path.add(Ref(folder1));
+	path.add(Ref(folder2));
 	// *************************************************************************
 	// This call breaks things!
 	// Adding 'disk' makes the cmd invalid and we receive a NACK from the Newton.
