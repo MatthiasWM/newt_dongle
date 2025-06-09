@@ -330,6 +330,14 @@ Ref NSOF::to_ref(int32_t &error_code) {
     for (;;) {
         uint8_t type = data_[crsr_++];
         switch (type) {
+            // 0: immediate
+            // 1: character
+            // 2: unichar
+            // 3: binary [size, class, data]
+            // 4: array [#slots, class, values...]
+            // 5: plain array [#slots, values...]
+            // 6: frame [#slots, keys..., values...]
+            // 7: symbol [#characters, characters (no trailing nul)]
             case 8: { // String
                 uint8_t size = data_[crsr_++];
                 std::u16string str;
@@ -352,6 +360,10 @@ Ref NSOF::to_ref(int32_t &error_code) {
                 }
                 Log.log("\nDONE\n");
                 return Ref(String::New(str)); }
+            // 9: precedent [index]
+            // 10: NIL
+            // 11: small rect [bytes: top, left, bottom, right]
+            // 12: large binary [ignore!]
             default:
                 Log.log("NSOF: to_ref: unknown type\n");
                 error_code = -28210; // Invalid Type
