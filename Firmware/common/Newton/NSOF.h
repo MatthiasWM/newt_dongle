@@ -41,15 +41,21 @@ private:
         Object      *object_;
     };
     Type type_ = Type::INT;
+    void clear_();
 public:
     Ref() : bool_(false), type_(Type::BOOL) {}
-    Ref(int32_t i) : int_(i), type_(Type::INT) {}
+    explicit Ref(int32_t i) : int_(i), type_(Type::INT) {}
+    Ref(int i) : int_(i), type_(Type::INT) {}
     Ref(bool b) : bool_(b), type_(Type::BOOL) {}
     Ref(char16_t c) : char_(c), type_(Type::CHAR16) {}
     Ref(real d) : real_(d), type_(Type::REAL) {}
     Ref(Object *obj) : object_(obj), type_(Type::OBJECT) {}
     Ref(Object &obj) : object_(&obj), type_(Type::OBJECT) {}
-    Ref(const Ref &other) = default;
+    Ref(const Ref &other);
+    Ref(Ref &&other) noexcept;
+    Ref &operator=(const Ref &other);
+    Ref &operator=(Ref &&other) noexcept;
+    ~Ref();
 
     Type type() const { return type_; }
     bool is_int() const { return type_ == Type::INT; }
@@ -70,12 +76,14 @@ public:
 };
 
 class Object {
-public:    
+    friend class Ref;
+public:
     enum class Type {
         UNKNOWN, SYMBOL, STRING, ARRAY, FRAME
     };
 protected:
     Type type_ = Type::UNKNOWN;
+    int32_t ref_count_ = 0;
 public:
     Object() = default;
     virtual ~Object() = default;
@@ -92,8 +100,8 @@ class Symbol : public Object {
 protected:
     std::string sym_;
 public:
-    Symbol(const char *name) : sym_(name) {}
-    Symbol(const std::string &name) : sym_(name) {}
+    Symbol(const char *name) : sym_(name) { type_ = Type::SYMBOL; }
+    Symbol(const std::string &name) : sym_(name) { type_ = Type::SYMBOL; }
     void log(uint32_t depth=999, uint32_t indent=0) const override;
     void to_nsof(NSOF &nsof) const override;
 
@@ -108,18 +116,23 @@ class String : public Object {
 protected:
     std::u16string str_;
 public:
-    String(const char16_t *name) : str_(name) {}
-    String(const std::u16string &name) : str_(name) {}
+    String(const char16_t *name, int32_t refcount=0) : str_(name) { type_ = Type::STRING; ref_count_ = refcount; }
+    String(const std::u16string &name, int32_t refcount=0) : str_(name) { type_ = Type::STRING; ref_count_ = refcount; }
+    static String *New(const char16_t *name) { return new String(name, 1); }
+    static String *New(const std::u16string &name) { return new String(name, 1); }
     void log(uint32_t depth=999, uint32_t indent=0) const override;
     void to_nsof(NSOF &nsof) const override;
+    const std::u16string &str() const { return str_; }
 };
 
 class Array : public Object {
 protected:
     std::vector<Ref> elements_;
 public:
-    Array() = default;
-    Array(std::initializer_list<Ref> init) : elements_(init) {}
+    Array(int32_t refcount=0) : elements_() { type_ = Type::ARRAY; ref_count_ = refcount; }
+    Array(std::initializer_list<Ref> init, int32_t refcount=0) : elements_(init) { type_ = Type::ARRAY; ref_count_ = refcount;}
+    static Array *New() { return new Array(1); }
+    static Array *New(std::initializer_list<Ref> init) { return new Array(init, 1); }
     void add(const Ref &ref) { elements_.push_back(ref); }
     void log(uint32_t depth=999, uint32_t indent=0) const override;
     void to_nsof(NSOF &nsof) const override;
@@ -128,7 +141,8 @@ public:
 class Frame : public Object {
     std::vector<std::pair<const Symbol*, Ref>> frame_;
 public:
-    Frame() { type_ = Type::FRAME; }
+    Frame(int32_t refcount=0) { type_ = Type::FRAME; ref_count_ = refcount; }
+    static Frame *New() { return new Frame(1); }
     void add(const Symbol &key, const Ref &value) {
         frame_.push_back(std::make_pair(&key, value));
     }
@@ -139,9 +153,10 @@ public:
 class NSOF {
     std::vector<uint8_t> data_;
     std::vector<const Object*> precedent_;
+    uint32_t crsr_ = 0;
 public:
     NSOF() = default;
-    NSOF(const std::vector<uint8_t> &data) : data_(data) {}
+    NSOF(const std::vector<uint8_t> &data, uint32_t crsr=0) : data_(data), crsr_(crsr) {}
     bool append(uint8_t byte); // return true when the stream reached its end
     void assign(const std::vector<uint8_t> &vec) { data_ = vec; }
     void clear() { data_.clear(); precedent_.clear(); }
@@ -151,6 +166,7 @@ public:
     std::vector<uint8_t> &data() { return data_; }
     void log();
     bool write_precedent(const Object *obj);
+    Ref to_ref(int32_t &error_code);
 };
 
 } // namespace nd

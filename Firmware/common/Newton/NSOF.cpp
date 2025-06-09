@@ -16,6 +16,85 @@ const Symbol nd::symType { "type" };
 const Symbol nd::symDiskType { "diskType" };
 const Symbol nd::symWhichVol { "whichvol" };
 
+
+Ref::Ref(const Ref &other) : type_(other.type_) {
+    switch (type_) {
+        case Type::INT: int_ = other.int_; break;
+        case Type::BOOL: bool_ = other.bool_; break;
+        case Type::CHAR16: char_ = other.char_; break;
+        case Type::REAL: real_ = other.real_; break;
+        case Type::OBJECT: 
+            object_ = other.object_; 
+            if (object_->ref_count_) object_->ref_count_++;
+            break;
+    }
+}
+
+Ref::Ref(Ref &&other) noexcept : type_(other.type_) {
+    switch (type_) {
+        case Type::INT: int_ = other.int_; break;
+        case Type::BOOL: bool_ = other.bool_; break;
+        case Type::CHAR16: char_ = other.char_; break;
+        case Type::REAL: real_ = other.real_; break;
+        case Type::OBJECT: object_ = other.object_; break;
+    }
+    other.type_ = Type::INT; // Reset the moved-from object
+}
+
+Ref &Ref::operator=(const Ref &other) {
+    if (this != &other) {
+        clear_();
+        type_ = other.type_;
+        switch (type_) {
+            case Type::INT: int_ = other.int_; break;
+            case Type::BOOL: bool_ = other.bool_; break;
+            case Type::CHAR16: char_ = other.char_; break;
+            case Type::REAL: real_ = other.real_; break;
+            case Type::OBJECT: 
+                object_ = other.object_; 
+                if (object_->ref_count_) object_->ref_count_++;
+                break;
+        }
+    }
+    return *this;
+}
+
+Ref &Ref::operator=(Ref &&other) noexcept {
+    if (this != &other) {
+        clear_();
+        type_ = other.type_;
+        switch (type_) {
+            case Type::INT: int_ = other.int_; break;
+            case Type::BOOL: bool_ = other.bool_; break;
+            case Type::CHAR16: char_ = other.char_; break;
+            case Type::REAL: real_ = other.real_; break;
+            case Type::OBJECT: object_ = other.object_; break;
+        }
+        other.type_ = Type::INT; // Reset the moved-from object
+    }
+    return *this;
+}
+
+Ref::~Ref()  // Destructor
+{
+    clear_();
+}
+
+void Ref::clear_() {
+    if (type_ == Type::OBJECT && object_->ref_count_) {
+        object_->ref_count_--; // Decrement ref count of the old object
+        if (object_->ref_count_ == 0) {
+            Log.log("\n\nGC delete ");
+            object_->log(1, 0);
+            Log.log("\n");
+            delete object_;
+        }
+    }
+    type_ = Type::INT; // Reset to default type
+    int_ = 0; // Reset the integer value
+}
+
+
 void Ref::log(uint32_t depth, uint32_t indent) const
 {
     if (depth == 0) return; // No logging if depth is zero
@@ -232,4 +311,53 @@ void NSOF::log() {
         Log.logf("%02x:%c ", byte, c);
     }
     Log.log("\n");
+}
+
+/**
+ * Convert the data block into a NewtonScript Object.
+ */
+Ref NSOF::to_ref(int32_t &error_code) {
+    if (data_.size() < crsr_) {
+        Log.log("NSOF: to_ref: data too short\n");
+        error_code = -54002; // Zero Length data
+        return Ref(false);
+    }
+    if (data_[crsr_++] != 0x02) {
+        Log.log("NSOF: to_ref: expected 0x02 at cursor\n");
+        error_code = -28210; // Invalid Type
+        return Ref(false);
+    }
+    for (;;) {
+        uint8_t type = data_[crsr_++];
+        switch (type) {
+            case 8: { // String
+                uint8_t size = data_[crsr_++];
+                std::u16string str;
+                Log.log("\n\nSTRING:\n");
+                while (size > 2) {
+                    if (crsr_ + 1 >= data_.size()) {
+                        Log.log("NSOF: to_ref: String too short\n");
+                        error_code = -54002; // Zero Length data
+                        return Ref(false);
+                    }
+                    uint16_t c = (data_[crsr_] << 8) | data_[crsr_ + 1];
+                    str.push_back(c);
+                    if (c<33 || c>126) {
+                        Log.logf("<%04x>", c);
+                    } else {
+                        Log.logf("%c", c);
+                    }
+                    crsr_ += 2;
+                    size -= 2;
+                }
+                Log.log("\nDONE\n");
+                return Ref(String::New(str)); }
+            default:
+                Log.log("NSOF: to_ref: unknown type\n");
+                error_code = -28210; // Invalid Type
+                return Ref(false);
+        }
+    }
+    error_code = -1;
+    return Ref(false);
 }

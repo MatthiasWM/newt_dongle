@@ -51,6 +51,21 @@
 // https://community.element14.com/products/raspberry-pi/b/blog/posts/raspberry-pico-c-sdk-reserve-a-flash-memory-block-for-persistent-storage
 // pico_set_linker_script("pico/pico_standard_link.ld")
 
+//  #include "hardware/resets.h"
+//  reset_block_num(RESET_PWM);
+// unreset_block_num_wait_blocking(RESET_PWM);
+// reset_block_mask((1u << RESET_PWM) | (1u << RESET_ADC));
+// unreset_block_mask_wait_blocking((1u << RESET_PWM) | (1u << RESET_ADC));
+// enum reset_num_rp2040 { RESET_ADC = 0, RESET_BUSCTRL = 1, RESET_DMA = 2, RESET_I2C0 = 3, RESET_I2C1 = 4, RESET_IO_BANK0 =
+// 5, RESET_IO_QSPI = 6, RESET_JTAG = 7, RESET_PADS_BANK0 = 8, RESET_PADS_QSPI = 9, RESET_PIO0 = 10, RESET_PIO1 = 11,
+// RESET_PLL_SYS = 12, RESET_PLL_USB = 13, RESET_PWM = 14, RESET_RTC = 15, RESET_SPI0 = 16, RESET_SPI1 = 17, RESET_SYSCFG =
+// 18, RESET_SYSINFO = 19, RESET_TBMAN = 20, RESET_TIMER = 21, RESET_UART0 = 22, RESET_UART1 = 23, RESET_USBCTRL = 24,
+// RESET_COUNT }
+// static __force_inline void unreset_block_mask_wait_blocking (uint32_t bits)
+// Bring specified HW blocks out of reset and wait for completion.
+// static void reset_unreset_block_num_wait_blocking (uint block_num)
+// Reset the specified HW block, and then bring at back out of reset and wait for completion.
+
 #include "main.h"
 
 #include "PicoStdioLog.h"
@@ -110,9 +125,41 @@ void nsof_test();
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
+    static uint32_t reset_mask = 
+        0u
+        |(1u<<RESET_ADC)
+        |(1u<<RESET_BUSCTRL)
+        |(1u<<RESET_DMA)
+        |(1u<<RESET_I2C0)
+        |(1u<<RESET_I2C1)
+        |(1u<<RESET_IO_BANK0)
+        |(1u<<RESET_IO_QSPI)
+        // |(1u<<RESET_JTAG)
+        |(1u<<RESET_PADS_BANK0)
+        |(1u<<RESET_PADS_QSPI)
+        |(1u<<RESET_PIO0)
+        |(1u<<RESET_PIO1)
+        // |(1u<<RESET_PLL_SYS)
+        // |(1u<<RESET_PLL_USB)
+        // |(1u<<RESET_PWM)
+        |(1u<<RESET_RTC)
+        |(1u<<RESET_SPI0)
+        |(1u<<RESET_SPI1)
+        |(1u<<RESET_SYSCFG)
+        |(1u<<RESET_SYSINFO)
+        |(1u<<RESET_TBMAN)
+        |(1u<<RESET_TIMER)
+        |(1u<<RESET_UART0)
+        |(1u<<RESET_UART1)
+        // |(1u<<RESET_USBCTRL)
+    ;
+    reset_block_mask(reset_mask);
+    unreset_block_mask_wait_blocking(reset_mask);
+
     stdio_uart_init_full(uart1, 115200, 8, 9);
     Log.log("Starting Newton Dongle...\n");
 
+    //test_sd_card();
     //nsof_test();
 
     // user_settings.mess_up_flash();

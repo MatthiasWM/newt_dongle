@@ -17,6 +17,11 @@ SDCardEndpoint::~SDCardEndpoint() {
     // Destructor implementation
 }
 
+Result SDCardEndpoint::init() {
+    // Initialization code for the SD card endpoint
+    return Endpoint::init();
+}
+
 /**
  * \brief Handle events that were send via the `in` pipe.
  */

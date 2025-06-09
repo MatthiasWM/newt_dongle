@@ -427,31 +427,38 @@ void HayesFilter::link(SDCardEndpoint *sdcard) {
 }
 
 const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
-    if ((strncasecmp(cmd, "DS", 2) == 0) || (strncasecmp(cmd, "DI", 2) == 0)) { // disk status
-        auto status = 0;
-        if (strncasecmp(cmd, "DS", 2) == 0)
-            status = sdcard_->disk_status();
-        else
-            status = sdcard_->disk_initialize();
-        bool pad = false;
-        if (status | 1) { send_string("NOINIT"); pad = true; }
-        if (status | 2) { if (pad) send_string(" "); send_string("NODISK"); pad = true; }
-        if (status | 4) { if (pad) send_string(" "); send_string("PROTECT"); pad = true; }
-        if (pad) send_string("\r\n");
-        return cmd + 2;
-    }
+    // if ((strncasecmp(cmd, "DS", 2) == 0) || (strncasecmp(cmd, "DI", 2) == 0)) { // disk status
+    //     auto status = 0;
+    //     if (strncasecmp(cmd, "DS", 2) == 0)
+    //         status = sdcard_->disk_status();
+    //     else
+    //         status = sdcard_->disk_initialize();
+    //     bool pad = false;
+    //     if (status | 1) { send_string("NOINIT"); pad = true; }
+    //     if (status | 2) { if (pad) send_string(" "); send_string("NODISK"); pad = true; }
+    //     if (status | 4) { if (pad) send_string(" "); send_string("PROTECT"); pad = true; }
+    //     if (pad) send_string("\r\n");
+    //     return cmd + 2;
+    // }
     if (strncasecmp(cmd, "GL", 2) == 0) { // Get Label
-        char label[36]; label[0] = 0;
-        auto err = sdcard_->get_label(label);
-        if (err) {
+        Pipe *down = downstream.out();
+        const std::u16string &label = sdcard_->get_label();
+        send_string("\"");
+        for (auto c: label) {
+            if (c < 32 || c > 126) {
+                down->send('.'); // Replace non-printable characters with a dot.
+            } else {
+                down->send(c);
+            }
+        }
+        send_string("\"\r\n");
+        uint32_t err = sdcard_->status();
+        //if (err) {
             send_string(sdcard_->strerr(err));
             send_string("\r\n");
             send_ERROR();
             return nullptr;
-        }
-        send_string("\"");
-        send_string(label);
-        send_string("\"\r\n");
+        //}
         return cmd + 2;
     }
     if (strncasecmp(cmd, "SN", 2) == 0) { // Write a new serial number, hardware version, and revision

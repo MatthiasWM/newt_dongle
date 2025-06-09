@@ -10,6 +10,7 @@
 
 #include <queue>
 #include <vector>
+#include <string>
 
 #ifndef ND_FOURCC
 #  if __BYTE_ORDER == __LITTLE_ENDIAN 
@@ -26,6 +27,11 @@ namespace nd {
 class Dock : public Endpoint 
 {
     typedef Endpoint super;
+
+    constexpr static int32_t kDesktop = 0; // Desktop type
+    constexpr static int32_t kDesktopFile = 1; // Desktop file type
+    constexpr static int32_t kDesktopFolder = 2; // Desktop folder type
+    constexpr static int32_t kDesktopDisk = 3; // Desktop disk type
 
     // See DockProtocol.h
     constexpr static uint32_t kDRequestToDock = ND_FOURCC('r', 't', 'd', 'k'); // Newt -> Dock
@@ -56,12 +62,15 @@ class Dock : public Endpoint
     constexpr static uint32_t kDGetFilesAndFolders = ND_FOURCC('g', 'f', 'i', 'l'); // Newt -> Dock
     void send_cmd_file();
     constexpr static uint32_t kDFilesAndFolders = ND_FOURCC('f', 'i', 'l', 'e'); // Dock -> Newt
+    constexpr static uint32_t kDSetPath = ND_FOURCC('s', 'p', 't', 'h'); // Newt -> Dock
 
     constexpr static uint32_t kDLoadPackageFile = ND_FOURCC('l', 'p', 'f', 'l'); // Newt -> Dock
     constexpr static uint32_t kDOperationCanceled = ND_FOURCC('o', 'p', 'c', 'a'); // Newt <-> Dock
     void send_cmd_opca();
     constexpr static uint32_t kDOpCanceledAck = ND_FOURCC('o', 'c', 'a', 'a'); // Dock <-> Newt
     void send_cmd_ocaa();
+
+    void handle_LoadPackageFile();
 
     struct Data {
         const std::vector<uint8_t> *bytes_;
@@ -115,7 +124,7 @@ public:
 
     // -- Dock specific methods
     void process_command();
-    void send_lpkg();
+    void send_lpkg(const std::u16string &filename);
     void send_disc();
 
 

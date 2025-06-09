@@ -8,11 +8,13 @@
 
 #include "PicoAsyncLog.h"
 #include "PicoUserSettings.h"
+#include "PicoSDCard.h"
 
 #include <hardware/uart.h>
 
 extern nd::PicoAsyncLog Log;
 extern nd::PicoUserSettings user_settings;
+extern nd::PicoSDCardEndpoint sdcard_endpoint;
 
 namespace nd {
 

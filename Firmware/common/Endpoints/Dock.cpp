@@ -146,7 +146,7 @@ Result Dock::send(Event event) {
 				break;
 		}
 	} else if (event.type() == Event::Type::DATA) {
-		if (kLogDock) Log.logf("#%02x ", event.data());
+		//if (kLogDock) Log.logf("#%02x ", event.data());
 		uint8_t c = event.data();
 		switch (in_stream_state_) {
 			case  0: 
@@ -324,9 +324,9 @@ void Dock::process_command() {
 			if (kLogDock) Log.log("\r\nDRES: ");
 			for (int i=0; i<in_data_.size(); i++) {
 				uint8_t c = in_data_[i];
-				if (kLogDock) Log.logf("%02x%c ", in_data_[i], (c>0x20 && c<0x7f) ? c : '.');
+				//if (kLogDock) Log.logf("%02x%c ", in_data_[i], (c>0x20 && c<0x7f) ? c : '.');
 			}
-			if (kLogDock) Log.log("\r\n");
+			//if (kLogDock) Log.log("\r\n");
 			if (dres_next_ == kDSetTimeout) {
 				dres_next_ = 0;
 				send_cmd_stim();
@@ -435,7 +435,7 @@ void Dock::process_command() {
 			//		path: is the "user understandable" path description
 
 		case kDLoadPackageFile: // lpfl
-			send_lpkg();
+			handle_LoadPackageFile();
 			break;
 			// < kDLoadPackageFile
 			//		ULong 'lpfl'
@@ -443,11 +443,26 @@ void Dock::process_command() {
 			//		NSOF filename
 			//		If the selected item is at the Desktop level, a frame
 			//		{ name:"Business", whichVol:-1 }
+			// >02. >08. >0C. >00. >61a >00. >2E. >00. >70p >00. >6Bk >00. >67g >00. >00. >00.
 			// kDLoadPackage >
 			//		ULong 'lpkg'
 			//		ULong length
 			//		UChar package data []
 			// < kDResult
+
+		case kDSetPath:
+		    // >73s >70p >74t >68h >00. >00. >00. >4BK 
+			// >02. >05. >04. 
+			//   >08. >10. >10. >00. >4EN >00. >65e >00. >77w >00. >74t >00. >43C >00. >4FO >00. >4DM >00. >00. 
+			//   >08. >0C. >00. >45E >00. >52R >00. >52R >00. >4FO >00. >52R >00. >00. 
+			//   >08. >12. >00. >4DM >00. >79y >00. >46F >00. >6Fo >00. >6Cl >00. >64d >00. >65e >00. >72r >00. >00. 
+			//   >08. >12. >00. >4DM >00. >79y >00. >46F >00. >6Fo >00. >6Cl >00. >64d >00. >65e >00. >72r >00. >00. 
+			//   >00. >10. >03. >27' >08.
+			// [ "Desktop", {name:"My hard disk", whichVol:0}, "Business" ]
+			// TODO: Change the path
+			// Reply with kDFileAndFolders 
+			send_cmd_file();
+			break;
 
 		case kDOperationCanceled:
 			if (kLogDock) Log.log("Dock::process_command: kDOperationCanceled\r\n");
@@ -693,34 +708,35 @@ void Dock::send_cmd_path() {
 	
 	// NSOF path as an array of folder frames:
 
-	String desktop_name( u"MackBook Pro" );
-	String disk_name( u"/" ); // TODO: we can retrieve the name from the SD card
+	String desktop_name( u"NewtCOM" );
+	// String disk_name( u"/" ); // TODO: we can retrieve the name from the SD card
+	String disk_name( sdcard_endpoint.get_label() ); // TODO: we can retrieve the name from the SD card
 	String folder1_name( u"Users" );
 	String folder2_name( u"matt" );
 
 	Frame desktop;
 	desktop.add(nd::symName, Ref(desktop_name));
-	desktop.add(nd::symType, Ref(int32_t(0)));
+	desktop.add(nd::symType, Ref(kDesktop));
 
 	Frame disk;
 	disk.add(nd::symName, Ref(disk_name));
-	disk.add(nd::symType, Ref(int32_t(3))); // kDesktopDisk
+	disk.add(nd::symType, Ref(kDesktopDisk));
 	//disk.add(nd::symDiskType, Ref(int32_t(0))); // kHardDrive
 	//disk.add(nd::symWhichVol, Ref(int32_t(0))); // whichvol: 0
 	
-	Frame folder1;
-	folder1.add(nd::symName, Ref(folder1_name));
-	folder1.add(nd::symType, Ref(int32_t(2))); // folder
+	// Frame folder1;
+	// folder1.add(nd::symName, Ref(folder1_name));
+	// folder1.add(nd::symType, Ref(kDesktopFolder));
 
-	Frame folder2;
-	folder2.add(nd::symName, Ref(folder2_name));
-	folder2.add(nd::symType, Ref(int32_t(2))); // folder
+	// Frame folder2;
+	// folder2.add(nd::symName, Ref(folder2_name));
+	// folder2.add(nd::symType, Ref(kDesktopFolder));
 
 	Array path;
 	path.add(Ref(desktop));
 	path.add(Ref(disk));
-	path.add(Ref(folder1));
-	path.add(Ref(folder2));
+	// path.add(Ref(folder1));
+	// path.add(Ref(folder2));
 	// *************************************************************************
 	// This call breaks things!
 	// Adding 'disk' makes the cmd invalid and we receive a NACK from the Newton.
@@ -761,6 +777,7 @@ void Dock::send_cmd_path() {
 }
 
 void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
+#if 0
 	static const std::vector<uint8_t> cmd = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'f',  'i',  'l',  'e', //0x00, 0x00, 0x00, 0x00,
@@ -780,7 +797,82 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 		.end_frame_ = true, // we want to end with an end frame marker
 		.free_after_send_ = false, // we don't want to free the data after sending
 	});
-	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d\r\n", cmd.size());
+#else
+	static const std::vector<uint8_t> cmd_header = {
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
+		 'f',  'i',  'l',  'e', 0x00, 0x00, 0x00, 0x00,
+	};
+
+	// Frame the_file;
+	// String file_name( u"a.pkg" );
+	// the_file.add(nd::symName, Ref(file_name));
+	// the_file.add(nd::symType, Ref(kDesktopFile)); 
+
+	// Frame the_folder;
+	// String folder_name( u"MyFolder" );
+	// the_folder.add(nd::symName, Ref(folder_name));
+	// the_folder.add(nd::symType, Ref(kDesktopFolder));
+
+
+	// Frame *test = Frame::New();
+	// test->add(nd::symName, Ref(String::New(u"Test")));
+	// test->add(nd::symType, Ref(kDesktopFile));
+
+	Array file_list;
+	// file_list.add(Ref(the_file));
+	// file_list.add(Ref(the_folder));
+	// file_list.add(Ref(*test)); // add a test file
+
+	sdcard_endpoint.opendir();
+	std::u16string name;
+	for (int i=50; i>0; --i) {
+		uint32_t ret = sdcard_endpoint.readdir(name);
+		if (ret == FR_IS_DIRECTORY) {
+			Frame *f = Frame::New();
+			f->add(nd::symName, Ref(String::New(name)));
+			f->add(nd::symType, Ref(kDesktopFolder));
+			file_list.add(Ref(*f));
+		} else if (ret == FR_IS_PACKAGE) {
+			Frame *f = Frame::New();
+			f->add(nd::symName, Ref(String::New(name)));
+			f->add(nd::symType, Ref(kDesktopFile));
+			file_list.add(Ref(*f));
+		} else {
+			break;
+		}
+	}
+	sdcard_endpoint.closedir();
+
+	Ref(file_list).logln();
+
+	NSOF nsof;
+	nsof.to_nsof(file_list);
+	nsof.log();
+
+	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
+	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
+
+	uint32_t nsof_size = nsof.data().size();
+	uint32_t aligned_size = (nsof_size + 3) & 0xfffffffc; // align to 4 bytes
+	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
+	for (uint32_t i = nsof_size; i < aligned_size; i++) {
+		cmd->push_back(0); // fill with 0s to align to 4 bytes
+	}
+	// The size of the NSOF data is stored at offset 12 in the command data
+	(*cmd)[12] = (nsof_size >> 24) & 0xff;
+	(*cmd)[13] = (nsof_size >> 16) & 0xff;
+	(*cmd)[14] = (nsof_size >> 8) & 0xff;
+	(*cmd)[15] = nsof_size & 0xff;
+
+	data_queue_.push(Dock::Data {
+		.bytes_ = cmd,
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = true, // delete the vector after sending it
+	});
+	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
+#endif
 }
 
 void Dock::send_cmd_pass() {
@@ -834,7 +926,81 @@ void Dock::send_disc() {
 	});
 }
 
-void Dock::send_lpkg() {
+
+void Dock::handle_LoadPackageFile()
+{
+	// in_data_ 
+	//		ULong 'lpfl'
+	//		ULong length
+	//		NSOF filename
+	//		If the selected item is at the Desktop level, a frame
+	//		{ name:"Business", whichVol:-1 }
+	// >02. >08. >0C. >00. >61a >00. >2E. >00. >70p >00. >6Bk >00. >67g >00. >00. >00.
+	NSOF nsof(in_data_);
+	int32_t error_code = 0;
+	Ref reply = nsof.to_ref(error_code);
+	if (error_code != 0) {
+		if (kLogDock) Log.logf("Dock: handle_LoadPackageFile: NSOF error %d\r\n", error_code);
+		send_cmd_dres(error_code);
+		return;
+	}
+	// reply must be a String containing the file name
+	Object *obj = nullptr;
+	if (reply.is_object()) obj = reply.as_object();
+	if (obj && obj->is_string()) {
+		String *filename = static_cast<String*>(obj);
+		send_lpkg(filename->str());
+	} else {
+		if (kLogDock) Log.log("Dock: handle_LoadPackageFile: reply is not a String\r\n");
+		error_code = -48402; // expected a string
+		// error_code = -10006; // bad parameter
+		// error_code = -28004; // kErrorInvalidParameter
+		send_cmd_dres(error_code);
+	}
+}
+
+
+void Dock::send_lpkg(const std::u16string &filename) {
+	// CONT: Continue here: this must really be done in a state machine, because 
+	// file sizes can get pretty large and we must not block the task manager.
+#if 0
+	if (kLogDock) Log.log("Dock: send_lpkg\r\n");
+	static std::vector<uint8_t> cmd = {
+
+		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b, 
+		0x6c, 0x70, 0x6b, 0x67, 0x00, 0x00, 0x08, 0xa4, // lpkg, 184*12+4
+	data_queue_.push(Dock::Data {
+		.bytes_ = &cmd,
+		.pos_ = 0,
+		.start_frame_ = true, // we want to start with a start frame marker
+		.end_frame_ = true, // we want to end with an end frame marker
+		.free_after_send_ = false, // we don't want to free the data after sending
+	});
+
+	int32_t error_code = 0;
+	
+	FRESULT f_open (
+  FIL* fp,           /* [OUT] Pointer to the file object structure */
+  const TCHAR* path, /* [IN] File name */
+  BYTE mode          /* [IN] Mode flags */FA_READ|FA_OPEN_EXISTING
+);
+
+FSIZE_t f_size (
+  FIL* fp   /* [IN] File object */
+);
+
+FRESULT f_read (
+  FIL* fp,     /* [IN] File object */
+  void* buff,  /* [OUT] Buffer to store read data */
+  UINT btr,    /* [IN] Number of bytes to read */
+  UINT* br     /* [OUT] Number of bytes read */
+);
+
+FRESULT f_close (
+  FIL* fp     /* [IN] Pointer to the file object */
+);
+
+#else
 	if (kLogDock) Log.log("Dock: send_lpkg\r\n");
 	static std::vector<uint8_t> cmd = {
 
@@ -1035,6 +1201,7 @@ void Dock::send_lpkg() {
 		.free_after_send_ = false, // we don't want to free the data after sending
 	});
 	Log.logf("\r\n---------- %d ---------\r\n", cmd.size());
+#endif
 }
 
 

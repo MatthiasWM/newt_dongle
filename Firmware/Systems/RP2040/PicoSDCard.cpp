@@ -18,13 +18,20 @@
 #include "diskio.h"
 #include "pico/time.h"
 
+#include <cstdint>
 #include <stdio.h>
 
 using namespace nd;
 
-constexpr bool log_sdcard = false;
+constexpr bool log_sdcard = true;
+
+static const TCHAR Drive0[] = { '0', ':', 0 };
 
 /*
+  NOTE: the UTF16 option does not work on teh SDCard driver. We must convert 
+  UTF8 to UTF16 by hand.
+
+
  SD Card operations can be quite time consuming while serial data is pounding
  our CPU. To avoid interrupting the serial data stream, we will handle all slow 
  devices using the second core of the RP2040.
@@ -79,6 +86,9 @@ static spi_t spis[] = {  // One for each SPI.
         .sck_gpio = 2,
         .baud_rate = 12500 * 1000,  
         //.baud_rate = 25 * 1000 * 1000, // Actual frequency: 20833333. 
+        // .set_drive_strength = true, // Set drive strength for GPIO outputs
+        // .mosi_gpio_drive_strength = GPIO_DRIVE_STRENGTH_12MA, // 12mA
+        // .sck_gpio_drive_strength = GPIO_DRIVE_STRENGTH_12MA, // 12mA
     }
 };
 
@@ -94,9 +104,22 @@ static sd_card_t sd_cards[] = {  // One for each SD card
                                  // present. Use -1 if there is no card detect.
     }};
 
+
+        // Drive strength levels for GPIO outputs.
+        // enum gpio_drive_strength { GPIO_DRIVE_STRENGTH_2MA = 0, GPIO_DRIVE_STRENGTH_4MA = 1, GPIO_DRIVE_STRENGTH_8MA = 2,
+        // GPIO_DRIVE_STRENGTH_12MA = 3 }
+        // enum gpio_drive_strength gpio_get_drive_strength (uint gpio)
+        // if (spi_p->set_drive_strength) {
+        //     gpio_set_drive_strength(spi_p->mosi_gpio, spi_p->mosi_gpio_drive_strength);
+        //     gpio_set_drive_strength(spi_p->sck_gpio, spi_p->sck_gpio_drive_strength);
+        // }
+
 /* ********************************************************************** */
 
-size_t sd_get_num() { return count_of(sd_cards); }
+size_t sd_get_num() {
+    return count_of(sd_cards); 
+}
+
 sd_card_t *sd_get_by_num(size_t num) {
     if (num <= sd_get_num()) {
         return &sd_cards[num];
@@ -105,7 +128,10 @@ sd_card_t *sd_get_by_num(size_t num) {
     }
 }
 
-size_t spi_get_num() { return count_of(spis); }
+size_t spi_get_num() { 
+    return count_of(spis); 
+}
+
 spi_t *spi_get_by_num(size_t num) {
     if (num <= sd_get_num()) {
         return &spis[num];
@@ -113,7 +139,6 @@ spi_t *spi_get_by_num(size_t num) {
         return NULL;
     }
 }
-
 
 void test_sd_card() {
 
@@ -123,23 +148,24 @@ void test_sd_card() {
 
     sd_card_t *pSD = sd_get_by_num(0);
 
-    DSTATUS status = disk_status(0);
+    // DSTATUS status = disk_status(0);
 
-    FRESULT fr = f_mount(&pSD->fatfs, pSD->pcName, 1);
+    // FRESULT fr = f_mount(&pSD->fatfs, pSD->pcName, 1);
+    FRESULT fr = f_mount(&pSD->fatfs, (const uint16_t*)u"0:", 1);
     if (FR_OK != fr) panic("f_mount error: %s (%d)\n", FRESULT_str(fr), fr);
     FIL fil;
     const char* const filename = "filename.txt";
-    fr = f_open(&fil, filename, FA_OPEN_APPEND | FA_WRITE);
+    fr = f_open(&fil, (const uint16_t*)u"filenäme.txt", FA_OPEN_APPEND | FA_WRITE);
     if (FR_OK != fr && FR_EXIST != fr)
         panic("f_open(%s) error: %s (%d)\n", filename, FRESULT_str(fr), fr);
-    if (f_printf(&fil, "Hello, Matt!\n") < 0) {
-        printf("f_printf failed\n");
-    }
+    // if (f_printf(&fil, (const uint16_t*)u"Hello, Matt!\n") < 0) {
+    //     printf("f_printf failed\n");
+    // }
     fr = f_close(&fil);
     if (FR_OK != fr) {
         printf("f_close error: %s (%d)\n", FRESULT_str(fr), fr);
     }
-    f_unmount(pSD->pcName);
+    f_unmount((const uint16_t*)u"0:");
 
     puts("Goodbye, world!");
  
@@ -151,16 +177,34 @@ void test_sd_card() {
 PicoSDCardEndpoint::PicoSDCardEndpoint(Scheduler &scheduler)
 :   SDCardEndpoint(scheduler)
 {
-    time_init();
-    sd_card_ = sd_get_by_num(0);
 }
 
 PicoSDCardEndpoint::~PicoSDCardEndpoint() {
 }
 
+uint32_t PicoSDCardEndpoint::mount_() {
+    if (!mounted_) {
+        sd_card_t *pSD = sd_get_by_num(0);
+        FRESULT fr = f_mount(&pSD->fatfs, Drive0, 1);
+        status_ = fr;
+        if (fr != FR_OK) {
+            if (log_sdcard) Log.logf("f_mount error: %s (%d)\n", strerr(fr), fr);
+            return fr;
+        }
+        mounted_ = true;
+    }
+    return status_;
+}
+
 Result PicoSDCardEndpoint::init() 
 {
-    return SDCardEndpoint::init();
+    SDCardEndpoint::init();
+    if (!initialized_) {
+        time_init();
+        sd_card_t *pSD = sd_get_by_num(0);
+        f_unmount((const uint16_t*)u"0:");
+    }
+    return Result::OK;
 }
 
 Result PicoSDCardEndpoint::task() {
@@ -199,35 +243,109 @@ const char *PicoSDCardEndpoint::strerr(uint32_t err) {
         case FR_NOT_ENOUGH_CORE: return "NOT_ENOUGH_CORE";
         case FR_TOO_MANY_OPEN_FILES: return "TOO_MANY_OPEN_FILES";
         case FR_INVALID_PARAMETER: return "INVALID_PARAMETER";
+        case FR_IS_DIRECTORY: return "IS_DIRECTORY";
+        case FR_IS_PACKAGE: return "IS_PACKAGE"; // Custom error for package files
     }
     return "UNKNOWN";
 }
 
-uint32_t PicoSDCardEndpoint::disk_status() {
-    DSTATUS status = ::disk_status(0);
-    uint32_t ret = 0;
-    if (status & STA_NOINIT) ret |= 1;
-    if (status & STA_NODISK) ret |= 2;
-    if (status & STA_PROTECT) ret |= 4;
-    return ret;
-}
-
-uint32_t PicoSDCardEndpoint::disk_initialize() {
-    DSTATUS status = ::disk_initialize(0);
-    uint32_t ret = 0;
-    if (status & STA_NOINIT) ret |= 1;
-    if (status & STA_NODISK) ret |= 2;
-    if (status & STA_PROTECT) ret |= 4;
-    return ret;
-}
-
-uint32_t PicoSDCardEndpoint::get_label(char *label_buffer) {
-    FRESULT fr = f_mount(&fat_fs_, "", 1);
-    if (fr==FR_OK)
-        fr = f_getlabel("", label_buffer, NULL);
-    f_unmount("");
-    return fr;
+const std::u16string &PicoSDCardEndpoint::get_label() {
+    if (!mounted_) {
+        label_.clear();
+        uint32_t err = mount_();
+        if (err != FR_OK) {
+            // TODO: set to NO_DISK or NO_CARD, etc.
+            label_ = u"ERROR";
+            return label_;
+        }
+        sd_card_t *pSD = sd_get_by_num(0);  // Get the first SD card
+        TCHAR label_buffer[14];  // FF_LFN_UNICODE=1
+        label_buffer[0] = 0; // Initialize the buffer to empty
+        FRESULT fr = f_getlabel(Drive0, label_buffer, NULL);
+        if (fr == FR_OK) {
+            label_.assign((char16_t*)label_buffer); // Convert the label to std::u16string
+        } else {
+            label_ = u"ERROR";
+        }
+    }
+    return label_;
 }
 // vim: set sw=4 ts=4 et:
 
 
+uint32_t PicoSDCardEndpoint::opendir() 
+{
+    if (!mounted_) {
+        uint32_t err = mount_();
+        if (err != FR_OK) {
+            if (log_sdcard) Log.logf("opendir: mount error: %s (%d)\n", strerr(err), err);
+            return err;
+        }
+    }
+    FRESULT fr = f_opendir(&dir_, Drive0);
+    if (fr != FR_OK) {
+        if (log_sdcard) Log.logf("opendir: f_opendir error: %s (%d)\n", strerr(fr), fr);
+        return fr;
+    }
+    return FR_OK;
+}
+
+static int strlen16(const TCHAR* strarg)
+{
+   if(!strarg)
+        return -1; //strarg is NULL pointer
+   const TCHAR* str = strarg;
+   for(;*str;++str)
+        ; // empty body
+   return str-strarg;
+}
+
+uint32_t PicoSDCardEndpoint::readdir(std::u16string &name) {
+    for (;;) {
+        FILINFO fno;
+        FRESULT fr = f_readdir(&dir_, &fno);
+        if (fr != FR_OK) {
+            if (log_sdcard) Log.logf("readdir: f_readdir error: %s (%d)\n", strerr(fr), fr);
+            return fr;
+        }
+        if (fno.fname[0]==0) {
+            // No more files in the directory
+            if (log_sdcard) Log.log("readdir: no more files\n");
+            return FR_NO_FILE; // No more files
+        }
+        if (fno.fattrib & AM_HID) {
+            // Skip hidden files
+            if (log_sdcard) Log.logf("readdir: skipping hidden file: %s\n", fno.fname);
+            continue;
+        }
+        if (fno.fattrib & AM_SYS) {
+            // Skip system files
+            if (log_sdcard) Log.logf("readdir: skipping system file: %s\n", fno.fname);
+            continue;
+        }
+        if (fno.fattrib & AM_DIR) {
+            // Send directories
+            name = (const char16_t*)fno.fname; // Convert the TCHAR name to std::u16string
+            if (log_sdcard) Log.logf("readdir: returning a directory: %s\n", fno.fname);
+            return FR_IS_DIRECTORY; // Indicates a directory
+        }
+        auto n = fno.fname; // Get the file name
+        auto len = strlen16(n);
+        if (len>=4 && n[len-4]=='.' && (n[len-3]=='p' || n[len-3]=='P') && (n[len-2]=='k' || n[len-2]=='K') && (n[len-1]=='g' || n[len-1]=='G')) {
+            // Do return package files
+            name = (const char16_t*)fno.fname; // Convert the TCHAR name to std::u16string
+            if (log_sdcard) Log.logf("readdir: returning a package file: %s\n", fno.fname);
+            return FR_IS_PACKAGE;
+        }
+        if (log_sdcard) Log.logf("readdir: skipping file: %s\n", fno.fname);
+    }
+}
+
+uint32_t PicoSDCardEndpoint::closedir() {
+    FRESULT fr = f_closedir(&dir_);
+    if (fr != FR_OK) {
+        if (log_sdcard) Log.logf("closedir: f_closedir error: %s (%d)\n", strerr(fr), fr);
+        return fr;
+    }
+    return FR_OK;
+}   
