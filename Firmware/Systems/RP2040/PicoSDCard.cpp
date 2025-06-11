@@ -172,7 +172,28 @@ void test_sd_card() {
 
 }
 
+void PicoSDCardEndpoint::early_init()
+{
+    auto cs = sd_cards[0].ss_gpio;
+    gpio_init(cs);
+    gpio_put(cs, 1);
+    gpio_set_dir(cs, GPIO_OUT);
 
+    auto mosi = spis[0].mosi_gpio;
+    gpio_init(mosi);
+    gpio_put(mosi, 0);
+    gpio_set_dir(mosi, GPIO_OUT);
+
+    auto miso = spis[0].miso_gpio;
+    gpio_init(miso);
+    gpio_set_dir(miso, GPIO_IN); // MISO is input
+    gpio_pull_up(miso); // Enable pull-up on MISO
+
+    auto sck = spis[0].sck_gpio;
+    gpio_init(sck);
+    gpio_put(sck, 0);
+    gpio_set_dir(sck, GPIO_OUT);
+}
 
 PicoSDCardEndpoint::PicoSDCardEndpoint(Scheduler &scheduler)
 :   SDCardEndpoint(scheduler)
@@ -184,11 +205,14 @@ PicoSDCardEndpoint::~PicoSDCardEndpoint() {
 
 uint32_t PicoSDCardEndpoint::mount_() {
     if (!mounted_) {
+        app_status.repeat(AppStatus::SDCARD_ACTIVE, 2); // Flash blue
         sd_card_t *pSD = sd_get_by_num(0);
         FRESULT fr = f_mount(&pSD->fatfs, Drive0, 1);
         status_ = fr;
         if (fr != FR_OK) {
             if (log_sdcard) Log.logf("f_mount error: %s (%d)\n", strerr(fr), fr);
+            f_unmount(Drive0);
+            spis[0].initialized = false; // Reset the SPI driver
             return fr;
         }
         mounted_ = true;
@@ -261,6 +285,7 @@ const std::u16string &PicoSDCardEndpoint::get_label() {
         sd_card_t *pSD = sd_get_by_num(0);  // Get the first SD card
         TCHAR label_buffer[14];  // FF_LFN_UNICODE=1
         label_buffer[0] = 0; // Initialize the buffer to empty
+        app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
         FRESULT fr = f_getlabel(Drive0, label_buffer, NULL);
         if (fr == FR_OK) {
             label_.assign((char16_t*)label_buffer); // Convert the label to std::u16string
@@ -282,6 +307,7 @@ uint32_t PicoSDCardEndpoint::opendir()
             return err;
         }
     }
+    app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
     FRESULT fr = f_opendir(&dir_, Drive0);
     if (fr != FR_OK) {
         if (log_sdcard) Log.logf("opendir: f_opendir error: %s (%d)\n", strerr(fr), fr);
@@ -303,6 +329,7 @@ static int strlen16(const TCHAR* strarg)
 uint32_t PicoSDCardEndpoint::readdir(std::u16string &name) {
     for (;;) {
         FILINFO fno;
+        app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
         FRESULT fr = f_readdir(&dir_, &fno);
         if (fr != FR_OK) {
             if (log_sdcard) Log.logf("readdir: f_readdir error: %s (%d)\n", strerr(fr), fr);
@@ -342,6 +369,7 @@ uint32_t PicoSDCardEndpoint::readdir(std::u16string &name) {
 }
 
 uint32_t PicoSDCardEndpoint::closedir() {
+    app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
     FRESULT fr = f_closedir(&dir_);
     if (fr != FR_OK) {
         if (log_sdcard) Log.logf("closedir: f_closedir error: %s (%d)\n", strerr(fr), fr);
@@ -349,3 +377,21 @@ uint32_t PicoSDCardEndpoint::closedir() {
     }
     return FR_OK;
 }   
+
+uint32_t PicoSDCardEndpoint::chdir(std::u16string &path)
+{
+    if (!mounted_) {
+        uint32_t err = mount_();
+        if (err != FR_OK) {
+            if (log_sdcard) Log.logf("chdir: mount error: %s (%d)\n", strerr(err), err);
+            return err;
+        }
+    }
+    app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
+    FRESULT fr = f_chdir((const TCHAR*)path.c_str());
+    if (fr != FR_OK) {
+        if (log_sdcard) Log.logf("chdir: f_chdir error: %s (%d)\n", strerr(fr), fr);
+        return fr;
+    }
+    return FR_OK;
+}

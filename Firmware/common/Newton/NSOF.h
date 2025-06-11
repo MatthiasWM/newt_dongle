@@ -69,6 +69,10 @@ public:
     char16_t as_char16() const { return char_; }
     real as_real() const { return real_; }
     Object *as_object() const { return object_; }
+    String *as_string() const;
+    Array *as_array() const;
+    Frame *as_frame() const;
+    Symbol *as_symbol() const;
 
     void log(uint32_t depth=999, uint32_t indent=0) const;
     void logln(uint32_t depth=999, uint32_t indent=0) const;
@@ -139,6 +143,8 @@ public:
     void add(const Ref &ref) { elements_.push_back(ref); }
     void log(uint32_t depth=999, uint32_t indent=0) const override;
     void to_nsof(NSOF &nsof) const override;
+    uint32_t size() const { return elements_.size(); }
+    Ref at(uint32_t index) const { return elements_[index]; }
 };
 
 class Frame : public Object {

@@ -70,6 +70,7 @@ class Dock : public Endpoint
     constexpr static uint32_t kDOpCanceledAck = ND_FOURCC('o', 'c', 'a', 'a'); // Dock <-> Newt
     void send_cmd_ocaa();
 
+    void handle_SetPath();
     void handle_LoadPackageFile();
 
     struct Data {

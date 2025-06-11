@@ -28,6 +28,8 @@ public:
     virtual uint32_t readdir(std::u16string &name) = 0;
     virtual uint32_t closedir() = 0;
 
+    virtual uint32_t chdir(std::u16string &path) = 0;
+
     // Set file system to UTF16
     // Allow better directory handling
     // Check all other predefined compile settings 

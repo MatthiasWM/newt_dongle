@@ -461,7 +461,7 @@ void Dock::process_command() {
 			// [ "Desktop", {name:"My hard disk", whichVol:0}, "Business" ]
 			// TODO: Change the path
 			// Reply with kDFileAndFolders 
-			send_cmd_file();
+			handle_SetPath();
 			break;
 
 		case kDOperationCanceled:
@@ -803,29 +803,12 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 		 'f',  'i',  'l',  'e', 0x00, 0x00, 0x00, 0x00,
 	};
 
-	// Frame the_file;
-	// String file_name( u"a.pkg" );
-	// the_file.add(nd::symName, Ref(file_name));
-	// the_file.add(nd::symType, Ref(kDesktopFile)); 
-
-	// Frame the_folder;
-	// String folder_name( u"MyFolder" );
-	// the_folder.add(nd::symName, Ref(folder_name));
-	// the_folder.add(nd::symType, Ref(kDesktopFolder));
-
-
-	// Frame *test = Frame::New();
-	// test->add(nd::symName, Ref(String::New(u"Test")));
-	// test->add(nd::symType, Ref(kDesktopFile));
-
 	Array file_list;
-	// file_list.add(Ref(the_file));
-	// file_list.add(Ref(the_folder));
-	// file_list.add(Ref(*test)); // add a test file
-
+	
 	sdcard_endpoint.opendir();
 	std::u16string name;
 	for (int i=50; i>0; --i) {
+	// for (int i=8; i>0; --i) {
 		uint32_t ret = sdcard_endpoint.readdir(name);
 		if (ret == FR_IS_DIRECTORY) {
 			Frame *f = Frame::New();
@@ -847,7 +830,7 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 
 	NSOF nsof;
 	nsof.to_nsof(file_list);
-	nsof.log();
+	//nsof.log();
 
 	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
 	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
@@ -926,6 +909,44 @@ void Dock::send_disc() {
 	});
 }
 
+void Dock::handle_SetPath() 
+{
+	NSOF nsof(in_data_);
+	int32_t error_code = 0;
+	Ref path_ref = nsof.to_ref(error_code);
+	if (error_code != 0) {
+		if (kLogDock) Log.logf("Dock: handle_SetPath: NSOF error %d\r\n", error_code);
+		send_cmd_dres(error_code);
+		return;
+	}
+	std::u16string path;
+	Array *arr = path_ref.as_array();
+	if (!arr) {
+		if (kLogDock) Log.log("Dock: handle_SetPath: reply is not an Array\r\n");
+		send_cmd_dres(-48402); // expected an array
+		return;
+	}
+	uint32_t n = arr->size();
+	if (n < 2) {
+		if (kLogDock) Log.log("Dock: handle_SetPath: array too short\r\n");
+		send_cmd_dres(-48401); // Expected an array with at least 2 elements
+		return;
+	}
+	for (int i = 2; i < n; ++i) {
+		String *name = arr->at(i).as_string();
+		if (!name) {
+			if (kLogDock) Log.logf("Dock: handle_SetPath: item %d is not a String\r\n", i);
+			send_cmd_dres(-48401); // Expected a string
+			return;
+		}
+		path.push_back('/');
+		path.append(name->str());
+	}
+	if (path.empty()) path.push_back('/');
+	sdcard_endpoint.chdir(path);
+
+	send_cmd_file();
+}
 
 void Dock::handle_LoadPackageFile()
 {

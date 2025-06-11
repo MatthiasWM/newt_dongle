@@ -204,13 +204,13 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
   (void)itf;
   (void)rts;
 
+    Log.logf("\n\nCDC line state %d %d\n", dtr, rts);
+
   // TODO set some indicator
   if (dtr) {
-    // Terminal connected
-    if (kDebugCDC) printf("CDC Terminal Connected\n");
+    app_status.set(AppStatus::USB_CONNECTED); 
   } else {
-    // Terminal disconnected
-    if (kDebugCDC) printf("CDC Terminal Disconnected\n");
+    app_status.set(AppStatus::IDLE); 
   }
 }
 

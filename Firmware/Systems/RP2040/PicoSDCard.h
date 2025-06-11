@@ -34,6 +34,8 @@ public:
     Result task() override;
     Result send(Event event) override;
 
+    void early_init();
+
     const char *strerr(uint32_t err) override;
     uint32_t status() override { return status_; }
     const std::u16string &get_label() override;
@@ -42,6 +44,7 @@ public:
     uint32_t readdir(std::u16string &name) override;
     uint32_t closedir() override;
 
+    uint32_t chdir(std::u16string &path) override;
 };
 
 } // namespace nd

@@ -96,5 +96,6 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp"
-    }
+    },
+    "commentTranslate.hover.enabled": true
 }

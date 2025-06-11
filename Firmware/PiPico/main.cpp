@@ -101,6 +101,7 @@ PicoAsyncLog Log(0);
 // -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
 PicoScheduler scheduler;
 PicoSystemTask system_task(scheduler);
+PicoStatusDisplay app_status(scheduler);
 
 // -- Instantiate all the endpoints we need.
 PicoUARTEndpoint uart_endpoint { scheduler };
@@ -125,7 +126,7 @@ void nsof_test();
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
-    static uint32_t reset_mask = 
+    static const uint32_t reset_mask = 
         0u
         |(1u<<RESET_ADC)
         |(1u<<RESET_BUSCTRL)
@@ -156,6 +157,9 @@ int main(int argc, char *argv[])
     reset_block_mask(reset_mask);
     unreset_block_mask_wait_blocking(reset_mask);
 
+    sdcard_endpoint.early_init(); // Initialize the GPIOs for the SD card
+    app_status.early_init(); // Initialize the status display
+
     stdio_uart_init_full(uart1, 115200, 8, 9);
     Log.log("Starting Newton Dongle...\n");
 
@@ -165,19 +169,6 @@ int main(int argc, char *argv[])
     // user_settings.mess_up_flash();
     user_settings.read();
     scheduler.signal_all( Event {Event::Type::SIGNAL, Event::Subtype::USER_SETTINGS_CHANGED} );
-
-    // Set the LED to yellow for now (0=on, 1=off).
-    gpio_init(17); // User LED red
-    gpio_put(17, 0);
-    gpio_set_dir(17, GPIO_OUT);
-
-    gpio_init(16); // User LED green
-    gpio_put(16, 0);
-    gpio_set_dir(16, GPIO_OUT);
-
-    gpio_init(25); // User LED red
-    gpio_put(25, 1);
-    gpio_set_dir(25, GPIO_OUT);
 
 
     //Log.log("Starting...\n");

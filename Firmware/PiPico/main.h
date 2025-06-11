@@ -9,12 +9,14 @@
 #include "PicoAsyncLog.h"
 #include "PicoUserSettings.h"
 #include "PicoSDCard.h"
+#include "PicoStatusDisplay.h"
 
 #include <hardware/uart.h>
 
 extern nd::PicoAsyncLog Log;
 extern nd::PicoUserSettings user_settings;
 extern nd::PicoSDCardEndpoint sdcard_endpoint;
+extern nd::PicoStatusDisplay app_status;
 
 namespace nd {
 
@@ -44,6 +46,11 @@ constexpr uint kUART_TX_Pin = 0;   // TX pin
 constexpr uint kUART_RX_Pin = 1;   // RX pin
 constexpr uint kUART_HSKI_Pin = 28; // HSKI pin
 constexpr uint kUART_HSKO_Pin = 29; // HSKO pin on PiPico
+
+constexpr uint kLED_RED = 17;
+constexpr uint kLED_GREEN = 16;
+constexpr uint kLED_BLUE = 18; // 25 on Dongle
+constexpr uint kLED_INVERT = 0x00;
 
 } // namespace nd
 
