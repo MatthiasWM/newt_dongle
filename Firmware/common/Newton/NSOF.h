@@ -55,6 +55,7 @@ public:
     Ref(Ref &&other) noexcept;
     Ref &operator=(const Ref &other);
     Ref &operator=(Ref &&other) noexcept;
+    static Ref Raw(uint32_t v);
     ~Ref();
 
     Type type() const { return type_; }
@@ -98,19 +99,21 @@ public:
 
 class Symbol : public Object {
 protected:
+    static std::vector<Symbol*> known_symbols_;
     std::string sym_;
 public:
-    Symbol(const char *name) : sym_(name) { type_ = Type::SYMBOL; }
-    Symbol(const std::string &name) : sym_(name) { type_ = Type::SYMBOL; }
+    Symbol(const char *name);
+    Symbol(const std::string &name);
+    static const Symbol *find(const std::string &name);
     void log(uint32_t depth=999, uint32_t indent=0) const override;
     void to_nsof(NSOF &nsof) const override;
-
 };
 
 extern const Symbol symName;
 extern const Symbol symType;
 extern const Symbol symDiskType;
 extern const Symbol symWhichVol;
+extern const Symbol symUnknown;
 
 class String : public Object {
 protected:
@@ -146,6 +149,9 @@ public:
     void add(const Symbol &key, const Ref &value) {
         frame_.push_back(std::make_pair(&key, value));
     }
+    void set(int ix, const Ref &value) {
+        frame_[ix].second = value;
+    }
     void log(uint32_t depth=999, uint32_t indent=0) const override;
     void to_nsof(NSOF &nsof) const override;
 };
@@ -154,6 +160,8 @@ class NSOF {
     std::vector<uint8_t> data_;
     std::vector<const Object*> precedent_;
     uint32_t crsr_ = 0;
+    Ref to_ref_(int32_t &error_code);
+    int32_t get_xlong(int32_t &error_code);
 public:
     NSOF() = default;
     NSOF(const std::vector<uint8_t> &data, uint32_t crsr=0) : data_(data), crsr_(crsr) {}
