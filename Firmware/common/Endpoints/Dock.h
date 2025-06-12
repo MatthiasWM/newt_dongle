@@ -72,6 +72,7 @@ class Dock : public Endpoint
 
     void handle_SetPath();
     void handle_LoadPackageFile();
+    void send_package_task();
 
     struct Data {
         const std::vector<uint8_t> *bytes_;
@@ -102,6 +103,18 @@ class Dock : public Endpoint
     uint32_t newt_challenge_lo = 0;
 
     bool package_sent = false;
+
+    enum class Task {
+        NONE = 0,
+        SEND_PACKAGE,
+        CONTINUE_SEND_PACKAGE,
+        PACKAGE_SENT,
+    } current_task_ = Task::NONE;
+
+    uint32_t pkg_size_ = 0; // size of the package to be loaded
+    uint32_t pkg_size_aligned_; // size of the package to be loaded, aligned to 4 bytes
+    uint32_t pkg_crsr_ = 0; // current offset in the package
+    std::u16string pkg_filename_; // filename of the package to be loaded
 
 public:
     Dock(Scheduler &scheduler) : Endpoint(scheduler) { 

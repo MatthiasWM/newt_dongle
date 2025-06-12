@@ -27,6 +27,7 @@ class PicoSDCardEndpoint : public SDCardEndpoint {
     std::u16string label_; // Volume label
     uint32_t mount_();
     DIR dir_;
+    FIL file_;
 public:
     PicoSDCardEndpoint(Scheduler &scheduler);
     ~PicoSDCardEndpoint() override;
@@ -43,6 +44,11 @@ public:
     uint32_t opendir() override;
     uint32_t readdir(std::u16string &name) override;
     uint32_t closedir() override;
+
+    uint32_t openfile(std::u16string &name) override;
+    uint32_t filesize() override;
+    uint32_t readfile(uint8_t *buffer, uint32_t size) override;
+    uint32_t closefile() override;
 
     uint32_t chdir(std::u16string &path) override;
 };

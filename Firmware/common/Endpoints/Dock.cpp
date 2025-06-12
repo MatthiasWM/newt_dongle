@@ -110,6 +110,7 @@ Result Dock::task() {
 			delete data.bytes_; 
 			data.bytes_ = nullptr; // free the data if we are done with it
 		}
+		// TODO: delete *data; ????
 	} else if (connected_) {
 		// If we are conected, but have not sent any data for more than 5 seconds, 
 		// we remind the Newton that we are still alive.
@@ -118,6 +119,17 @@ Result Dock::task() {
 		// if (hello_timer_ > 5'000'000) {
 		// 	send_cmd_helo();
 		// }
+	}
+	if (data_queue_.size() == 0) { // TOOD: alternate blocks with '<= 2'?
+		switch (current_task_) {
+			case Task::SEND_PACKAGE:
+			case Task::CONTINUE_SEND_PACKAGE:
+			case Task::PACKAGE_SENT:
+				send_package_task();
+				break;
+			default:
+				break;
+		}
 	}
 	return super::task();
 }
@@ -950,6 +962,7 @@ void Dock::handle_SetPath()
 
 void Dock::handle_LoadPackageFile()
 {
+	// TODO: if current_task_ is not IDLE, send erroro code (other task is running)
 	// in_data_ 
 	//		ULong 'lpfl'
 	//		ULong length
@@ -966,11 +979,10 @@ void Dock::handle_LoadPackageFile()
 		return;
 	}
 	// reply must be a String containing the file name
-	Object *obj = nullptr;
-	if (reply.is_object()) obj = reply.as_object();
-	if (obj && obj->is_string()) {
-		String *filename = static_cast<String*>(obj);
-		send_lpkg(filename->str());
+	String *filename = reply.as_string();
+	if (filename) {
+		pkg_filename_ = filename->str();
+		current_task_ = Task::SEND_PACKAGE;
 	} else {
 		if (kLogDock) Log.log("Dock: handle_LoadPackageFile: reply is not a String\r\n");
 		error_code = -48402; // expected a string
@@ -979,6 +991,71 @@ void Dock::handle_LoadPackageFile()
 		send_cmd_dres(error_code);
 	}
 }
+
+void Dock::send_package_task() 
+{
+	if (current_task_ == Task::SEND_PACKAGE) {
+		uint32_t err = sdcard_endpoint.openfile(pkg_filename_);
+		if (err != FR_OK) {
+			if (kLogDock) Log.logf("Dock: send_package_task: openfile error %d\r\n", err);
+			send_cmd_dres(-48403); // file not found
+			current_task_ = Task::NONE;
+			return;
+		}
+		pkg_size_ = sdcard_endpoint.filesize();
+		pkg_size_aligned_ = (pkg_size_ + 3) & 0xfffffffc; // align to 4 bytes
+		pkg_crsr_ = 0;
+
+		static std::vector<uint8_t> cmd = {
+			0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b, 
+			 'l',  'p',  'k',  'g', 0x00, 0x00, 0x08, 0x00, // lpkg
+		};
+		cmd[12] = (pkg_size_ >> 24) & 0xff; // size of the package
+		cmd[13] = (pkg_size_ >> 16) & 0xff;
+		cmd[14] = (pkg_size_ >> 8) & 0xff;
+		cmd[15] = pkg_size_ & 0xff;
+		data_queue_.push(Dock::Data {
+			.bytes_ = &cmd,
+			.pos_ = 0,
+			.start_frame_ = true, // we want to start with a start frame marker
+			.end_frame_ = false, // we want to end with an end frame marker
+			.free_after_send_ = false, // we don't want to free the data after sending
+		});
+		current_task_ = Task::CONTINUE_SEND_PACKAGE;
+	} else if (current_task_ == Task::CONTINUE_SEND_PACKAGE) {
+		uint32_t read_size = pkg_size_ - pkg_crsr_;
+		if (read_size > 512) {
+			read_size = 512; // read at most 512 bytes
+		}
+		uint32_t package_size = read_size;
+		pkg_crsr_ += read_size;
+		bool last_package = (pkg_crsr_ >= pkg_size_);
+		if (last_package) {
+			package_size += (pkg_size_aligned_ - pkg_size_); // add padding to align to 4 bytes
+		}
+		if (kLogDock) Log.logf("Dock: send_package_task: read_size = %d, pkg_crsr_ = %d, pkg_size_ = %d\r\n", read_size, pkg_crsr_, pkg_size_);
+		auto data = new std::vector<uint8_t>(package_size); 
+		uint32_t bytes_read = sdcard_endpoint.readfile(data->data(), read_size);
+		if (bytes_read != read_size) {
+			if (kLogDock) Log.logf("Dock: send_package_task: readfile error %d\r\n", bytes_read);
+		}
+		data_queue_.push(Dock::Data {
+			.bytes_ = data,
+			.pos_ = 0,
+			.start_frame_ = false, // we want to start with a start frame marker
+			.end_frame_ = last_package, // we want to end with an end frame marker
+			.free_after_send_ = true, // we don't want to free the data after sending
+		});
+		if (last_package) {
+			current_task_ = Task::PACKAGE_SENT; // we are done sending the package
+		}
+	} else if (current_task_ == Task::PACKAGE_SENT) {
+		// clean up
+		sdcard_endpoint.closefile();
+		current_task_ = Task::NONE;
+	}
+}
+
 
 
 void Dock::send_lpkg(const std::u16string &filename) {

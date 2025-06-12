@@ -395,3 +395,42 @@ uint32_t PicoSDCardEndpoint::chdir(std::u16string &path)
     }
     return FR_OK;
 }
+
+uint32_t PicoSDCardEndpoint::openfile(std::u16string &name)
+{
+    app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
+    FRESULT fr = f_open(&file_, (const TCHAR*)name.data(), FA_READ|FA_OPEN_EXISTING);
+    if (fr != FR_OK) {
+        if (log_sdcard) Log.logf("openfile: f_open error: %s (%d)\n", strerr(fr), fr);
+        return fr;
+    }
+    return FR_OK;
+}
+
+uint32_t PicoSDCardEndpoint::filesize() 
+{
+    return f_size(&file_); // Returns the size of the file in bytes
+}
+
+uint32_t PicoSDCardEndpoint::readfile(uint8_t *buffer, uint32_t size) 
+{
+    app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
+    UINT bytes_read = 0;
+    FRESULT fr = f_read(&file_, buffer, size, &bytes_read);
+    if (fr != FR_OK) {
+        if (log_sdcard) Log.logf("readfile: f_read error: %s (%d)\n", strerr(fr), fr);
+        return 0xffffffff;
+    }
+    return bytes_read;
+}
+
+uint32_t PicoSDCardEndpoint::closefile() 
+{
+    app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
+    FRESULT fr = f_close(&file_);
+    if (fr != FR_OK) {
+        if (log_sdcard) Log.logf("closefile: f_close error: %s (%d)\n", strerr(fr), fr);
+        return fr;
+    }
+    return FR_OK;
+}

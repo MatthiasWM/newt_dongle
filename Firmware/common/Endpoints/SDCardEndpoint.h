@@ -28,6 +28,11 @@ public:
     virtual uint32_t readdir(std::u16string &name) = 0;
     virtual uint32_t closedir() = 0;
 
+    virtual uint32_t openfile(std::u16string &name) = 0;
+    virtual uint32_t filesize() = 0;
+    virtual uint32_t readfile(uint8_t *buffer, uint32_t size) = 0;
+    virtual uint32_t closefile() = 0;
+
     virtual uint32_t chdir(std::u16string &path) = 0;
 
     // Set file system to UTF16

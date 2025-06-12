@@ -669,7 +669,10 @@ void DockToNewtPipe::mnp_to_newt_state_machine()
 						} else {
 							out_state_ = OutState::SEND_DATA; // data follows
 						}
-                    }
+                    } else {
+						// still more header data to send (overwrite SEND_HDR_DATA_DLE)
+						out_state_ = OutState::SEND_HDR_DATA;
+					}
                 }
 			}
 			break;
@@ -684,7 +687,10 @@ void DockToNewtPipe::mnp_to_newt_state_machine()
                     if (data_crsr_ == frame->data.size()) {
                         data_crsr_ = 0;
                         out_state_ = OutState::SEND_DLE2;
-                    }
+                    } else {
+						// still more data to send (overwrite SEND_DATA_DLE)
+						out_state_ = OutState::SEND_DATA;
+					}
 				}
 			}
 			break;
