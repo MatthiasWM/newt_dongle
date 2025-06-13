@@ -53,6 +53,7 @@
 
 #include "common/Endpoints/Dock.h"
 #include "common/Endpoints/StdioLog.h"
+#include "common/Filters/DTRSwitch.h"
 #include "common/Filters/HayesFilter.h"
 #include "common/Filters/MNPFilter.h"
 #include "common/Pipes/BufferedPipe.h"
@@ -97,6 +98,7 @@ Dock dock_endpoint(scheduler);
 HayesFilter uart_hayes(scheduler, 0);
 HayesFilter cdc_hayes(scheduler, 1);
 MNPFilter mnp_filter(scheduler);
+DTRSwitch dtr_switch;
 
 // Pipes to connect everything.
 MNPThrottle mnp_throttle(scheduler);
@@ -153,14 +155,14 @@ int main(int argc, char *argv[])
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
     
     // -- Goal:
-    // UART ---------------> UART_Hayes --------------------> Matrix ---> CDC Hayes ---> buffer ---> CDC
-    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Matrix <--- CDC Hayes <--------------- CDC
-    //                                                          ↑↓
-    //                                                          MNP
-    //                                                          ↑↓
-    //                                                         Dock    
-    //                                                          ↑↓
-    //                                                        SDCard    
+    // UART ---------------> UART_Hayes --------------------> DTRSwitch ---> CDC Hayes ---> buffer ---> CDC
+    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- DTRSwitch <--- CDC Hayes <--------------- CDC
+    //                                                           ↑↓
+    //                                                           MNP
+    //                                                           ↑↓
+    //                                                          Dock    
+    //                                                           ↑↓
+    //                                                         SDCard    
 
 #if 0
     // Connect the UART to USB
@@ -171,7 +173,7 @@ int main(int argc, char *argv[])
     /**/  cdc_endpoint >> cdc_hayes.downstream; 
     /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
-#else
+#elif 0
     // Connect the UART to Dock
     /**/  uart_endpoint >> uart_hayes.downstream; 
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
@@ -181,6 +183,21 @@ int main(int argc, char *argv[])
     /**/  dock_endpoint >> mnp_filter.dock;
     /**/    mnp_filter.dock >> cdc_hayes.downstream; 
     /**/      cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
+    /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
+#else
+    // Connect the UART to the Dock or the CDC, depending on the CDC DTR pin.
+    /**/  uart_endpoint >> uart_hayes.downstream;
+    /**/    uart_hayes.upstream >> dtr_switch;
+    /**/      dtr_switch.dock >> mnp_filter.newt;
+    /**/        mnp_filter.newt >> dock_endpoint;
+    /**/      dtr_switch.cdc >> cdc_hayes.upstream;
+    /**/        cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
+    // Connect the USB CDC and the Dock back to the UART.
+    /**/  dock_endpoint >> mnp_filter.dock;
+    /**/    mnp_filter.dock >> dtr_switch.dock;
+    /**/  cdc_endpoint >> cdc_hayes.downstream;
+    /**/    cdc_hayes.upstream >> dtr_switch.cdc;
+    /**/      dtr_switch >> mnp_throttle >> uart_hayes.upstream;
     /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 #endif
 

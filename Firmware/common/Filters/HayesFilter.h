@@ -21,13 +21,17 @@ class HayesFilter: public Task {
         HayesFilter &filter_;
         UpstreamPipe(HayesFilter &filter) : filter_(filter) { }
         Result send(Event event) override { return filter_.upstream_send(event); }
+        Result rush(Event event) override { return filter_.upstream_rush(event); }
+        Result rush_back(Event event) override { return filter_.upstream_rush_back(event); }
     };
-
+    
     class DownstreamPipe: public Pipe {
     public:
         HayesFilter &filter_;
         DownstreamPipe(HayesFilter &filter) : filter_(filter) { }
         Result send(Event event) override { return filter_.downstream_send(event); }
+        Result rush(Event event) override { return filter_.downstream_rush(event); }
+        Result rush_back(Event event) override { return filter_.downstream_rush_back(event); }
     };
     
     uint8_t index_ = 0;
@@ -57,7 +61,11 @@ public:
     Result signal(Event event) override;
     Result task() override;
     Result upstream_send(Event event);
+    Result upstream_rush(Event event);
+    Result upstream_rush_back(Event event);
     Result downstream_send(Event event);
+    Result downstream_rush(Event event);
+    Result downstream_rush_back(Event event);
 
     void run_cmd_line();
     const char *run_next_cmd(const char *cmd);

@@ -31,7 +31,7 @@ same firmware directly for the RP2040 based dongle.
  - [ ] Optional firmware to reset Flash memory? Or any other way to reset it?
  - [x] MNP Filter that extracts Dock commands and data (takes care of 
        negotiation, blocks, replies, checksums, resends)
- - [ ] Matrix, a filter that routes data between multiple sockets
+ - [x] Switching pipe between Dock and CDC based on CDC DTR signal
  - [x] Dock, a filter that understands and handles Newton Dock commands
     - [x] Rough first implementation
     - [ ] Functional Reset for multiple connections
@@ -114,7 +114,7 @@ immediatly receive an reply to the event. This will change the order of
 events.
 
 Lastly, pipes can send events up the pipe using Pipe::rush_back(). This is 
-currently used by a receiving andpoint to give the sender hints for serial
+currently used by a receiving endpoint to give the sender hints for serial
 port handshaking when buffers run full.
 
 Pipes can have additional functionality. They can buffer events, or split

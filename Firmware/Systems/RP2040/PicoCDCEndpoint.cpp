@@ -204,12 +204,20 @@ void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
     (void)itf;
     (void)rts;
 
+    PicoCDCEndpoint *cdc = PicoCDCEndpoint::instance(itf);
+
     if (kLogCDC) Log.logf("\n\nCDC line state %d %d\n", dtr, rts);
 
     if (dtr) {
-        app_status.set(AppStatus::USB_CONNECTED); 
+        if (cdc && cdc->out()) {
+            cdc->out()->rush(Event(Event::Type::UART, Event::Subtype::UART_DTR, 1));
+        }
+        app_status.set(AppStatus::USB_CONNECTED);
     } else {
-        app_status.set(AppStatus::IDLE); 
+        if (cdc && cdc->out()) {
+            cdc->out()->rush(Event(Event::Type::UART, Event::Subtype::UART_DTR, 0));
+        }
+        app_status.set(AppStatus::IDLE);
     }
 }
 

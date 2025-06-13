@@ -153,6 +153,30 @@ Result HayesFilter::upstream_send(Event event) {
     }
 }
 
+Result HayesFilter::upstream_rush(Event event) {
+    if (data_mode_) {
+        Pipe *down = downstream.out();
+        if (down)
+            return down->rush(event);
+        else
+            return Result::OK__NOT_CONNECTED;
+    } else {
+        return Result::OK__NOT_CONNECTED;
+    }
+}
+
+Result HayesFilter::upstream_rush_back(Event event) {
+    if (data_mode_) {
+        Pipe *down = downstream.in();
+        if (down)
+            return down->rush_back(event);
+        else
+            return Result::OK__NOT_CONNECTED;
+    } else {
+        return Result::OK__NOT_CONNECTED;
+    }
+}
+
 /**
  * \brief Called whenever the downstream pipe has sent us an Event.
  * 
@@ -289,6 +313,30 @@ Result HayesFilter::downstream_send(Event event)
             cmd_.clear();
         }
         return ret;
+    }
+}
+
+Result HayesFilter::downstream_rush(Event event) {
+    if (data_mode_) {
+        Pipe *up = upstream.out();
+        if (up)
+            return up->rush(event);
+        else
+            return Result::OK__NOT_CONNECTED;
+    } else {
+        return Result::OK__NOT_CONNECTED;
+    }
+}
+
+Result HayesFilter::downstream_rush_back(Event event) {
+    if (data_mode_) {
+        Pipe *up = upstream.in();
+        if (up)
+            return up->rush_back(event);
+        else
+            return Result::OK__NOT_CONNECTED;
+    } else {
+        return Result::OK__NOT_CONNECTED;
     }
 }
 

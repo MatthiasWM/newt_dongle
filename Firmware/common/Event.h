@@ -19,6 +19,7 @@ public:
         DATA,
         TEXT,
         SET_BITRATE,        // see id_to_bitrate(), bitrate_to_id()
+        UART,               // UART and CDC events.
         DELAY,              // Delay transmission of data for the given time.
         HIGH_WATER,         // Receiving endpoint buffer about to flood.
         SIGNAL,             // Signal from the scheduler.
@@ -33,6 +34,7 @@ public:
         USECS = 128,        // DELAY: Delay in microseconds   
         MSECS,              // DELAY: Delay in milliseconds       
         CHARS,              // DELAY: Delay in characters at the current bitrate 
+        UART_DTR,           // UART: DTR signal changed, value is 0 or 1
         USER_SETTINGS_CHANGED = 128, // SIGNAL: User settings changed
         MNP_SEND_LA = 128,  // MNP: Send Link Acknowledgement (sequence number)
         MNP_SEND_LD,        // MNP: Send Link Disconnect (reason)

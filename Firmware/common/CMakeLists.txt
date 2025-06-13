@@ -33,6 +33,8 @@ target_sources(${APP} PRIVATE
         Endpoints/UARTEndpoint.cpp
         Endpoints/UARTEndpoint.h
 
+        Filters/DTRSwitch.cpp
+        Filters/DTRSwitch.h
         Filters/HayesFilter.cpp
         Filters/HayesFilter.h
         Filters/MNPFilter.cpp
