@@ -5,9 +5,9 @@
 
 #include "PicoSystem.h"
 
-#include "hardware/uart.h"
-#include "tusb.h"
-#include "pico/stdlib.h"
+#include <hardware/uart.h>
+#include <tusb.h>
+#include <pico/stdlib.h>
 
 using namespace nd;
 

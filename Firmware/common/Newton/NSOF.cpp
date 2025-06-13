@@ -82,7 +82,7 @@ Ref Ref::Raw(uint32_t v) {
     if ((v & 0x00000003) == 0x00000000) return Ref( ((int32_t)(v)) >> 2 );
     //if ((v & 0x00000003) == 0x00000003) return Ref( ((int32_t)(v)) >> 2 ); // Magic Pointer
     if ((v & 0x0000000F) == 0x00000006) return Ref( (char16_t)(v >> 4) ); // UniChar
-    Log.log("NSOF: Ref::Raw: unknown type\n");
+    if (kLogNSOF) Log.log("NSOF: Ref::Raw: unknown type\n");
     return Ref(false);
 }
 
@@ -421,33 +421,33 @@ Ref NSOF::to_ref_(int32_t &error_code)
         case 0: { // immediate
             uint32_t value = get_xlong(error_code);
             if (error_code) return Ref(false);
-            // Log.logf("NSOF: to_ref: immediate %d\n", value);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: immediate %d\n", value);
             return Ref::Raw(value); }
         case 1: { // character
             if (data_.size() <= crsr_) {
-                Log.log("NSOF: to_ref: character too short\n");
+                if (kLogNSOF) Log.log("NSOF: to_ref: character too short\n");
                 error_code = -54002; // Zero Length data
                 return Ref(false);
             }
             uint8_t c = data_[crsr_++];
-            // Log.logf("NSOF: to_ref: character '%c'\n", c);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: character '%c'\n", c);
             return Ref((char16_t)c); }
         case 2: { // unichar
             if (data_.size() <= crsr_ + 1) {
-                Log.log("NSOF: to_ref: unichar too short\n");
+                if (kLogNSOF) Log.log("NSOF: to_ref: unichar too short\n");
                 error_code = -54002; // Zero Length data
                 return Ref(false);
             }
             uint16_t c = (data_[crsr_] << 8) | data_[crsr_ + 1];
             crsr_ += 2;
-            // Log.logf("NSOF: to_ref: unichar '%c'\n", c);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: unichar '%c'\n", c);
             return Ref((char16_t)c); }
         // 3: binary [size, class, data]
         // 4: array [#slots, class, values...]
         case 5: { // plain array [#slots, values...]
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
-            // Log.logf("NSOF: to_ref: array with %d slots\n", size);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: array with %d slots\n", size);
             Array *array = Array::New();
             precedent_.push_back(array); // Add to precedent list
             for (uint32_t i = 0; i < size; i++) {
@@ -459,14 +459,14 @@ Ref NSOF::to_ref_(int32_t &error_code)
         case 6: { // frame [#slots, keys..., values...]
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
-            // Log.logf("NSOF: to_ref: frame with %d slots\n", size);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: frame with %d slots\n", size);
             Frame *frame = Frame::New();
             precedent_.push_back(frame); // Add to precedent list
             for (uint32_t i = 0; i < size; i++) {
                 Ref ref = to_ref_(error_code);
                 if (error_code) { delete frame; return Ref(false); }
                 if (!ref.is_object() || !ref.as_object()->is_symbol()) {
-                    Log.log("NSOF: to_ref: frame key is not a symbol\n");
+                    if (kLogNSOF) Log.log("NSOF: to_ref: frame key is not a symbol\n");
                     error_code = -28210; // Invalid Type
                     delete frame;
                     return Ref(false);
@@ -484,23 +484,25 @@ Ref NSOF::to_ref_(int32_t &error_code)
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
             std::string str;
-            // Log.log("\n\nSYMBOL:\n");
+            if (kLogNSOF) Log.log("\n\nSYMBOL:\n");
             while (size > 1) {
                 if (crsr_ + 1 >= data_.size()) {
-                    Log.log("NSOF: to_ref: Symbol too short\n");
+                    if (kLogNSOF) Log.log("NSOF: to_ref: Symbol too short\n");
                     error_code = -54002; // Zero Length data
                     return Ref(false);
                 }
                 uint8_t c = data_[crsr_++];
                 str.push_back(c);
-                // if (c<33 || c>126) {
-                //     Log.logf("<%04x>", c);
-                // } else {
-                //     Log.logf("%c", c);
-                // }
+                if (kLogNSOF) {
+                    if (c<33 || c>126) {
+                        Log.logf("<%04x>", c);
+                    } else {
+                        Log.logf("%c", c);
+                    }
+                }
                 size -= 1;
             }
-            // Log.log("\nDONE\n");
+            if (kLogNSOF) Log.log("\nDONE\n");
             const Symbol *sym = Symbol::find(str); // -> existing symbols only!
             precedent_.push_back(sym); // Add to precedent list
             return Ref(sym); }
@@ -508,45 +510,47 @@ Ref NSOF::to_ref_(int32_t &error_code)
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
             std::u16string str;
-            // Log.log("\n\nSTRING:\n");
+            if (kLogNSOF) Log.log("\n\nSTRING:\n");
             while (size > 2) {
                 if (crsr_ + 1 >= data_.size()) {
-                    Log.log("NSOF: to_ref: String too short\n");
+                    if (kLogNSOF) Log.log("NSOF: to_ref: String too short\n");
                     error_code = -54002; // Zero Length data
                     return Ref(false);
                 }
                 uint16_t c = (data_[crsr_] << 8) | data_[crsr_ + 1];
                 str.push_back(c);
-                // if (c<33 || c>126) {
-                //     Log.logf("<%04x>", c);
-                // } else {
-                //     Log.logf("%c", c);
-                // }
+                if (kLogNSOF) {
+                    if (c<33 || c>126) {
+                        Log.logf("<%04x>", c);
+                    } else {
+                        Log.logf("%c", c);
+                    }
+                }
                 crsr_ += 2;
                 size -= 2;
             }
             crsr_ += 2; // skip trailing 'nul' bytes
-            // Log.log("\nDONE\n");
+            if (kLogNSOF) Log.log("\nDONE\n");
             String *str_obj = String::New(str);
             precedent_.push_back(str_obj); // Add to precedent list
             return Ref(str_obj); }
         case 9: { // Precedent
             uint32_t index = get_xlong(error_code);
             if (error_code) return Ref(false);
-            // Log.logf("NSOF: to_ref: precedent %d\n", index);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: precedent %d\n", index);
             if (index >= precedent_.size()) {
-                // Log.log("NSOF: to_ref: precedent index out of bounds\n");
+                if (kLogNSOF) Log.log("NSOF: to_ref: precedent index out of bounds\n");
                 error_code = -28210; // Invalid Type
                 return Ref(false);
             }
             return Ref(precedent_[index]); }
         case 10: // NIL
-            // Log.log("NSOF: to_ref: NIL\n");
+            if (kLogNSOF) Log.log("NSOF: to_ref: NIL\n");
             return Ref(false); // Return a Ref with false, indicating NIL
         // 11: small rect [bytes: top, left, bottom, right]
         // 12: large binary [ignore!]
         default:
-            // Log.log("NSOF: to_ref: unknown type\n");
+            if (kLogNSOF) Log.log("NSOF: to_ref: unknown type\n");
             error_code = -28210; // Invalid Type
             return Ref(false);
     }
@@ -558,12 +562,12 @@ Ref NSOF::to_ref_(int32_t &error_code)
  */
 Ref NSOF::to_ref(int32_t &error_code) {
     if (data_.empty() || data_.size() <= crsr_) {
-        Log.log("NSOF: to_ref: data is empty\n");
+        if (kLogNSOF) Log.log("NSOF: to_ref: data is empty\n");
         error_code = -54002; // Zero Length data
         return Ref(false);
     }
     if (data_[crsr_++] != 0x02) {
-        Log.log("NSOF: to_ref: expected 0x02 at cursor\n");
+        if (kLogNSOF) Log.log("NSOF: to_ref: expected 0x02 at cursor\n");
         error_code = -28210; // Invalid Type
         return Ref(false);
     }

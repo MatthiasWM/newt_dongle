@@ -9,9 +9,9 @@
 #include "common/Pipe.h"
 #include "common/Scheduler.h"
 
-#include "pico/stdlib.h"
-#include "bsp/board_api.h"
-#include "tusb.h"
+#include <pico/stdlib.h>
+#include <bsp/board_api.h>
+#include <tusb.h>
 
 #include <stdio.h>
 
@@ -201,17 +201,16 @@ void PicoCDCEndpoint::device_changed_bitrate(uint32_t bitrate) {
 
 // Invoked when cdc when line state changed e.g connected/disconnected
 void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
-  (void)itf;
-  (void)rts;
+    (void)itf;
+    (void)rts;
 
-    Log.logf("\n\nCDC line state %d %d\n", dtr, rts);
+    if (kLogCDC) Log.logf("\n\nCDC line state %d %d\n", dtr, rts);
 
-  // TODO set some indicator
-  if (dtr) {
-    app_status.set(AppStatus::USB_CONNECTED); 
-  } else {
-    app_status.set(AppStatus::IDLE); 
-  }
+    if (dtr) {
+        app_status.set(AppStatus::USB_CONNECTED); 
+    } else {
+        app_status.set(AppStatus::IDLE); 
+    }
 }
 
 // Invoked when CDC interface received data from host

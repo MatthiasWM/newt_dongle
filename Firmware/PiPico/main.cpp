@@ -22,106 +22,87 @@
   SOFTWARE.
 */
 
-// -- Minimal setup for the Newton Dongle.
-//  UART ---> BufferPipe ----> CDC
-//  UART <--- BufferPipe <---- CDC
+/*
+ Use this project for live logging and debugging with the BreadBoard PiPico.
 
-// TODO: add three way switch and SDCard access
-// // https://www.makermatrix.com/blog/read-and-write-data-with-the-pi-pico-onboard-flash/
-// XIP_BASE # The base address of the flash memory
-// PICO_FLASH_SIZE_BYTES # The total size of the RP2040 flash, in bytes
-// FLASH_SECTOR_SIZE     # The size of one sector, in bytes (the minimum amount you can erase)
-// FLASH_PAGE_SIZE       # The size of one page, in bytes (the mimimum amount you can write)
-// extern "C" {
-//   #include <hardware/flash.h>
-// };
-// flash_range_erase(uint32_t flash_offs, size_t count);
-// flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
-//
-//  __flash_binary_end (which is a memory address, not an offset in flash)
-//
-// https://www.raspberrypi.com/documentation/pico-sdk/runtime.html#group_pico_standard_binary_info
-//
-// 264kB RAM
-// pico_cmake_set_default PICO_FLASH_SIZE_BYTES = (2 * 1024 * 1024)
-//
-// read the BOOT button: https://github.com/raspberrypi/pico-examples/blob/master/picoboard/button/button.c
+ This is Version 0.6. It has the following features:
+  - Connects the UART to the CDC endpoint.
+  - Hayes filter on both ends to allow Modem commands
+  - Throttle MNP Packages from CDC to UART
+  - Save settings in Flash RAM
+  - Status Display to show the current status of the system.
 
-//
-// https://community.element14.com/products/raspberry-pi/b/blog/posts/raspberry-pico-c-sdk-reserve-a-flash-memory-block-for-persistent-storage
-// pico_set_linker_script("pico/pico_standard_link.ld")
+  It has the following experimantal features:
+  - MNP Filter to allow MNP encoded data to be sent and received.
+  - Dock endpoint to allow docking with the Newton.
+  - SDCard endpoint to allow reading and writing to the SDCard.
 
-//  #include "hardware/resets.h"
-//  reset_block_num(RESET_PWM);
-// unreset_block_num_wait_blocking(RESET_PWM);
-// reset_block_mask((1u << RESET_PWM) | (1u << RESET_ADC));
-// unreset_block_mask_wait_blocking((1u << RESET_PWM) | (1u << RESET_ADC));
-// enum reset_num_rp2040 { RESET_ADC = 0, RESET_BUSCTRL = 1, RESET_DMA = 2, RESET_I2C0 = 3, RESET_I2C1 = 4, RESET_IO_BANK0 =
-// 5, RESET_IO_QSPI = 6, RESET_JTAG = 7, RESET_PADS_BANK0 = 8, RESET_PADS_QSPI = 9, RESET_PIO0 = 10, RESET_PIO1 = 11,
-// RESET_PLL_SYS = 12, RESET_PLL_USB = 13, RESET_PWM = 14, RESET_RTC = 15, RESET_SPI0 = 16, RESET_SPI1 = 17, RESET_SYSCFG =
-// 18, RESET_SYSINFO = 19, RESET_TBMAN = 20, RESET_TIMER = 21, RESET_UART0 = 22, RESET_UART1 = 23, RESET_USBCTRL = 24,
-// RESET_COUNT }
-// static __force_inline void unreset_block_mask_wait_blocking (uint32_t bits)
-// Bring specified HW blocks out of reset and wait for completion.
-// static void reset_unreset_block_num_wait_blocking (uint block_num)
-// Reset the specified HW block, and then bring at back out of reset and wait for completion.
+  TODO: 
+   - Add three way switch between CDC and Dock endpoint.
+   - Read the BOOT button: https://github.com/raspberrypi/pico-examples/blob/master/picoboard/button/button.c
+   - Improved SDCard Reset.
+ */
 
 #include "main.h"
 
-#include "PicoStdioLog.h"
 #include "PicoAsyncLog.h"
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "PicoScheduler.h"
-#include "PicoSDCard.h"
 #include "PicoSystem.h"
 
 #include "common/Endpoints/Dock.h"
 #include "common/Endpoints/StdioLog.h"
-#include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
 #include "common/Filters/MNPFilter.h"
 #include "common/Pipes/BufferedPipe.h"
 #include "common/Pipes/MNPThrottle.h"
 #include "common/Pipes/Tee.h"
 
-
-#include "pico/stdlib.h"
+#include <pico/stdlib.h>
 
 #include <stdio.h>
 
+
+// Need to upload firmware into RAM instead of ROM.
 void* __dso_handle = nullptr;
 void* _fini = nullptr;
 
+
 using namespace nd;
 
+
+// Saves setting into Flash Memory.
 PicoUserSettings user_settings;
+
+// Log to debugging probe on uart1.
 PicoAsyncLog Log(0);
 
-// -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
+// Distributes times slices to all tasks.
 PicoScheduler scheduler;
+
+// One task to manage the overall system.
 PicoSystemTask system_task(scheduler);
+
+// Task that updates the status display.
 PicoStatusDisplay app_status(scheduler);
 
-// -- Instantiate all the endpoints we need.
+// Endpoints for data exchange.
 PicoUARTEndpoint uart_endpoint { scheduler };
 PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
 PicoSDCardEndpoint sdcard_endpoint { scheduler };
 Dock dock_endpoint(scheduler);
 
-// -- Instantiate filters and loggers.
+// Filters and loggers.
 HayesFilter uart_hayes(scheduler, 0);
 HayesFilter cdc_hayes(scheduler, 1);
-// -- Experimental MNP Filter
 MNPFilter mnp_filter(scheduler);
 
-// -- Instantiate pipes to connect everything.
+// Pipes to connect everything.
 MNPThrottle mnp_throttle(scheduler);
 BufferedPipe buffer_to_cdc(scheduler);
 BufferedPipe buffer_to_uart(scheduler);
 
-
-void nsof_test();
 
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
@@ -163,16 +144,9 @@ int main(int argc, char *argv[])
     stdio_uart_init_full(uart1, 115200, 8, 9);
     Log.log("Starting Newton Dongle...\n");
 
-    //test_sd_card();
-    //nsof_test();
-
     // user_settings.mess_up_flash();
     user_settings.read();
     scheduler.signal_all( Event {Event::Type::SIGNAL, Event::Subtype::USER_SETTINGS_CHANGED} );
-
-
-    //Log.log("Starting...\n");
-    //test_sd_card();
 
     // -- Connect the Endpoints inside the dongle with pipes.
     // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC

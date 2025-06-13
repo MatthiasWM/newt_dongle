@@ -13,8 +13,6 @@ target_sources(newt_dongle
         PicoUARTEndpoint.h
         PicoScheduler.cpp
         PicoScheduler.h
-        PicoStdioLog.cpp
-        PicoStdioLog.h
         PicoSDCard.cpp
         PicoSDCard.h
         PicoStatusDisplay.cpp

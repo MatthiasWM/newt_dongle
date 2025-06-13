@@ -6,6 +6,12 @@
 #ifndef ND_PICO_SD_CARD_H
 #define ND_PICO_SD_CARD_H
 
+// We are using FatFS to implement SD Card access:
+// https://elm-chan.org/fsw/ff/00index_e.html
+
+// This is the particular implementation for the RP2040:
+// https://github.com/carlk3/no-OS-FatFS-SD-SPI-RPi-Pico.git
+
 extern void test_sd_card();
 
 #include "common/Endpoints/SDCardEndpoint.h"

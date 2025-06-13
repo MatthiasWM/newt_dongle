@@ -31,14 +31,17 @@ FetchContent_Declare(
         fatfs_spi
         GIT_REPOSITORY https://github.com/carlk3/no-OS-FatFS-SD-SPI-RPi-Pico.git
         GIT_TAG        bbccc5d2deea09e128e2576ef35f72b473c5ba5f
-        PATCH_COMMAND sed -i.bak s/FF_USE_LABEL.\*0/FF_USE_LABEL\ 1/ FatFs_SPI/ff15/source/ffconf.h
-        # FF_FS_READONLY 1
-        # FF_USE_STRFUNC 0
-        # FF_PRINT_FLOAT 0
-        # FF_USE_LFN 1
-        # FF_LFN_UNICODE 2 for UTF-8 (Newton is UTF-16!)
-        # FF_FS_RPATH 1
-        # FF_FS_TIMEOUT ??
+        PATCH_COMMAND 
+                sed -i.bak 
+                        -e "s/FF_USE_LABEL.\*0/FF_USE_LABEL\ 1/"
+                        -e "s/FF_FS_READONLY.\*0/FF_FS_READONLY\ 1/" 
+                        -e "s/FF_USE_FIND.\*1/FF_USE_FIND\ 0/"
+                        -e "s/FF_USE_STRFUNC.\*1/FF_USE_STRFUNC\ 0/"
+                        -e "s/FF_LFN_UNICODE.\*2/FF_LFN_UNICODE\ 1/"
+                        -e "s/FF_FS_LOCK.\*[0..9]\*/FF_FS_LOCK\ 0/"
+                        -e "s+.*/src/ff_stdio\.c+#+"
+                                "FatFs_SPI/ff15/source/ffconf.h"
+                                "FatFs_SPI/CMakeLists.txt"
         UPDATE_DISCONNECTED 1
 )
 
@@ -74,7 +77,7 @@ add_executable(newt_dongle
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")
-pico_set_program_version(newt_dongle "0.0.4")
+pico_set_program_version(newt_dongle "0.5")
 
 # Modify the below lines to enable/disable output over UART/USB
 target_compile_definitions(newt_dongle PRIVATE

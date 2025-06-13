@@ -406,16 +406,16 @@ Result NewtToDockPipe::send(Event event) {
         case InState::WAIT_FOR_HDR_TYPE:
 			in_frame_->header.push_back(c);
 			if (c == kMNP_Frame_LR) {
-				if (kLogMNFlow) Log.log("(LR) ");
+				if (kLogMNPFlow) Log.log("(LR) ");
 				in_state_ = InState::WAIT_FOR_HDR_DATA;
 			} else if (c == kMNP_Frame_LD) {
-				if (kLogMNFlow) Log.log("(LD) ");
+				if (kLogMNPFlow) Log.log("(LD) ");
 				in_state_ = InState::WAIT_FOR_HDR_DATA;
 			} else if (c == kMNP_Frame_LT) {
-				if (kLogMNFlow) Log.log("(LT) ");
+				if (kLogMNPFlow) Log.log("(LT) ");
 				in_state_ = InState::WAIT_FOR_HDR_DATA;
 			} else if (c == kMNP_Frame_LA) {
-				if (kLogMNFlow) Log.log("(LA) ");
+				if (kLogMNPFlow) Log.log("(LA) ");
 				in_state_ = InState::WAIT_FOR_HDR_DATA;
 			} else {
 				if (kLogMNPErrors) Log.logf("\r\nMNP ERROR: unsupported frame type %d.\r\n", c);
@@ -983,7 +983,7 @@ Result MNPFilter::task() {
  * \brief Not used.
  */
 Result MNPFilter::send(Event event) {
-    Log.log("ERROR: MNPFilter::send() not implemented. Send to `newt` or `dock` pipe instead!\r\n");
+    if (kLogMNPErrors) Log.log("ERROR: MNPFilter::send() not implemented. Send to `newt` or `dock` pipe instead!\r\n");
     return Result::OK__NOT_CONNECTED;
 }
 

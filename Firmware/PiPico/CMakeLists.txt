@@ -77,7 +77,7 @@ add_executable(newt_dongle
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")
-pico_set_program_version(newt_dongle "0.0.4")
+pico_set_program_version(newt_dongle "0.6a")
 
 # no_flash means the target is to run from RAM
 pico_set_binary_type(newt_dongle no_flash)

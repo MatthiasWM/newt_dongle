@@ -9,9 +9,9 @@
 #include "common/Pipe.h"
 #include "common/Scheduler.h"
 
-#include "hardware/uart.h"
-#include "pico/stdlib.h"
-#include "pico/time.h"
+#include <hardware/uart.h>
+#include <pico/stdlib.h>
+#include <pico/time.h>
 
 #include <stdio.h>
 

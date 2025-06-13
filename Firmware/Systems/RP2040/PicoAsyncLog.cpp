@@ -7,8 +7,8 @@
 
 #include "main.h"
 
-#include "pico/multicore.h"
-#include "pico/stdlib.h"
+#include <pico/multicore.h>
+#include <pico/stdlib.h>
 #include <pico/flash.h>
 #include <stdio.h>
 

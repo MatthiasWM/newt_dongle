@@ -22,120 +22,84 @@
   SOFTWARE.
 */
 
-// -- Minimal setup for the Newton Dongle.
-//  UART ---> BufferPipe ----> CDC
-//  UART <--- BufferPipe <---- CDC
+/*
+ Use this project to create ROM Images for the NewtCOM Dongle.
 
-// TODO: add three way switch and SDCard access
-// // https://www.makermatrix.com/blog/read-and-write-data-with-the-pi-pico-onboard-flash/
-// XIP_BASE # The base address of the flash memory
-// PICO_FLASH_SIZE_BYTES # The total size of the RP2040 flash, in bytes
-// FLASH_SECTOR_SIZE     # The size of one sector, in bytes (the minimum amount you can erase)
-// FLASH_PAGE_SIZE       # The size of one page, in bytes (the mimimum amount you can write)
-// extern "C" {
-//   #include <hardware/flash.h>
-// };
-// flash_range_erase(uint32_t flash_offs, size_t count);
-// flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
-//
-//  __flash_binary_end (which is a memory address, not an offset in flash)
-//
-// https://www.raspberrypi.com/documentation/pico-sdk/runtime.html#group_pico_standard_binary_info
-//
-// 264kB RAM
-// pico_cmake_set_default PICO_FLASH_SIZE_BYTES = (2 * 1024 * 1024)
-//
-// read the BOOT button: https://github.com/raspberrypi/pico-examples/blob/master/picoboard/button/button.c
-
-//
-// https://community.element14.com/products/raspberry-pi/b/blog/posts/raspberry-pico-c-sdk-reserve-a-flash-memory-block-for-persistent-storage
-// pico_set_linker_script("pico/pico_standard_link.ld")
+ This is Version 0.5. It has the following features:
+  - Connects the UART to the CDC endpoint.
+  - Hayes filter on both ends to allow Modem commands
+  - Throttle MNP Packages from CDC to UART
+  - Save settings in Flash RAM
+  - Status Display to show the current status of the system.
+ */
 
 #include "main.h"
 
-#include "PicoStdioLog.h"
 #include "PicoAsyncLog.h"
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "PicoScheduler.h"
-#include "PicoSDCard.h"
 #include "PicoSystem.h"
 
 #include "common/Endpoints/StdioLog.h"
-#include "common/Endpoints/TestEventGenerator.h"
 #include "common/Filters/HayesFilter.h"
 #include "common/Pipes/BufferedPipe.h"
 #include "common/Pipes/MNPThrottle.h"
 #include "common/Pipes/Tee.h"
 
 
-#include "pico/stdlib.h"
+#include <pico/stdlib.h>
 
 #include <stdio.h>
 
 
 using namespace nd;
 
+// Saves setting into Flash Memory.
 PicoUserSettings user_settings;
+
+// Log to debugging probe on uart1.
 PicoAsyncLog Log(0);
 
-// -- The scheduler spins while the dongle is powered and delivers time slices to its spokes.
+// Distributes times slices to all tasks.
 PicoScheduler scheduler;
+
+// One task to manage the overall system.
 PicoSystemTask system_task(scheduler);
 
-// -- Instantiate all the endpoints we need.
+// Task that updates the status display.
+PicoStatusDisplay app_status(scheduler);
+
+// Data Endpoints.
 PicoUARTEndpoint uart_endpoint { scheduler };
 PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
-PicoSDCardEndpoint sdcard_endpoint { scheduler };
+PicoSDCardEndpoint sdcard_endpoint { scheduler }; // Not yet used.
 
-// -- Instantiate filters and loggers.
+// Filters and loggers.
 HayesFilter uart_hayes(scheduler, 0);
 HayesFilter cdc_hayes(scheduler, 1);
 
-// -- Instantiate pipes to connect everything.
+// Pipes to connect everything.
 MNPThrottle mnp_throttle(scheduler);
 BufferedPipe buffer_to_cdc(scheduler);
 BufferedPipe buffer_to_uart(scheduler);
 
+
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
-    stdio_uart_init_full(uart1, 115200, 8, 9);
+    sdcard_endpoint.early_init(); // Initialize the GPIOs for the SD card
+    app_status.early_init(); // Initialize the status display
 
+    stdio_uart_init_full(uart1, 115200, 8, 9);
+    
     // user_settings.mess_up_flash();
     user_settings.read();
     scheduler.signal_all( Event {Event::Type::SIGNAL, Event::Subtype::USER_SETTINGS_CHANGED} );
 
-    // Set the LED to yellow for now (0=on, 1=off).
-    gpio_init(17); // User LED red
-    gpio_put(17, 0);
-    gpio_set_dir(17, GPIO_OUT);
-
-    gpio_init(16); // User LED green
-    gpio_put(16, 0);
-    gpio_set_dir(16, GPIO_OUT);
-
-    gpio_init(25); // User LED red
-    gpio_put(25, 1);
-    gpio_set_dir(25, GPIO_OUT);
-
-
-    //Log.log("Starting...\n");
-    //test_sd_card();
-
     // -- Connect the Endpoints inside the dongle with pipes.
     // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
-    
-    // -- Goal:
-    // UART ---------------> UART_Hayes --------------------> Matrix ---> CDC Hayes ---> buffer ---> CDC
-    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Matrix <--- CDC Hayes <--------------- CDC
-    //                                                          ↑↓
-    //                                                       MNP/V.24
-    //                                                          ↑↓
-    //                                                         Dock    
-    //                                                          ↑↓
-    //                                                        SDCard    
 
     // Connect the UART to USB
     /**/  uart_endpoint >> uart_hayes.downstream; 

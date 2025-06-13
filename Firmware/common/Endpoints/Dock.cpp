@@ -165,7 +165,7 @@ Result Dock::send(Event event) {
 				if (c == 'n') {
 					in_stream_state_++; 
 				} else {
-					Log.logf("\r\nERROR: Dock::send: State out of sync!\r\n", cmd_, size);
+					if (kLogDock) Log.logf("\r\nERROR: Dock::send: State out of sync!\r\n", cmd_, size);
 				}
 				break; // 'n'
 			case  1: if (c == 'e') in_stream_state_++; else in_stream_state_ = 0; break; // 'e'
@@ -756,11 +756,11 @@ void Dock::send_cmd_path() {
 	//
 	//path.add(Ref(folder));
 
-	Ref(path).logln();
+	if (kLogDock) Ref(path).logln();
 
 	NSOF nsof;
 	nsof.to_nsof(path);
-	nsof.log();
+	if (kLogDock) nsof.log();
 
 	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
 	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
@@ -838,11 +838,11 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 	}
 	sdcard_endpoint.closedir();
 
-	Ref(file_list).logln();
+	if (kLogDock) Ref(file_list).logln();
 
 	NSOF nsof;
 	nsof.to_nsof(file_list);
-	//nsof.log();
+	//if (kLogDock) nsof.log();
 
 	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
 	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
@@ -1298,7 +1298,7 @@ FRESULT f_close (
 		.end_frame_ = true, // we want to end with an end frame marker
 		.free_after_send_ = false, // we don't want to free the data after sending
 	});
-	Log.logf("\r\n---------- %d ---------\r\n", cmd.size());
+	if (kLogDock) Log.logf("\r\n---------- %d ---------\r\n", cmd.size());
 #endif
 }
 

@@ -27,13 +27,17 @@ same firmware directly for the RP2040 based dongle.
  - [x] Test with script
  - [x] Clean up Workspace
  - [ ] Rename `send()` to `relay()` to make it clearer what the function does?
- - [ ] UserInterface class to control LEDs and listen to buttons
+ - [x] UserInterface class to control LEDs and listen to buttons
  - [ ] Optional firmware to reset Flash memory? Or any other way to reset it?
- - [ ] MNP Filter that extracts Dock commands and data (takes care of negotiation, blocks, replies, checksums, resends)
+ - [x] MNP Filter that extracts Dock commands and data (takes care of 
+       negotiation, blocks, replies, checksums, resends)
  - [ ] Matrix, a filter that routes data between multiple sockets
- - [ ] Dock, a filter that understands and handles Newton Dock commands
+ - [x] Dock, a filter that understands and handles Newton Dock commands
+    - [x] Rough first implementation
+    - [ ] Functional Reset for multiple connections
+    - [ ] Full Error handling an documentation
  - [ ] Async class for all things that take more time than we have in a slice
-    - [ ] Async log: logging via debugging serial port or to SD Card
+    - [x] Async log: logging via debugging serial port or to SD Card
     - [ ] Async SD Card data and directory reading
  - [ ] Fill in missing documentation
  - [ ] Pipe could be able to handle block data in addition streaming data
@@ -41,31 +45,25 @@ same firmware directly for the RP2040 based dongle.
 
  ## Notes
 
- - In `CMakeLists.txt`, we set `pico_set_binary_type(newt_dongle no_flash)`. 
-    Delete this line to permanetly flash devices.
- - Set HSKO to 29 on XIAO, and to 22 on PiPico)
- - Apply for a USB Vendor ID: https://github.com/raspberrypi/usb-pid
+ - In `CMakeLists.txt`, we set `pico_set_binary_type(newt_dongle no_flash)`.
+   This is to keep wear on the Flash low and to make debugging iterations fast.
+ - Do we need to apply for a USB Vendor ID: https://github.com/raspberrypi/usb-pid ?
  - Change USB Port name: https://sourcevu.sysprogs.com/rp2040/picosdk/files/src/rp2_common/pico_stdio_usb/stdio_usb_descriptors.c#tok356
- - `#if defined(PICO_RP2040) ...`
 
- ## Hardware
+## Hardware
 
- The pack is built with 10.5mm long pin headers, giving a top-bottom distance
- of 9.1 to 9.5mm. The overall hight is 12.5mm without USB and 13.9mm with USB
- connector. 
- 
- Tip of the plug to front edge of PCBs is 10.4mm. Length over all is 31mm and
- 32.5mm including the USB port.
-
- Width is 17.8mm. 
-
- The original dongle is 21.4 to 24.7mm wide, 20mm tall, and 39.4mm long 
- with Interconnect and 32,4mm without.
+The Developer Board is built around a PiPico board on a Breadboard with flying 
+wires/ It features the Newton port and inverter, the SDCard socket, and the 
+RGB LED of the XIAO board. The second LED is not supported. The BOOT button
+is missing, and we don't care about the DC/DC inverter here.
 
 ## Staus Report
 
 The dongle can pipe data from the serial port to the USB port and back reliably
-at 115200. Various test were done with NCX and BasiliskII and Inspector. 
+at 115200. Various test were done with NCX and BasiliskII and Inspector.
+
+The DOck is implemented in a very rough way, but does allow browsing of the 
+SDCard and installing ppackages.
 
 ### Timing
 
