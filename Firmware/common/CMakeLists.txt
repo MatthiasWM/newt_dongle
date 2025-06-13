@@ -40,6 +40,8 @@ target_sources(${APP} PRIVATE
         Filters/MNPFilter.cpp
         Filters/MNPFilter.h
 
+        Newton/DESKey.cpp
+        Newton/DESKey.h
         Newton/NSOF.cpp
         Newton/NSOF.h
 

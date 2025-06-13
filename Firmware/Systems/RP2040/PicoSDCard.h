@@ -57,6 +57,8 @@ public:
     uint32_t closefile() override;
 
     uint32_t chdir(const std::u16string &path) override;
+    uint32_t getcwd(std::u16string &path) override;
+
 };
 
 } // namespace nd

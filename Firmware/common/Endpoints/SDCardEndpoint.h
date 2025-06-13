@@ -35,6 +35,7 @@ public:
     virtual uint32_t closefile() = 0;
 
     virtual uint32_t chdir(const std::u16string &path) = 0;
+    virtual uint32_t getcwd(std::u16string &path) = 0; 
 };
 
 } // namespace nd

@@ -37,6 +37,8 @@ constexpr bool kLogMNPWarnings = false;
 constexpr bool kLogMNPState = false;
 constexpr bool kLogMNPFlow = false;
 constexpr bool kLogDock = false;
+constexpr bool kLogDockProtocol = false;
+constexpr bool kLogDockErrors = false;
 constexpr bool kLogNSOF = false;
 
 // PiPico developer board settings

@@ -30,14 +30,17 @@ constexpr bool kDebugFlash = false;
 
 // Log settings
 constexpr bool kLogTime = false;
-constexpr bool kLogUART = true;
-constexpr bool kLogCDC = true;
+constexpr bool kLogUART = false;
+constexpr bool kLogCDC = false;
 constexpr bool kLogMNPErrors = true;
 constexpr bool kLogMNPWarnings = false;
 constexpr bool kLogMNPState = false;
 constexpr bool kLogMNPFlow = false;
-constexpr bool kLogDock = true;
-constexpr bool kLogNSOF = true;
+constexpr bool kLogDock = false;
+constexpr bool kLogDockProgress = true;
+constexpr bool kLogDockErrors = true;
+constexpr bool kLogNSOF = false;
+constexpr bool kLogSDCard = false;
 
 // PiPico developer board settings
 

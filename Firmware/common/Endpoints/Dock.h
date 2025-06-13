@@ -121,9 +121,11 @@ class Dock : public Endpoint
     uint32_t pkg_crsr_ = 0; // current offset in the package
     std::u16string pkg_filename_; // filename of the package to be loaded
 
+    void reset_();
+
 public:
     Dock(Scheduler &scheduler) : Endpoint(scheduler) { 
-        in_data_.reserve(400); // reserve space for incoming data
+        reset_();
     }
     ~Dock() override = default;
     Dock(const Dock&) = delete;

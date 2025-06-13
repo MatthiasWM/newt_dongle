@@ -579,6 +579,6 @@ Ref NSOF::to_ref(int32_t &error_code) {
     }
     precedent_.clear(); // Clear precedent list for this conversion
     Ref ref = to_ref_(error_code);
-    ref.logln();
+    if (kLogNSOF) ref.logln();
     return ref;
 }
