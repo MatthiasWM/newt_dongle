@@ -117,6 +117,12 @@ extern const Symbol symName;
 extern const Symbol symType;
 extern const Symbol symDiskType;
 extern const Symbol symWhichVol;
+extern const Symbol symKind;
+extern const Symbol symSize;
+extern const Symbol symCreated;
+extern const Symbol symModified;
+extern const Symbol symPath;
+extern const Symbol symIcon;
 extern const Symbol symUnknown;
 
 class String : public Object {

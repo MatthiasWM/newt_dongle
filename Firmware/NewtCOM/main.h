@@ -26,6 +26,7 @@ constexpr bool kDebugHayes = false;
 constexpr bool kDebugMNPThrottle = false;
 constexpr bool kDebugCDC = false;
 constexpr bool kDebugFlash = false;
+#define ND_DEBUG_DOCK 0
 
 // Log settings
 constexpr bool kLogTime = false;

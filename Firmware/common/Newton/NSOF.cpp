@@ -16,6 +16,12 @@ const Symbol nd::symType { "type" };
 const Symbol nd::symDiskType { "diskType" };
 const Symbol nd::symWhichVol { "whichvol" };
 const Symbol nd::symUnknown { "unknown" };
+const Symbol nd::symKind { "kind" };
+const Symbol nd::symSize { "size" };
+const Symbol nd::symCreated { "created" };
+const Symbol nd::symModified { "modified" };
+const Symbol nd::symPath { "path" };
+const Symbol nd::symIcon { "icon" };
 
 
 Ref::Ref(const Ref &other) : type_(other.type_) {

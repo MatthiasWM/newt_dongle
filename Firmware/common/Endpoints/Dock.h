@@ -70,6 +70,10 @@ class Dock : public Endpoint
     constexpr static uint32_t kDOpCanceledAck = ND_FOURCC('o', 'c', 'a', 'a'); // Dock <-> Newt
     void send_cmd_ocaa();
 
+    constexpr static uint32_t kDGetFileInfo = ND_FOURCC('g', 'f', 'i', 'n'); // Dock <- Newt
+    constexpr static uint32_t kDFileInfo = ND_FOURCC('f', 'i', 'n', 'f'); // Dock -> Newt
+    void handle_GetFileInfo();
+
     void handle_SetPath();
     void handle_LoadPackageFile();
     void send_package_task();
@@ -103,6 +107,7 @@ class Dock : public Endpoint
     uint32_t newt_challenge_lo = 0;
 
     bool package_sent = false;
+    bool path_is_desktop_ = false;
 
     enum class Task {
         NONE = 0,

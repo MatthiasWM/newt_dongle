@@ -51,12 +51,12 @@ public:
     uint32_t readdir(std::u16string &name) override;
     uint32_t closedir() override;
 
-    uint32_t openfile(std::u16string &name) override;
+    uint32_t openfile(const std::u16string &name) override;
     uint32_t filesize() override;
     uint32_t readfile(uint8_t *buffer, uint32_t size) override;
     uint32_t closefile() override;
 
-    uint32_t chdir(std::u16string &path) override;
+    uint32_t chdir(const std::u16string &path) override;
 };
 
 } // namespace nd

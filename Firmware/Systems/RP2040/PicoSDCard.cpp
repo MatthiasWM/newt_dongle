@@ -379,7 +379,7 @@ uint32_t PicoSDCardEndpoint::closedir() {
     return FR_OK;
 }   
 
-uint32_t PicoSDCardEndpoint::chdir(std::u16string &path)
+uint32_t PicoSDCardEndpoint::chdir(const std::u16string &path)
 {
     if (!mounted_) {
         uint32_t err = mount_();
@@ -397,7 +397,7 @@ uint32_t PicoSDCardEndpoint::chdir(std::u16string &path)
     return FR_OK;
 }
 
-uint32_t PicoSDCardEndpoint::openfile(std::u16string &name)
+uint32_t PicoSDCardEndpoint::openfile(const std::u16string &name)
 {
     app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
     FRESULT fr = f_open(&file_, (const TCHAR*)name.data(), FA_READ|FA_OPEN_EXISTING);
