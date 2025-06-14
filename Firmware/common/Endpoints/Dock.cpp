@@ -89,7 +89,7 @@ using namespace nd;
  * \note The docking handshake and protocol is described elsewhere.
  */
 
-void Dock::reset_()
+void Dock::clear_data_queue_()
 {
     while (!data_queue_.empty()) {
 		Data &data = data_queue_.front();
@@ -99,6 +99,11 @@ void Dock::reset_()
 		}
 		data_queue_.pop();
 	}
+}
+
+void Dock::reset_()
+{
+	clear_data_queue_();
     in_data_.clear();
 	in_data_.reserve(400);
     size = 0;
@@ -117,6 +122,7 @@ void Dock::reset_()
     pkg_size_aligned_ = 0; // size of the package to be loaded, aligned to 4 bytes
     pkg_crsr_ = 0; // current offset in the package
     pkg_filename_.clear(); // filename of the package to be loaded
+	cwd_ = u"/";
 }
 
 
@@ -169,7 +175,9 @@ Result Dock::task() {
 		switch (current_task_) {
 			case Task::SEND_PACKAGE:
 			case Task::CONTINUE_SEND_PACKAGE:
+			case Task::CANCEL_SEND_PACKAGE:
 			case Task::PACKAGE_SENT:
+			case Task::PACKAGE_CANCELED:
 				send_package_task();
 				break;
 			default:
@@ -185,11 +193,13 @@ Result Dock::send(Event event)
 		switch (event.subtype()) {
 			case Event::Subtype::MNP_CONNECTED: // data() is index in out_pool
 				if (kLogDockProgress) Log.log("Dock::send: MNP_CONNECTED\r\n");
+				app_status.set(AppStatus::DOCK_CONNECTED);
 				connected_ = true;
 				break;
 			case Event::Subtype::MNP_DISCONNECTED: // data() is index in out_pool
 				if (kLogDockProgress) Log.log("Dock::send: MNP_DISCONNECTED\r\n");
 				reset_();
+				app_status.set(AppStatus::IDLE);
 				connected_ = false;
 				break;
 			case Event::Subtype::MNP_FRAME_START: // data() is index in out_pool
@@ -198,12 +208,15 @@ Result Dock::send(Event event)
 			case Event::Subtype::MNP_FRAME_END: // data() is index in out_pool
 				if (kLogDock) Log.log("Dock::send: MNP_FRAME_END\r\n");
 				break;
+			case Event::Subtype::MNP_NEGOTIATING:
+				if (kLogDock) Log.log("Dock::send: MNP_NEGOTIATING\r\n");
+				break;
 			default:
 				if (kLogDockErrors) Log.logf("Dock::send: MNP event %d\r\n", static_cast<int>(event.subtype()));
 				break;
 		}
 	} else if (event.type() == Event::Type::DATA) {
-		//if (kLogDock) Log.logf("#%02x ", event.data());
+		// if (kLogDock) Log.logf("#%02x ", event.data());
 		uint8_t c = event.data();
 		switch (in_stream_state_) {
 			case  0: 
@@ -321,18 +334,19 @@ void Dock::process_command()
 			break;
 		case kDOperationCanceled:
 			if (kLogDockProgress) Log.log("Dock::process_command: kDOperationCanceled\r\n");
-			// if (current_task_ == Task::SEND_PACKAGE || current_task_ == Task::CONTINUE_SEND_PACKAGE) {
-			// 	current_task_ = Task::NONE; // stop sending the package
-			// 	pkg_size_ = 0; // reset package size
-			// 	pkg_size_aligned_ = 0; // reset aligned package size
-			// 	pkg_crsr_ = 0; // reset package cursor
-			// 	pkg_filename_.clear(); // reset package filename
-			// }
-			send_cmd_ocaa(); // Confirm operation canceled
+			if (current_task_ == Task::CONTINUE_SEND_PACKAGE) {
+				if (kLogDockProgress) Log.log("Dock::process_command: Mode = PACKAGE_CANCELED\r\n");
+				current_task_ = Task::CANCEL_SEND_PACKAGE; // stop sending the package
+			} else {
+				send_cmd_ocaa(); // Confirm operation canceled
+			}
 			break;
 		case kDHello:
 			if (kLogDockProgress) Log.log("Dock::process_command: kDHello\r\n");
 			// Don't do anything. Receiving the MNP LA Frame seems to be enough for the Newton.
+			break;
+		case kDDisconnect: // `disc`
+			if (kLogDockProgress) Log.log("Dock::process_command: kDDisconnect\r\n");
 			break;
 		default:
 			if (kLogDockErrors) Log.logf("Dock::process_command: Unknown command '%s' (%08x)\r\n", cmd_, cmd);
@@ -496,50 +510,49 @@ void Dock::send_cmd_wicn(uint32_t icon_map) {
 
 }
 
-void Dock::send_cmd_path() {
-	if (kLogDockProgress) Log.log("Dock: send_cmd_path\r\n");
-
-	// TODO: this send always the default initial path: `/Desktop/SD_Card/`
-	// This is called after downloading a package and reconnecting and
-	// should return the previous path.
+void Dock::send_cmd_path() 
+{
 	static const std::vector<uint8_t> cmd_header = {
 		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
 		 'p',  'a',  't',  'h', 0x00, 0x00, 0x00, 0x00,
 	};
+
+	if (kLogDockProgress) Log.log("Dock: send_cmd_path\r\n");
 	
 	// NSOF path as an array of folder frames:
 
-	String desktop_name( u"NewtCOM" );
-	std::u16string sd_label = sdcard_endpoint.get_label();
-	if (sd_label.empty()) {
-		sd_label = u"SD Card"; // Default label if not set
-	}
-	String disk_name( sd_label ); // TODO: we can retrieve the name from the SD card
-
 	Frame desktop;
+	String desktop_name( u"NewtCOM" );
 	desktop.add(nd::symName, Ref(desktop_name));
 	desktop.add(nd::symType, Ref(kDesktop));
 
-	Frame disk;
-	disk.add(nd::symName, Ref(disk_name));
-	disk.add(nd::symType, Ref(kDesktopDisk));
-
 	Array path;
 	path.add(Ref(desktop));
-	path.add(Ref(disk));
 
-	std::u16string cwd;
-	uint32_t err = sdcard_endpoint.getcwd(cwd);
-	if (err) {
-		if (kLogDockErrors) Log.logf("Dock: handle_SetPath: getcwd failed (%s)\r\n", sdcard_endpoint.strerr(err));
-		// Continue anyway
+	if (!path_is_desktop_) {
+		std::u16string sd_label = sdcard_endpoint.get_label();
+		if (sd_label.empty()) {
+			sd_label = u"SD Card"; // Default label if not set
+		}
+		String *disk_name = String::New(sd_label);
+		Frame *disk = Frame::New();
+		disk->add(nd::symName, Ref(disk_name));
+		disk->add(nd::symType, Ref(kDesktopDisk));
+		path.add(Ref(disk));
+
+		for (auto it = cwd_.begin(); it != cwd_.end(); ) {
+			if (*it == '/') { ++it; continue; } // skip slashes
+			std::u16string folder_name;
+			while (it != cwd_.end() && *it != '/') {
+				folder_name += *it;
+				++it;
+			}
+			Frame *folder = Frame::New();
+			folder->add(nd::symName, Ref(String::New(folder_name)));
+			folder->add(nd::symType, Ref(kDesktopFolder));
+			path.add(Ref(folder));
+		}
 	}
-	Ref p(String::New(cwd));
-	Log.log("---\r\n");
-	p.logln();
-	Log.log("---\r\n");
-	// TODO: this returns "0:/", but no further path information.
-	// unmounting the drive clears the current working directory
 
 	NSOF nsof;
 	nsof.to_nsof(path);
@@ -708,7 +721,7 @@ void Dock::handle_SetPath()
 		send_cmd_dres(error_code);
 		return;
 	}
-	std::u16string path;
+	cwd_.clear();
 	Array *arr = path_ref.as_array();
 	if (!arr) {
 		if (kLogDockErrors) Log.log("Dock: handle_SetPath: reply is not an Array\r\n");
@@ -723,6 +736,7 @@ void Dock::handle_SetPath()
 	}
 	if (n == 1) {
 		path_is_desktop_ = true;
+		cwd_ = u"/";
 	} else {
 		path_is_desktop_ = false;
 		for (int i = 2; i < n; ++i) {
@@ -732,12 +746,12 @@ void Dock::handle_SetPath()
 				send_cmd_dres(-48401); // Expected a string
 				return;
 			}
-			path.push_back('/');
-			path.append(name->str());
+			cwd_.push_back('/');
+			cwd_.append(name->str());
 		}
 	}
-	if (path.empty()) path.push_back('/');
-	sdcard_endpoint.chdir(path);
+	if (cwd_.empty()) cwd_.push_back('/');
+	sdcard_endpoint.chdir(cwd_);
 
 	send_cmd_file();
 }
@@ -894,7 +908,7 @@ void Dock::send_package_task()
 			.free_after_send_ = false, // we don't want to free the data after sending
 		});
 		current_task_ = Task::CONTINUE_SEND_PACKAGE;
-	} else if (current_task_ == Task::CONTINUE_SEND_PACKAGE) {
+	} else if (current_task_ == Task::CONTINUE_SEND_PACKAGE || current_task_ == Task::CANCEL_SEND_PACKAGE) {
 		if (kLogDockProgress) Log.log("Dock: continue SEND_PACKAGE\r\n");
 		uint32_t read_size = pkg_size_ - pkg_crsr_;
 		if (read_size > 512) {
@@ -906,6 +920,7 @@ void Dock::send_package_task()
 		if (last_package) {
 			package_size += (pkg_size_aligned_ - pkg_size_); // add padding to align to 4 bytes
 		}
+		if (current_task_ == Task::CANCEL_SEND_PACKAGE) last_package = true; // we want to cancel the package
 		if (kLogDock) Log.logf("Dock: send_package_task: read_size = %d, pkg_crsr_ = %d, pkg_size_ = %d\r\n", read_size, pkg_crsr_, pkg_size_);
 		auto data = new std::vector<uint8_t>(package_size); 
 		uint32_t bytes_read = sdcard_endpoint.readfile(data->data(), read_size);
@@ -920,13 +935,97 @@ void Dock::send_package_task()
 			.free_after_send_ = true, // we don't want to free the data after sending
 		});
 		if (last_package) {
-			current_task_ = Task::PACKAGE_SENT; // we are done sending the package
+			if (current_task_ == Task::CANCEL_SEND_PACKAGE) {
+				current_task_ = Task::PACKAGE_CANCELED;
+			} else {
+				current_task_ = Task::PACKAGE_SENT; // we are done sending the package
+			}
 		}
-	} else if (current_task_ == Task::PACKAGE_SENT) {
+	} else if (current_task_ == Task::PACKAGE_SENT || current_task_ == Task::PACKAGE_CANCELED) {
 		// clean up
 		if (kLogDockProgress) Log.log("Dock: PACKAGE_SENT\r\n");
 		sdcard_endpoint.closefile();
+		if (current_task_ == Task::PACKAGE_CANCELED) {
+			send_cmd_ocaa();
+		}
 		current_task_ = Task::NONE;
 	}
 }
 
+/* Tapping [X] while the package is sent from the desktop to the Newton:
+
+D[128,2480]>16. >10. >02. >03. >05. >1F. >01. >10. >03. >344 >9B. 
+<16. <10. <02. 
+<02. <04. <20  <00. <00. <00. <00. <00. <00. <01. <00. <00. <00. <00. <00. <00.
+<00. <0C. <00. <04. <01. <68h <00. <00. <00. <56V <00. <40@ <00. <05. <00. <16. 
+<00. <7F. <00. <A5. <00. <AC. <00. <B1. <00. <B8. <00. <BB. <00. <CF. <00. <D6. 
+<00. <DC. <00. <EF. <00. <FC. <00. <FF. <01. <311 <01. <53S <01. <78x <01. <92. 
+<02. <C7. <02. <DD. <03. <C0. <20  <14. <20  <1A. <20  <1E. <20  <22" <20  <26& 
+<20  <300 <20  <3A: <20  <44D <21! <22" <21! <26& <22" <02. <22" <06. <22" <0F. 
+<22" <11. <22" <1A. <22" 
+	>16. 
+<1E. 
+	>10. 
+<22" 
+	>02. 
+<2B+ 
+	>02. 
+<22" 
+	>04. 
+<48H 
+	>0B. 
+<22" <60` <22" <65e <25% <CA. 
+	>6En 
+<F7. 
+	>65e 
+<FF. 
+	>77w 
+<FB. 
+	>74t 
+<02. 
+	>64d 
+<FF. 
+	>6Fo 
+<FF. 
+	>63c 
+<00. 
+	>6Bk 
+<00. 
+	>6Fo 
+<00. 
+	>70p 
+<01. 
+	>63c 
+<00. 
+	>61a 
+<A0. 
+	>00. 
+<00. 
+	>00. 
+<A7. 
+	>00. 
+<00. 
+	>00. 
+<AE. <00. <B4. <00. <BA. <00. <BF. <00. <D1. <00. <D8. <00. <DF. <00. <F1. <00. 
+<FF. <01. <311 <01. <52R <01. <78x <01. <92. <02. <C6. <02. <D8. <03. <C0. <20  
+<13. <20  <18. <20  <1C. <20  <20  <20  <26& <20  <300 <20  <399 <20  <44D <21! 
+<22" <21! <26& <22" <02. <22" <06. <22" <0F. <22" <11. <22" <1A. <22" <1E. <22" 
+<2B+ 
+	>10. 
+<22" 
+	>03. 
+<48H 
+	>73s 
+<22" 
+	>AE. 
+ERROR: Dock::send: State out of sync!
+
+ERROR: Dock::send: State out of sync!
+<60` 
+ERROR: Dock::send: State out of sync!
+
+ERROR: Dock::send: State out of sync!
+
+ERROR: Dock::send: State out of sync!
+
+*/

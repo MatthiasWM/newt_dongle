@@ -49,7 +49,7 @@ public:
     bool crc_valid = false;
     bool in_use = false;
 
-    MNPFrame(MNPFilter &filter);
+    MNPFrame(MNPFilter &filter, uint8_t index);
     void clear();
     uint8_t type();
     uint16_t calculate_crc();
@@ -93,6 +93,8 @@ public:
     NewtToDockPipe(MNPFilter &filter) : filter_(filter) { }
     void task();
     Result send(Event event) override;
+	// TODO: rush()
+	// TODO: rush_back()
     void add_job(Event event) { job_list_.push(event); }
 };
 
@@ -136,6 +138,8 @@ public:
     DockToNewtPipe(MNPFilter &filter) : filter_(filter) { }
     void task();
     Result send(Event event) override;
+	// TODO: rush()
+	// TODO: rush_back()
     void add_job(Event event);
 };
 
@@ -148,11 +152,11 @@ public:
  * All frames are held in a small pool inside MNPFilter.
  * \param filter The MNPFilter that owns this frame.
  */
-MNPFrame::MNPFrame(MNPFilter &filter)
-: filter_(filter)
+MNPFrame::MNPFrame(MNPFilter &filter, uint8_t index)
+: filter_(filter), pool_index(index)
 {
 	header.reserve(256);
-	data.reserve(1024);     // TODO: maybe 256 is enough?
+	data.reserve(512);     // TODO: maybe 256 is enough?
 }
 
 /**
@@ -286,10 +290,7 @@ void NewtToDockPipe::start_next_job()
     if (out_frame_ || job_list_.empty()) return;
 
     Event event = job_list_.front();
-    if (event.type() != Event::Type::MNP) {
-        if (kLogMNPErrors) Log.log("NewtToDockPipe::start_next_job: dock job type not MNP\r\n");
-        job_list_.pop();
-    } else {
+    if (event.type() == Event::Type::MNP) {
         switch (event.subtype()) {
             case Event::Subtype::MNP_DATA_TO_DOCK: // data() is index in in_pool
                 out_frame_ = filter_.frame_pool_[event.data()];
@@ -301,6 +302,9 @@ void NewtToDockPipe::start_next_job()
                 job_list_.pop();
                 break;
         }
+    } else {
+        if (kLogMNPErrors) Log.log("NewtToDockPipe::start_next_job: dock job type not MNP\r\n");
+        job_list_.pop();
     }
 }
 
@@ -319,16 +323,20 @@ void NewtToDockPipe::mnp_to_dock_state_machine()
         // Send the start frame marker.
         Result res = o->send(Event(Event::Type::MNP, Event::Subtype::MNP_FRAME_START));
         if (res.ok()) {
+			// Log.log("MNPStart: ");
             out_frame_crsr_++;
         }
     } else if (out_frame_crsr_<= frame->data.size()) {
         Result res = o->send(frame->data[out_frame_crsr_-1]);
         if (res.ok()) {
+			// uint8_t c = frame->data[out_frame_crsr_-1];
+			// Log.logf("^%02x%c ", c, (c>0x20 && c<0x7f) ? c : '.');
             out_frame_crsr_++;
         }
     } else {
         Result res = o->send(Event(Event::Type::MNP, Event::Subtype::MNP_FRAME_END));
         if (res.ok()) {
+			// Log.log("MNPEnd: ");
             out_frame_crsr_ = 0; 
             out_frame_->in_use = false; // mark the frame as not in use anymore
             out_frame_ = nullptr; // release the frame
@@ -370,6 +378,7 @@ Result NewtToDockPipe::send(Event event) {
 
 	// At this point, in_frame is guaranteed to point to a valid frame.
 	uint8_t c = event.data();
+	// Log.logf("%02x%c ", c, (c>0x20 && c<0x7f) ? c : '.');
 	switch (in_state_) {
 		case InState::ABORT:
 			// -- abort the current frame and start over
@@ -952,8 +961,9 @@ MNPFilter::MNPFilter(Scheduler &scheduler)
 	newt(*newt_),
 	dock(*dock_)
 {
+	uint8_t ix = 0;
     for (auto &f : frame_pool_) {
-        f = new MNPFrame(*this);
+        f = new MNPFrame(*this, ix++);
     }
 }
 

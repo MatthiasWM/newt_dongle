@@ -17,6 +17,7 @@ enum class AppStatus : uint8_t {
     ERROR,               // An error occurred
     USB_READY,           // USB terminal is ready
     USB_CONNECTED,       // USB terminal is connected
+    DOCK_CONNECTED,      // Dock is connected
     SDCARD_ACTIVE,       // SD card is active
 };
 

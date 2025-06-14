@@ -51,8 +51,15 @@ public:
     }
     Result rush(Event event) override  {
         if ((event.type() == Event::Type::UART) && (event.subtype() == Event::Subtype::UART_DTR)) {
-            Log.logf("DTRSwitch: DTR set to %d\n", event.data());
-            dtr_switch_.dtr_set = (event.data() != 0);
+            if (event.data() == 0) {
+                dtr_switch_.dtr_set = false;
+                app_status.set(AppStatus::IDLE);
+                if (kLogDTRSwitch) Log.log("DTRSwitch: DTR set to false\n");
+            } else {
+                dtr_switch_.dtr_set = true;
+                app_status.set(AppStatus::USB_CONNECTED);
+                if (kLogDTRSwitch) Log.log("DTRSwitch: DTR set to true\n");
+            }
         }
         if ((dtr_switch_.dtr_set==true) && dtr_switch_.out()) {
             return dtr_switch_.out()->rush(event);

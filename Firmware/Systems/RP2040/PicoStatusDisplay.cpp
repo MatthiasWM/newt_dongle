@@ -76,7 +76,8 @@ uint32_t PicoStatusDisplay::to_pattern_(AppStatus status)
         case AppStatus::ERROR: return 0x40404040; // rapid flash red
         case AppStatus::USB_READY: return 0x66662222; // slow yellow green flash
         case AppStatus::USB_CONNECTED: return 0x22222222; // steady green
-        case AppStatus::SDCARD_ACTIVE: return 0x11111111; // steady blue
+        case AppStatus::DOCK_CONNECTED: return 0x11111111; // steady blue
+        case AppStatus::SDCARD_ACTIVE: return 0x33333333; // steady cyan
         default: return 0x46464646; // huh?
     }
 }

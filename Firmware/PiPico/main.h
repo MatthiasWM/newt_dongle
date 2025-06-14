@@ -37,10 +37,11 @@ constexpr bool kLogMNPWarnings = false;
 constexpr bool kLogMNPState = false;
 constexpr bool kLogMNPFlow = false;
 constexpr bool kLogDock = false;
-constexpr bool kLogDockProgress = true;
+constexpr bool kLogDockProgress = false;
 constexpr bool kLogDockErrors = true;
 constexpr bool kLogNSOF = false;
 constexpr bool kLogSDCard = false;
+constexpr bool kLogDTRSwitch = false;
 
 // PiPico developer board settings
 

@@ -74,6 +74,8 @@ class Dock : public Endpoint
     constexpr static uint32_t kDFileInfo = ND_FOURCC('f', 'i', 'n', 'f'); // Dock -> Newt
     void handle_GetFileInfo();
 
+    constexpr static uint32_t kDDisconnect = ND_FOURCC('d', 'i', 's', 'c'); // Dock <-> Newt
+
     void handle_SetPath();
     void handle_LoadPackageFile();
     void send_package_task();
@@ -113,14 +115,18 @@ class Dock : public Endpoint
         NONE = 0,
         SEND_PACKAGE,
         CONTINUE_SEND_PACKAGE,
+        CANCEL_SEND_PACKAGE,
         PACKAGE_SENT,
+        PACKAGE_CANCELED,
     } current_task_ = Task::NONE;
 
     uint32_t pkg_size_ = 0; // size of the package to be loaded
     uint32_t pkg_size_aligned_; // size of the package to be loaded, aligned to 4 bytes
     uint32_t pkg_crsr_ = 0; // current offset in the package
     std::u16string pkg_filename_; // filename of the package to be loaded
+    std::u16string cwd_;
 
+    void clear_data_queue_();
     void reset_();
 
 public:
