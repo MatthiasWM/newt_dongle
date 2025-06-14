@@ -40,6 +40,7 @@ constexpr bool kLogDock = false;
 constexpr bool kLogDockProgress = false;
 constexpr bool kLogDockErrors = false;
 constexpr bool kLogNSOF = false;
+constexpr bool kLogSDCard = false;
 constexpr bool kLogDTRSwitch = false;
 
 // PiPico developer board settings

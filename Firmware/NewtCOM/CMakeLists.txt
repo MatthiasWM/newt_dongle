@@ -77,7 +77,7 @@ add_executable(newt_dongle
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")
-pico_set_program_version(newt_dongle "0.5")
+pico_set_program_version(newt_dongle "0.6a")
 
 # Modify the below lines to enable/disable output over UART/USB
 target_compile_definitions(newt_dongle PRIVATE

@@ -14,6 +14,7 @@ class PicoSystemTask: public nd::Task {
 public:
     PicoSystemTask(Scheduler &scheduler) : Task(scheduler) { }
     Result task() override;
+    void reset_hardware();
 };
 
 } // namespace nd

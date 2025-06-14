@@ -109,37 +109,8 @@ BufferedPipe buffer_to_uart(scheduler);
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
-    static const uint32_t reset_mask = 
-        0u
-        |(1u<<RESET_ADC)
-        |(1u<<RESET_BUSCTRL)
-        |(1u<<RESET_DMA)
-        |(1u<<RESET_I2C0)
-        |(1u<<RESET_I2C1)
-        |(1u<<RESET_IO_BANK0)
-        |(1u<<RESET_IO_QSPI)
-        // |(1u<<RESET_JTAG)
-        |(1u<<RESET_PADS_BANK0)
-        |(1u<<RESET_PADS_QSPI)
-        |(1u<<RESET_PIO0)
-        |(1u<<RESET_PIO1)
-        // |(1u<<RESET_PLL_SYS)
-        // |(1u<<RESET_PLL_USB)
-        // |(1u<<RESET_PWM)
-        |(1u<<RESET_RTC)
-        |(1u<<RESET_SPI0)
-        |(1u<<RESET_SPI1)
-        |(1u<<RESET_SYSCFG)
-        |(1u<<RESET_SYSINFO)
-        |(1u<<RESET_TBMAN)
-        |(1u<<RESET_TIMER)
-        |(1u<<RESET_UART0)
-        |(1u<<RESET_UART1)
-        // |(1u<<RESET_USBCTRL)
-    ;
-    reset_block_mask(reset_mask);
-    unreset_block_mask_wait_blocking(reset_mask);
-
+    system_task.reset_hardware();
+    
     sdcard_endpoint.early_init(); // Initialize the GPIOs for the SD card
     app_status.early_init(); // Initialize the status display
 
@@ -151,10 +122,6 @@ int main(int argc, char *argv[])
     scheduler.signal_all( Event {Event::Type::SIGNAL, Event::Subtype::USER_SETTINGS_CHANGED} );
 
     // -- Connect the Endpoints inside the dongle with pipes.
-    // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC
-    // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
-    
-    // -- Goal:
     // UART ---------------> UART_Hayes --------------------> DTRSwitch ---> CDC Hayes ---> buffer ---> CDC
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- DTRSwitch <--- CDC Hayes <--------------- CDC
     //                                                           ↑↓
@@ -164,27 +131,6 @@ int main(int argc, char *argv[])
     //                                                           ↑↓
     //                                                         SDCard    
 
-#if 0
-    // Connect the UART to USB
-    /**/  uart_endpoint >> uart_hayes.downstream; 
-    /**/    uart_hayes.upstream >> cdc_hayes.upstream;
-    /**/      cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
-    // Connect USB to the UART
-    /**/  cdc_endpoint >> cdc_hayes.downstream; 
-    /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
-    /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
-#elif 0
-    // Connect the UART to Dock
-    /**/  uart_endpoint >> uart_hayes.downstream; 
-    /**/    uart_hayes.upstream >> cdc_hayes.upstream;
-    /**/      cdc_hayes.downstream >> buffer_to_cdc >> mnp_filter.newt;
-    /**/        mnp_filter.newt >> dock_endpoint;
-    // Connect USB to the UART
-    /**/  dock_endpoint >> mnp_filter.dock;
-    /**/    mnp_filter.dock >> cdc_hayes.downstream; 
-    /**/      cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
-    /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
-#else
     // Connect the UART to the Dock or the CDC, depending on the CDC DTR pin.
     /**/  uart_endpoint >> uart_hayes.downstream;
     /**/    uart_hayes.upstream >> dtr_switch;
@@ -199,7 +145,6 @@ int main(int argc, char *argv[])
     /**/    cdc_hayes.upstream >> dtr_switch.cdc;
     /**/      dtr_switch >> mnp_throttle >> uart_hayes.upstream;
     /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
-#endif
 
     // -- Give both serial ports access to the SD Card (currently for debugging only)
     uart_hayes.link(&sdcard_endpoint);

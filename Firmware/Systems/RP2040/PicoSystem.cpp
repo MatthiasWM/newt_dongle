@@ -33,3 +33,39 @@ Result PicoSystemTask::task() {
     tud_task(); // tinyusb device task
     return nd::Result::OK;
 }
+
+void PicoSystemTask::reset_hardware()
+{
+#if 0 // Adding this does nothing for PiPico and hangs the NewtCOM Dongle.
+    static const uint32_t reset_mask = 
+        0u
+        |(1u<<RESET_ADC)
+        // |(1u<<RESET_BUSCTRL)
+        // |(1u<<RESET_DMA)
+        |(1u<<RESET_I2C0)
+        |(1u<<RESET_I2C1)
+        |(1u<<RESET_IO_BANK0)
+        // |(1u<<RESET_IO_QSPI)
+        // |(1u<<RESET_JTAG)
+        |(1u<<RESET_PADS_BANK0)
+        // |(1u<<RESET_PADS_QSPI)
+        |(1u<<RESET_PIO0)
+        |(1u<<RESET_PIO1)
+        // |(1u<<RESET_PLL_SYS)
+        // |(1u<<RESET_PLL_USB)
+        // |(1u<<RESET_PWM)
+        |(1u<<RESET_RTC)
+        |(1u<<RESET_SPI0)
+        |(1u<<RESET_SPI1)
+        |(1u<<RESET_SYSCFG)
+        |(1u<<RESET_SYSINFO)
+        |(1u<<RESET_TBMAN)
+        |(1u<<RESET_TIMER)
+        |(1u<<RESET_UART0)
+        |(1u<<RESET_UART1)
+        // |(1u<<RESET_USBCTRL)
+    ;
+    reset_block_mask(reset_mask);
+    unreset_block_mask_wait_blocking(reset_mask);
+#endif
+}

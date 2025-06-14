@@ -34,7 +34,8 @@ same firmware directly for the RP2040 based dongle.
  - [x] Switching pipe between Dock and CDC based on CDC DTR signal
  - [x] Dock, a filter that understands and handles Newton Dock commands
     - [x] Rough first implementation
-    - [ ] Functional Reset for multiple connections
+    - [x] Functional Reset for multiple connections
+    - [x] Browse and donload packages from SD Card
     - [ ] Full Error handling an documentation
  - [ ] Async class for all things that take more time than we have in a slice
     - [x] Async log: logging via debugging serial port or to SD Card

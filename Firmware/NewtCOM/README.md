@@ -34,5 +34,9 @@ Also:
 
 ## Staus Report
 
-The dongle can pipe data from the serial port to the USB port and back reliably
-at 115200. Various test were done with NCX and BasiliskII and Inspector. 
+The dongle can pipe data from the serial port to the USB port and back reliably at 115200. Various test were done with NCX and BasiliskII and 
+Inspector.
+
+The Dock protocol is implemented well enough so the Newton can establish
+a connection to an emulated NCU, browse files and directories on the 
+SDCard, and download and install them.

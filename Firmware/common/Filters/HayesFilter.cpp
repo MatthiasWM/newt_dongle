@@ -590,7 +590,7 @@ bool HayesFilter::send_info(uint32_t ix) {
     char buf[32]; buf[0] = 0;
     switch (ix) {
         case 0:
-            send_string("NewtDongle V0.5\r\n");
+            send_string("NewtDongle V0.6a\r\n");
             break;
         case 1:
             itoa10(user_settings.serial(), buf);
