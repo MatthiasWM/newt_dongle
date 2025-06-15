@@ -87,7 +87,7 @@ the package.
 > If no SD Card is in the slot, or NewtCOM can't read the SD Card for some
 > other reason, the name of the card will be "Error". Try to reset the dongle.
 > If that does not halp, remove prower from the dongle and start over. If that
-> still doesn't help, try anotehr SD Card.
+> still doesn't help, try another SD Card.
 
 ## Updating Firmware
 
