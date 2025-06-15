@@ -11,9 +11,16 @@ The dongle plugs into the rear of the MessagePad or the left side of the eMate.
 On the top are two recessed buttons, one for resetting the device, and a second
 button to select additional functions.
 
-Two LEDs indicate the current state. The Power LED light up red when the 
+Two LEDs indicate the current state. The Power LED lights up red when the 
 Dongle is either connected to a USB-C port, or when plugged into the Newton
 *and* a serial connection is requested.
+
+The Status LED shows the communication status of the Dongle.
+
+ - yellow: idle, waitng for a connection
+ - green: an application on the PC or Mac has connected to the Dongle over USB-C
+ - blue: the Newton is connected to the Dongle's built-in NCU
+ - flashing light blue: the Dongle is reading from the SD Card
 
 ![Dongle Back Bottom View](resources/Dongle_USB_bot_anno.jpg)
 
@@ -50,6 +57,30 @@ data transfer to avoid hick-ups.
 > throttling parameters can be adapted using Hayes commands (see below). 
 > The NewtCOM dongle is a new product. Any help to get the right values for
 > everyone is greatly appreciated.
+
+## Dock mode
+
+Version 0.6 of the firmware implements parts of the Newton Docking protocol to
+emulate a minimal NCU application. 
+
+To use this feature, prepare a MicroSD card
+by copying `.pkg` package files onto the card. Folders are fully supported. 
+Don't put more than 50 files or folders into a directory.
+
+Put the SD Card into the MicroSD slot on the bottom of the dongle. Connect the 
+dongle to your Newton. It does not matter if the dongle is also connected via
+USB as long as no app on the PC is trying to connect (NCX, NCU, etc.). The LED
+should show yellow.
+
+Launch `Dock` on your Newton. Set the port to `Serial` at 38'400 bps. Tap 
+`Connect`. After 4 or 5 seconds, your Newton should show the Docking window
+with a single option to browse the SD Card. Tap the icon and a list of files
+and folders on your SD Card should appear.
+
+> [!TIP]
+> If no SD Card is in the slot, or NewtCOM can't read the SD Card for some
+> other reason, the name of the card will be "Error". Try to reset the dongle.
+> If that does not halp, remove prower from the dongle and start over.
 
 ## Updating Firmware
 
