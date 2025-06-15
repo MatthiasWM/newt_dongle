@@ -29,7 +29,7 @@ can hold a MicroSD Card.
 
 > [!TIP]
 > The shape of the dongle ensures that it can't be plugged in up-side down.
-> Make sure that the interconnect plug is pushed in all the way for a secure
+> Make sure that the interconnect plug is pushed in all the way in for a secure
 > connection.
 
 ## Serial Mode
@@ -38,30 +38,33 @@ The dongle works as a serial connection between the Newton and the PC or Mac,
 running any of the common Newton synchronization tools. It has been tested with
 NCU, NCX, unixnpi, and NTK. 
 
-Also the low level debugging tool Hammer works fine using teh BasiliskII emulator.
+Also the low level debugging tool Hammer works fine using the BasiliskII emulator.
 Note that older versions of Baslilisk do not support serial port emulation.
 These versions should: 
 [MacOS](http://messagepad.org/Downloads/Einstein/MacOS/BasiliskII.MacOS,E.2.zip),
 [Windows](http://messagepad.org/Downloads/Einstein/MSWindows/BasiliskII.Windows.E.4.zip),
 [Linux Ubuntu LTS](https://github.com/pguyot/Einstein/releases/download/v2022.4.17/Einstein_linux_x64_fltk_v2022.4.17.zip).
 
-The transfer speed is set by the PC. If NCX for example can be configured to run
-at 115'200bps instead of the standard 38'400bps if the Dock package is installed
-on the Newton side. The dongle will adapt to the speed set bby the PC/Mac.
+The transfer speed is set by the PC. NCX, for example, can be configured to run
+at 115'200bps instead of the standard 38'400bps, and the `Serial 11200` Dock 
+package must be installed on the Newton side. 
+
+The dongle will adapt to the speed set by the PC/Mac. If no PC is connected,
+it will default to 38'400bps.
 
 The NewtCOM dongle uses the Newton hardware handshake and also throttles the 
 data transfer to avoid hick-ups. 
 
 > [!TIP]
-> If transfer of large fill still occasionally hangs during transfer, the 
+> If transfer of large files still occasionally hangs during transfer, the 
 > throttling parameters can be adapted using Hayes commands (see below). 
-> The NewtCOM dongle is a new product. Any help to get the right values for
-> everyone is greatly appreciated.
+> The default values are an educated guess. Please let me know if you find
+> better values that work for every configuration.
 
 ## Dock mode
 
 Version 0.6 of the firmware implements parts of the Newton Docking protocol to
-emulate a minimal NCU application. 
+emulate a minimal NCU app inside the dongle. 
 
 To use this feature, prepare a MicroSD card
 by copying `.pkg` package files onto the card. Folders are fully supported. 
@@ -73,14 +76,18 @@ USB as long as no app on the PC is trying to connect (NCX, NCU, etc.). The LED
 should show yellow.
 
 Launch `Dock` on your Newton. Set the port to `Serial` at 38'400 bps. Tap 
-`Connect`. After 4 or 5 seconds, your Newton should show the Docking window
-with a single option to browse the SD Card. Tap the icon and a list of files
-and folders on your SD Card should appear.
+`Connect`. After 4 or 5 seconds, the LED changes to blue and your Newton
+should show the Docking window with a single option to browse the SD Card. 
+Tap the icon and a list of files and folders on your SD Card should appear.
+
+Tap on a package, the tap `Install`, an the Newton will download and install
+the package.
 
 > [!TIP]
 > If no SD Card is in the slot, or NewtCOM can't read the SD Card for some
 > other reason, the name of the card will be "Error". Try to reset the dongle.
-> If that does not halp, remove prower from the dongle and start over.
+> If that does not halp, remove prower from the dongle and start over. If that
+> still doesn't help, try anotehr SD Card.
 
 ## Updating Firmware
 
