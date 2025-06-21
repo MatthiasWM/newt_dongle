@@ -27,62 +27,30 @@ using namespace nd;
 static const TCHAR Drive0[] = { '0', ':', 0 };
 
 /*
-  NOTE: the UTF16 option does not work on teh SDCard driver. We must convert 
-  UTF8 to UTF16 by hand.
-
-
  SD Card operations can be quite time consuming while serial data is pounding
- our CPU. To avoid interrupting the serial data stream, we will handle all slow 
- devices using the second core of the RP2040.
-
- Don't use multicore_fifo - it's only 8 words anyway
- Use multicore_doorbell to wake up the other core via IRQ. So the other core can sleep.
-
+ our CPU. To avoid interrupting the serial data stream, we should eventually 
+ handle all slow devices using the second core of the RP2040.
 
  https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_pico_multicore
-
- target_link_libraries(... pico_multicore)
-
- #include "pico/multicore.h"
-
- void core1_entry() {
-    while(1) {
-        
-    }
- }
- multicore_launch_core1(core1_entry);
-
-
- Multicore IRQ safe queue:
-
  https://www.raspberrypi.com/documentation/pico-sdk/high_level.html#group_queue
 
-
- // the Chip Select (CS) line can be used for Card Detection: "At power up this 
+ The Chip Select (CS) line can be used for Card Detection: "At power up this 
  line has a 50KOhm pull up enabled in the card... For Card detection, the host 
  detects that the line is pulled high."
  
- disk_status and FatFS functions:
+ Disk_status and FatFS functions:
  https://elm-chan.org/fsw/ff/00index_e.html
 
-Also please explicitly set the configuration that we really want:
-https://elm-chan.org/fsw/ff/doc/config.html
+ Also please explicitly set the configuration that we really want:
+ https://elm-chan.org/fsw/ff/doc/config.html
  */
-
-// Hardware Configuration of SPI "objects"
-
-
-// MOSI D10  P3
-// MISO  D9  P4
-// CLK   D8  P2
-// CS    D1 P27
 
 static spi_t spis[] = {  // One for each SPI.
     {
         .hw_inst = spi0,  // SPI component
-        .miso_gpio = 4, // GPIO number (not pin number)
-        .mosi_gpio = 3,
-        .sck_gpio = 2,
+        .miso_gpio = kSD_MISO_Pin, // GPIO number (not pin number)
+        .mosi_gpio = kSD_MOSI_Pin,
+        .sck_gpio = kSD_SCK_Pin,
         .baud_rate = 12500 * 1000,  
         //.baud_rate = 25 * 1000 * 1000, // Actual frequency: 20833333. 
         // .set_drive_strength = true, // Set drive strength for GPIO outputs
@@ -96,22 +64,12 @@ static sd_card_t sd_cards[] = {  // One for each SD card
     {
         .pcName = "0:",   // Name used to mount device
         .spi = &spis[0],  // Pointer to the SPI driving this card
-        .ss_gpio = 27,    // The SPI slave select GPIO for this SD card
+        .ss_gpio = kSD_SEL_Pin,    // The SPI slave select GPIO for this SD card
         .use_card_detect = false, // Use card detect GPIO
         .card_detect_gpio = 13,   // Card detect
         .card_detected_true = 1  // What the GPIO read returns when a card is
                                  // present. Use -1 if there is no card detect.
     }};
-
-
-        // Drive strength levels for GPIO outputs.
-        // enum gpio_drive_strength { GPIO_DRIVE_STRENGTH_2MA = 0, GPIO_DRIVE_STRENGTH_4MA = 1, GPIO_DRIVE_STRENGTH_8MA = 2,
-        // GPIO_DRIVE_STRENGTH_12MA = 3 }
-        // enum gpio_drive_strength gpio_get_drive_strength (uint gpio)
-        // if (spi_p->set_drive_strength) {
-        //     gpio_set_drive_strength(spi_p->mosi_gpio, spi_p->mosi_gpio_drive_strength);
-        //     gpio_set_drive_strength(spi_p->sck_gpio, spi_p->sck_gpio_drive_strength);
-        // }
 
 /* ********************************************************************** */
 

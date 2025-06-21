@@ -609,7 +609,7 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 
 		sdcard_endpoint.opendir();
 		std::u16string name;
-		for (int i=50; i>0; --i) {
+		for (int i=100; i>0; --i) {
 		// for (int i=8; i>0; --i) {
 			uint32_t ret = sdcard_endpoint.readdir(name);
 			if (ret == FR_IS_DIRECTORY) {

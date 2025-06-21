@@ -35,6 +35,33 @@
   - Throttle MNP Packages from CDC to UART
   - Save settings in Flash RAM
   - Status Display to show the current status of the system.
+
+Hardware Version 4.0
+
+                __[   ]__  USB-C
+     PORT_SEL -[ 26      ]- +5V
+       SD_SEL -[ 27      ]- GND
+         HSKI -[ 28      ]- +3.3V
+         HSKO -[ 29    3 ]- SD_MOSI
+         GPIO -[ 6     4 ]- SD_MISO
+  DOCK_ATTACH -[ 7     2 ]- SD_SCK
+          TX0 -[_0__()_1_]- RX0
+                  BATT+
+
+
+ DOCK_ATTACH must be pulled high. To wake the Newton up, pull low for 1ms (max. 2ms).
+ If held low for more than 10ms, Newton will see it as a Docking Event.
+ It should be held low until the dock is removed.
+ The implementation for NewtCOM could mirror the DTR on the USB port. It could 
+ also reflect if a Dock connection to the SD Card is active.
+
+ PORT_SEL can be read. If the internal serial port is selected, we should ignore
+ all traffic on Serial 0.
+
+ GPIO can be defined as an input or output. For NewtCOM it is useless without a
+ Newton application. If we have a Newton app, we could use iit to get us into
+ Hayes command mode, even if all settings are messed up.
+
  */
 
 #include "main.h"
@@ -97,7 +124,7 @@ BufferedPipe buffer_to_uart(scheduler);
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
 int main(int argc, char *argv[])
 {
-    // system_task.reset_hardware(); 
+    system_task.reset_hardware(); 
 
     sdcard_endpoint.early_init(); // Initialize the GPIOs for the SD card
     app_status.early_init(); // Initialize the status display
