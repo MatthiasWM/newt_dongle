@@ -95,29 +95,6 @@ internal throttling to ensure smooth, reliable data transfer.
 
 ## Dock mode (Firmware v0.6 and later)
 
-Version 0.6 of the firmware implements parts of the Newton Docking protocol to
-emulate a minimal NCU app inside the dongle. 
-
-To use this feature, prepare a MicroSD card
-by copying `.pkg` package files onto the card. Folders are fully supported. 
-Don't put more than 50 files or folders into a directory.
-
-Put the SD Card into the MicroSD slot on the bottom of the dongle. Connect the 
-dongle to your Newton. It does not matter if the dongle is also connected via
-USB as long as no app on the PC is trying to connect (NCX, NCU, etc.). The LED
-should show yellow.
-
-![Dock Serial](resources/DockSerial.jpg)
-
-Launch `Dock` on your Newton. Set the port to `Serial` at 38'400 bps. Tap 
-`Connect`. After 4 or 5 seconds, the LED changes to blue and your Newton
-should show the Docking window with a single option to browse the SD Card. 
-Tap the icon and a list of files and folders on your SD Card should appear.
-
-Tap on a package, the tap `Install`, an the Newton will download and install
-the package.
-
-
 Firmware version 0.6 introduces basic support for the Newton Docking protocol. 
 This allows the dongle to emulate a minimal NCU-like app, enabling package 
 installation directly from a MicroSD card—no computer required.
@@ -137,6 +114,7 @@ installation directly from a MicroSD card—no computer required.
  - The LED on the dongle should light up yellow, indicating it's ready.
  - On your Newton, open the Dock app.
  - Select `Serial` as the connection method, effectively setting the speed to 38,400 bps.
+   ![Dock Serial](resources/DockSerial.jpg)
  - Tap Connect. After 4–5 seconds, the LED will change to blue, and a Docking 
    window should appear with an option to browse the SD card.
  - Tap the icon to view a list of files and folders.
