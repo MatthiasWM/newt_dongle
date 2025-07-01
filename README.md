@@ -107,6 +107,8 @@ dongle to your Newton. It does not matter if the dongle is also connected via
 USB as long as no app on the PC is trying to connect (NCX, NCU, etc.). The LED
 should show yellow.
 
+![Dock Serial](resources/DockSerial.jpg)
+
 Launch `Dock` on your Newton. Set the port to `Serial` at 38'400 bps. Tap 
 `Connect`. After 4 or 5 seconds, the LED changes to blue and your Newton
 should show the Docking window with a single option to browse the SD Card. 
