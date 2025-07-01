@@ -155,7 +155,7 @@ and then powers the Newton through two diodes and a filter.
 In the following pictures, I soldered the CPU board first, but it's better to 
 add the DC/DC module first, so here we go:
 
-<img src="../resources/dcdc_solder_cpu.png" width="50%">
+<img src="../resources/dcdc_solder_cpu.png" width="80%">
 
 Prepare a three-pin pin header by pushing the plastic all the way up.
 
@@ -166,7 +166,7 @@ Put a first solder blob on the PCB and fix the first pin.
 
 When everything is aligned well, solder the other two pins onto the PCB.
 
-<img src="../resources/dcdc_solder.png" width="50%">
+<img src="../resources/dcdc_solder.png" width="100%">
 
 Slide the DC/DC board down and attach it to the capacitors below with a bit
 of glue. This will take load off of the power pads.
@@ -178,23 +178,25 @@ the RS422 and the MicroSD board.
  
 ### Soldering the RS422 board to the RP2040 board
 
-Next we will solder the CPU board to the RS422 board. For now, there is only
-one single pad that can be soldered. The remaining pin will be soldered later.
+Next we will solder the CPU board to the RS422 board. Note that in the description,
+I soldered the DC/DC board first, which is preferred. The photos still show
+the old method. 
 
-If connected correctly, the Newton Batt+ pin will power VIN on the dongle if 
-there is no PC connected. 
+For now, there is only one single pad that can be soldered. The remaining pins 
+will be soldered later. If connected correctly, the Newton Batt+ pin will power 
+VIN on the dongle if there is no PC connected. 
 
 From now on, the connected boards must be 
 handled very carefully, or the 5V pad will delaminate.
 
-<img src="../resources/cpu_align.png" width="50%">
+<img src="../resources/cpu_align.png" width="100%">
 
 Prepare the CPU board by adding a little solder blob on the `VIN` pin. Put another
 small blob on the underside of the RS422 board on the `BATT+` pin. 
 
 Align the boards back to back using the pin header.
 
-<img src="../resources/cpu_solder.png" width="20%">
+<img src="../resources/cpu_solder.png" width="40%">
 
 There is a gap visible from the sides where both solder ball touch, but have
 not melted together yet. Place the dongle firmly on the table with the CPU
@@ -204,11 +206,59 @@ melt, joining the boards permanently.
 
 The gap is no longer there, and both boards stick together. 
 
-### Optional: adding the MicroSD board
+### Adding the MicroSD board
 
-TODO: write me!
-- solder PCB to teh bottom of the module
-- visual test, multimeter test
+Prepare the MicroSD board for the dongle by reconfiguring the solder pads. 
+
+<img src="../resources/sd_prep.png" width="100%">
+
+The SD Card module is preconfigured to select the card using the `TX` pin. We will
+need the `TX` pin to send serial data to the Newton, so instead we use `A1`.
+
+Put a solder blob on the `A1` pads so that both sides connect. File the resulting
+blob down enough, so the SD Card can slide over it. Don't accidentally file the 
+contacts on the sides though.
+
+Cut the small wire between the pads of the `TX` pin with a knife. Make sure that 
+there is a wide enough gap. 
+
+It's a convinient time no to use black marker to make the color match
+the dongle case.  
+
+
+<img src="../resources/sd_jig.png" width="80%">
+
+Without putting any stress on the CPU/RS422 sandwich, flip the header pins
+in the final direction.
+
+Add the MicroSD module to our package. Make sure that the board is oriented
+in the correct way. After all the work to get here, you really don;t want to
+find out that the SD Card points the wrong way when zou put everything in
+the case. Ask me how I know... .
+
+Get the assembly jig. It will make sure that the PCBs hav the right distance 
+and will fit into the case later. Push the PCBs all the way to the front.
+Lift the headers so the plastic fits into the gap. The tips of the pins will be 
+flush or barely show, but should not be retracted, or the soldering connection will not work. 
+
+<img src="../resources/sd_jig_solder.png" width="40%">
+
+Is the MicroSD module oriented correctly?
+
+While the module is still in the jig, solder the six visible pins on the top
+and of the bottom of the module. The PCBs are now permanently aligned. Remove
+the module from the jig..
+
+<img src="../resources/sd_top_bottom_solder.png" width="40%">
+
+Solder the remaining pins on the top and bottom of the module. Look again.
+Didi you really solder *all* of them?
+
+* Pictures missing *
+
+Note that the sandwiched CPU/RS422 boards don;t always connect all the way 
+through. Use the angled jigs to solder the pinheaders from the RS422 side of 
+the module as well.
 
 ### Flashing the Firmware
 
@@ -232,6 +282,10 @@ TODO: write me!
 - choose a case
 - print the case
 - glue
+
+### Adding the light pipes
+
+Todo.
 
 
 
