@@ -93,27 +93,39 @@ The Interconnect Port connector must be 15.6mm wide. File the plastic off of our
 
 <img src="../resources/connector_file_sides.png" width="80%">
 
+#### Final Bend
+
+This step is the most difficult one. The connectors tend to break if done 
+incorrectly. So I developed a jig that makes this step much easier. 
+
+Insert the plug into the top of the bender. Insert the plunger between the pin 
+rows and push it all the way down.
+
+<img src="../resources/connector_bend.png" width="100%">
+
+Keep the plunger between the contacts and grab the two pistons. Without 
+lifting the jig, push the two pistons into the side openings (the slant 
+faces down). Remove the plug. The pins are now bent away from the plug without 
+damaging the plug's case. 
+
+With the pins bent to back, we can now file the indexing corners.
+
+<img src="../resources/connector_bend_2.png" width="60%">
+
 #### File Corners
 
-To ensure that the connector is not inserted upside down, the corners on the bottom must be filed to 45 degrees. Again, the two jigs for left and right should help. Make sure that you file the corners on the *same* side.
+To ensure that the connector is not inserted upside down, the corners on the 
+bottom must be filed to 45 degrees. Again, the two jigs for left and right 
+should help. Make sure that you file the corners on the *same* side.
 
 *Don't* bend any pins.
 
 <img src="../resources/connector_file_corners.png" width="100%">
 
-The last image show a test fit in a MessagePad. The connector should fit snug, but not stuck. Did I mention to not bend any pins? Well, if you did, and you did bend them back too many times, they probably broke off by now. Throw away the connector and try again.. 
-
-#### Final Bend
-
-This step is the most difficult one. The connectors tend to break if done incorrectly. So I developed a jig that makes this step much easier. 
-
-Insert teh pulg into the top of the bender. Insert the plunger between the pin rows and push it all the way down.
-
-<img src="../resources/connector_bend.png" width="100%">
-
-Remove the plunger and grab the two pistons. Without lifting the jig, push the two pistons into the side openings (the slant faces down). Remove the plug. The pins are now bent away from the plug without damaging the plug's case. It's ready to be soldered to the RS422 interface board.
-
-<img src="../resources/connector_bend_2.png" width="60%">
+The last image show a test fit in a MessagePad. The connector should fit snug, 
+but not get stuck. Did I mention to not bend any pins? Well, if you did, and 
+you did bend them back too many times, they probably broke off by now. Throw 
+away the connector and try again.. 
 
 ### Soldering the connector
 
@@ -135,18 +147,62 @@ If you are unsure about your soldering, use a multimeter to check for shorts bet
 
 <img src="../resources/rs422_check.png" width="40%">
 
+### Adding the DC-DC converter
+
+The DC/DC converter takes power from the USB-C port, raises the voltage to 7.5V,
+and then powers the Newton through two diodes and a filter. 
+
+In the following pictures, I soldered the CPU board first, but it's better to 
+add the DC/DC module first, so here we go:
+
+<img src="../resources/dcdc_solder_cpu.png" width="50%">
+
+Prepare a three-pin pin header by pushing the plastic all the way up.
+
+Put the DC/DC inverter module on the pin header. This will help keeping the
+pins aligned later.
+
+Put a first solder blob on the PCB and fix the first pin. 
+
+When everything is aligned well, solder the other two pins onto the PCB.
+
+<img src="../resources/dcdc_solder.png" width="50%">
+
+Slide the DC/DC board down and attach it to the capacitors below with a bit
+of glue. This will take load off of the power pads.
+
+Solder the three pins to the module, the remove the plastic - be careful to
+hold the DC/DC module when pulling, so you don't rip the pads form the 
+RS422 PCB! Finally, but the pins, and the DC/DC module will fit nicely between
+the RS422 and the MicroSD board.
+ 
 ### Soldering the RS422 board to the RP2040 board
 
-TODO: write me!
-- Solder board to board if no MicroSD board will be mounted
-- Solder with 10mm pins if SD card slot is wanted
-- visual test, multimeter test
+Next we will solder the CPU board to the RS422 board. For now, there is only
+one single pad that can be soldered. The remaining pin will be soldered later.
 
-### Optional: adding the DC-DC converter
+If connected correctly, the Newton Batt+ pin will power VIN on the dongle if 
+there is no PC connected. 
 
-TODO: write me!
-- 3 pin header to PCB, converter hovers under the board
-- visual test, multimeter test
+From now on, the connected boards must be 
+handled very carefully, or the 5V pad will delaminate.
+
+<img src="../resources/cpu_align.png" width="50%">
+
+Prepare the CPU board by adding a little solder blob on the `VIN` pin. Put another
+small blob on the underside of the RS422 board on the `BATT+` pin. 
+
+Align the boards back to back using the pin header.
+
+<img src="../resources/cpu_solder.png" width="20%">
+
+There is a gap visible from the sides where both solder ball touch, but have
+not melted together yet. Place the dongle firmly on the table with the CPU
+board at the bottom and the RS244 board at the top. Hold the soldering tip 
+to the `BATT+` through-hole, and after a second or so, both solder blobs will 
+melt, joining the boards permanently. 
+
+The gap is no longer there, and both boards stick together. 
 
 ### Optional: adding the MicroSD board
 
