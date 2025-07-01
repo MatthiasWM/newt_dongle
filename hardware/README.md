@@ -285,7 +285,31 @@ TODO: write me!
 
 ### Adding the light pipes
 
-Todo.
+The CPU module has three LEDs that are hard to see when the boards are 
+in the case. This is easily fixable by adding light pipes, 1.5mm fibers that
+illuminate the end points (there are others available that illuminate the 
+circumference - don't use those).
+
+<img src="../resources/fiber.png" width="60%">
+
+Use a drill to expand teh holes of the 3d printed case to 1.5mm. Cut 
+10mm pieces of fiber from the roll. Add some liquid plastic glue and push 
+the three pieces int the holes. The State and Power light holes are a few
+mm deep, but the front RGB LED hole is quite shallow, but since that LED
+is hidden by the MP2x00 lid, it's of no use anyway.
+
+Wait a few minutes for the glue to set, then cut the fibers with a side cutter.
+There is no need to file to ends of the fiber. It;s a status LED< not an 
+internet backbone connection between continents.
+
+### Done
+
+So, that's it from my side. You should have a nice and working dongle now.
+Enjoy the Newton!
+
+Matthias  
+
+
 
 
 
