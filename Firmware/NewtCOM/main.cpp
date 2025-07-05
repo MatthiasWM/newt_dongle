@@ -70,7 +70,7 @@ Hardware Version 4.0
 #include "PicoUARTEndpoint.h"
 #include "PicoCDCEndpoint.h"
 #include "PicoScheduler.h"
-#include "PicoSystem.h"
+#include "PicoSystemTask.h"
 
 #include "common/Endpoints/Dock.h"
 #include "common/Endpoints/StdioLog.h"

@@ -53,43 +53,64 @@
 
 #include "main.h"
 
+// #include "PicoStdioLog.h"
+// #include "PicoAsyncLog.h"
+// #include "PicoUARTEndpoint.h"
+// #include "PicoCDCEndpoint.h"
+#include "PosixScheduler.h"
+// #include "PicoSDCard.h"
+// #include "PicoSystem.h"
+
+#include "common/Scheduler.h"
+#include "common/SystemTask.h"
+// #include "common/Endpoints/Dock.h"
+// #include "common/Endpoints/StdioLog.h"
+// #include "common/Endpoints/TestEventGenerator.h"
+// #include "common/Filters/HayesFilter.h"
+// #include "common/Filters/MNPFilter.h"
+// #include "common/Pipes/BufferedPipe.h"
+// #include "common/Pipes/MNPThrottle.h"
+// #include "common/Pipes/Tee.h"
 
 #include <FL/Fl_Window.H>
 #include <FL/Fl.H>
 
-#if 0
-
-#include "PicoStdioLog.h"
-#include "PicoAsyncLog.h"
-#include "PicoUARTEndpoint.h"
-#include "PicoCDCEndpoint.h"
-#include "PicoScheduler.h"
-#include "PicoSDCard.h"
-#include "PicoSystem.h"
-
-#include "common/Endpoints/Dock.h"
-#include "common/Endpoints/StdioLog.h"
-#include "common/Endpoints/TestEventGenerator.h"
-#include "common/Filters/HayesFilter.h"
-#include "common/Filters/MNPFilter.h"
-#include "common/Pipes/BufferedPipe.h"
-#include "common/Pipes/MNPThrottle.h"
-#include "common/Pipes/Tee.h"
-
-
-#include "pico/stdlib.h"
-
 #include <stdio.h>
-
-void* __dso_handle = nullptr;
-void* _fini = nullptr;
-
-#endif
 
 using namespace nd;
 
-nd::UserSettings user_settings;
-nd::Logger Log;
+// Saves setting into Flash Memory.
+UserSettings user_settings;
+
+// Log to debugging probe on uart1.
+Logger Log;
+
+// Distributes times slices to all tasks.
+PosixScheduler scheduler;
+
+// One task to manage the overall system.
+SystemTask system_task(scheduler);
+
+// Task that updates the status display.
+StatusDisplay app_status(scheduler);
+
+// Endpoints for data exchange.
+//UARTEndpoint uart_endpoint { scheduler };
+//CDCEndpoint cdc_endpoint { scheduler, 0 };
+PosixSDCardEndpoint sdcard_endpoint { scheduler };
+//Dock dock_endpoint(scheduler);
+
+// Filters and loggers.
+//HayesFilter uart_hayes(scheduler, 0);
+//HayesFilter cdc_hayes(scheduler, 1);
+//MNPFilter mnp_filter(scheduler);
+//DTRSwitch dtr_switch;
+
+// Pipes to connect everything.
+//MNPThrottle mnp_throttle(scheduler);
+//BufferedPipe buffer_to_cdc(scheduler);
+//BufferedPipe buffer_to_uart(scheduler);
+
 
 #if 0
 
@@ -157,35 +178,35 @@ int main(int argc, char *argv[])
     // -- Connect the Endpoints inside the dongle with pipes.
     // UART ---------------> UART_Hayes --------------------> CDC Hayes ---> buffer ---> CDC
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- CDC Hayes <--------------- CDC
-    
+
     // -- Goal:
     // UART ---------------> UART_Hayes --------------------> Matrix ---> CDC Hayes ---> buffer ---> CDC
     // UART <--- buffer <--- UART_Hayes <--- MNPThrottle <--- Matrix <--- CDC Hayes <--------------- CDC
     //                                                          ↑↓
     //                                                          MNP
     //                                                          ↑↓
-    //                                                         Dock    
+    //                                                         Dock
     //                                                          ↑↓
-    //                                                        SDCard    
+    //                                                        SDCard
 
 #if 0
     // Connect the UART to USB
-    /**/  uart_endpoint >> uart_hayes.downstream; 
+    /**/  uart_endpoint >> uart_hayes.downstream;
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
     /**/      cdc_hayes.downstream >> buffer_to_cdc >> cdc_endpoint;
     // Connect USB to the UART
-    /**/  cdc_endpoint >> cdc_hayes.downstream; 
+    /**/  cdc_endpoint >> cdc_hayes.downstream;
     /**/    cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/      uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 #else
     // Connect the UART to Dock
-    /**/  uart_endpoint >> uart_hayes.downstream; 
+    /**/  uart_endpoint >> uart_hayes.downstream;
     /**/    uart_hayes.upstream >> cdc_hayes.upstream;
     /**/      cdc_hayes.downstream >> buffer_to_cdc >> mnp_filter.newt;
     /**/        mnp_filter.newt >> dock_endpoint;
     // Connect USB to the UART
     /**/  dock_endpoint >> mnp_filter.dock;
-    /**/    mnp_filter.dock >> cdc_hayes.downstream; 
+    /**/    mnp_filter.dock >> cdc_hayes.downstream;
     /**/      cdc_hayes.upstream >> mnp_throttle >> uart_hayes.upstream;
     /**/        uart_hayes.downstream >> buffer_to_uart >> uart_endpoint;
 #endif
@@ -204,4 +225,4 @@ int main(int argc, char *argv[])
 
     Fl::run();
     return 0;
-} 
+}

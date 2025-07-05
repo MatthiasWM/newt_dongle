@@ -17,6 +17,8 @@ target_sources(${APP} PRIVATE
         Scheduler.h
         StatusDisplay.cpp
         StatusDisplay.h
+        SystemTask.cpp
+        SystemTask.h
         Task.cpp
         Task.h
         UserSettings.cpp

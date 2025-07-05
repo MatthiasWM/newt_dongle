@@ -32,7 +32,7 @@ public:
     enum class Type {
         INT, BOOL, CHAR16, REAL, OBJECT
     };
-private:    
+private:
     union {
         int32_t     int_ = 0;
         bool        bool_;
@@ -44,8 +44,12 @@ private:
     void clear_();
 public:
     Ref() : bool_(false), type_(Type::BOOL) {}
+#ifdef ND_TARGET_PICO
     explicit Ref(int32_t i) : int_(i), type_(Type::INT) {}
     Ref(int i) : int_(i), type_(Type::INT) {}
+#else
+    Ref(int32_t i) : int_(i), type_(Type::INT) {}
+#endif
     Ref(bool b) : bool_(b), type_(Type::BOOL) {}
     Ref(char16_t c) : char_(c), type_(Type::CHAR16) {}
     Ref(real d) : real_(d), type_(Type::REAL) {}

@@ -17,8 +17,8 @@ target_sources(newt_dongle
         PicoSDCard.h
         PicoStatusDisplay.cpp
         PicoStatusDisplay.h
-        PicoSystem.cpp
-        PicoSystem.h
+        PicoSystemTask.cpp
+        PicoSystemTask.h
         PicoUserSettings.cpp
         PicoUserSettings.h
 )

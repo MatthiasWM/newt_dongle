@@ -54,17 +54,19 @@ project(NewtConnect C CXX ASM)
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(NewtCU
-        main.cpp 
+        main.cpp
         main.h
 )
 
 # Modify the below lines to enable/disable output over UART/USB
 target_compile_definitions(NewtCU PRIVATE
+        ND_TARGET_APP=1
+        ND_TARGET_POSIX=1
         NEWT_CU_EXAMPLE=1
 )
 
 # Compiler options
-#target_compile_options(NewtCU PRIVATE 
+#target_compile_options(NewtCU PRIVATE
 #        -Wno-psabi
 #)
 

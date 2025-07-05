@@ -12,19 +12,19 @@ using namespace nd;
 /**
  * @class MNPThrottle
  * @brief Throttle MNP data to the `out` pipe.
- * 
+ *
  * The Newton can't deal with MNP blocks that come too quickly and eventually
  * hangs the connection. Resyncing does not work, and the whole transfer must
  * be restarted.
- * 
- * The Throttle pipe watches the data stream for the end signature of the 
+ *
+ * The Throttle pipe watches the data stream for the end signature of the
  * MNP block and inserts a short delay after the last byte of the block.
- * This should give the Newton enough time to recover. 
- * 
- * The start of a block is SYN, DLE, STX. The of the block is DLE, ETX, 
+ * This should give the Newton enough time to recover.
+ *
+ * The start of a block is SYN, DLE, STX. The of the block is DLE, ETX,
  * CRC_lo, and CRC_hi. If the data stream contains a DLE, it is escaped
  * with another DLE.
- * 
+ *
  * SYN: 0x16, "synchronous idle"
  * DLE: 0x10, "data link escape"
  * STX: 0x02, "start of text"
@@ -42,12 +42,12 @@ using namespace nd;
 constexpr uint8_t kDLE = 0x10;
 constexpr uint8_t kETX = 0x03;
 
-MNPThrottle::MNPThrottle(Scheduler &scheduler) 
-:   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS) 
+MNPThrottle::MNPThrottle(Scheduler &scheduler)
+:   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS)
 {
-} 
+}
 
-Result MNPThrottle::send(Event event) 
+Result MNPThrottle::send(Event event)
 {
     if (state_ == State::RESEND_DELAY) {
         if (Pipe::send(resend_event_).ok()) {
@@ -102,6 +102,8 @@ Result MNPThrottle::send(Event event)
                     state_ = State::RESEND_DELAY;
                 }
                 break;
+            default:
+                break;
         }
     }
     return r;
@@ -115,6 +117,8 @@ Result MNPThrottle::signal(Event event) {
         case Event::Subtype::USER_SETTINGS_CHANGED:
             reg_absolute_delay_ = user_settings.data.mnpt_absolute_delay;
             reg_num_char_delay_ = user_settings.data.mnpt_num_char_delay;
+            break;
+        default:
             break;
     }
     return Result::OK;

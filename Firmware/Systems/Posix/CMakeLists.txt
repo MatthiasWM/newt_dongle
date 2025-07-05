@@ -4,20 +4,12 @@
 #
 
 target_sources(${APP} PRIVATE
-#        PicoAsyncLog.cpp
-#        PicoAsyncLog.h
-#        PicoCDCEndpoint.cpp
-#        PicoCDCEndpoint.h
-#        PicoUARTEndpoint.cpp
-#        PicoUARTEndpoint.h
-#        PicoScheduler.cpp
-#        PicoScheduler.h
-#        PicoStdioLog.cpp
-#        PicoStdioLog.h
-#        PicoSDCard.cpp
-#        PicoSDCard.h
-        PosixSystem.cpp
-        PosixSystem.h
-#        PicoUserSettings.cpp
-#        PicoUserSettings.h
+
+        PosixScheduler.cpp
+        PosixScheduler.h
+        PosixSystemTask.cpp
+        PosixSystemTask.h
+
+        Endpoints/PosixSDCardEndpoint.cpp
+        Endpoints/PosixSDCardEndpoint.h
 )

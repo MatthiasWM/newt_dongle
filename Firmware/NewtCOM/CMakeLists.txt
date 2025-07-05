@@ -81,6 +81,8 @@ pico_set_program_version(newt_dongle "0.6a")
 
 # Modify the below lines to enable/disable output over UART/USB
 target_compile_definitions(newt_dongle PRIVATE
+        ND_TARGET_NEWTCOM=1
+        ND_TARGET_PICO=1
         PICO_DEFAULT_UART=1
         PICO_DEFAULT_UART_TX_PIN=8
         PICO_DEFAULT_UART_RX_PIN=9 
