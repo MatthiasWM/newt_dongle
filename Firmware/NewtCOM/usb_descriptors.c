@@ -237,11 +237,11 @@
  // array of pointer to string descriptors
  char const *string_desc_arr[] = {
      (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-     "TinyUSB",                     // 1: Manufacturer
-     "TinyUSB Device",              // 2: Product
+     "NewtCOM",                     // 1: Manufacturer
+     "NewtCOM Device",              // 2: Product
      NULL,                          // 3: Serials will use unique ID if possible
-     "TinyUSB CDC",                 // 4: CDC Interface
-     "TinyUSB MSC",                 // 5: MSC Interface
+     "NewtCOM CDC",                 // 4: CDC Interface
+     "NewtCOM MSC",                 // 5: MSC Interface
  };
  
  static uint16_t _desc_str[32 + 1];
