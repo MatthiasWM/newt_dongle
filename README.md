@@ -153,13 +153,14 @@ and the USB port. To do this, you will need a terminal program. On the Newton
 side, this is commonly `PT100`. The Newton serial port speed defaults to 38'400bps. 
 
 There are many VT100 or simpler terminal programs for PCs 
-and Macs. The dongle shoud be listed as `/dev/usbmodemXXX` where XXX is 
-some random number. The dongle will adapt to the serial port speed set by the PC.
+and Macs. The dongle should be listed as `/dev/usbmodemXXX` where XXX is 
+some random number. If connected via USB-C, the dongle will adapt to the serial port
+speed set by the PC.
 
 To get into Hayes mode, don't send any data for at least one second. 
-Then, within a second, type `+++` (three plus characters - on PT100, you can
+Then, again within a second, type `+++` (three plus characters - on PT100, you can
 create a macro for that - don't press Return). After yet another second 
-without any data, the dongle will reply with `OK`. 
+without, if no keys are pressed, the dongle will reply with `OK`. 
 
 You are now in Hayes mode. To get back online, type `ATO` (the letter "O", 
 like Online). The dongle replies `CONNECT` and leaves Hayes mode.
@@ -169,7 +170,7 @@ There are few Hayes commands at this point, but there will be more:
 - `ATO` : go back online
 - `ATIn` : get information about the firmware and the firmware version number, n can be 0, 1, or 2.
 - `AT&W` : write current settings to Flash memory
-- `ATS12=n` : set the Escape Code guard time in n times 1/50th of a second
+- `ATS12=n` : set the Escape Code guard time in n times 1/50th of a second (defaults to 50)
 - `ATS300=n` : set the MNP throttle delay to n microseconds (defaults to 400)
 - `ATS301=n` : set an additional delay in number of characters (defaults to 8)
 - `AT[GL` : get the SD Card label
