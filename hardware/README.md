@@ -12,19 +12,21 @@ soldering skills to build their own dongle. There is a base dongle that
 converts the Serial Port signals on the Interconnect port to USB-C. Optionally,
 the dongle can convert the 5V form the USB-C to 7V to run the Newton. There
 is also an option for a MicroSD card slot for installing software without
-needing a PC, and eventually for making backups and restoring teh content of 
+needing a PC, and eventually for making backups and restoring the content of 
 the MessagePad or eMate.
 
 So here is how you build one:
 
 Parts:
 
-- Interconnect Port connector (TODO: insert link)
-- RS422 circuit board (TODO: insert link)
-- XIAO RP204 circuit board (TODO: insert link)
-- optional: Pololu DC-DC power converter (TODO: insert link)
-- optional: MicroSD card board (TODO: insert link)
-- various pin headers (TODO: insert link)
+- Interconnect Port connector 
+  - V4: Molex 71439-0964, Mouser: 538-71439-0964
+  - V5: Molex 71439-1464, Mouser: [538-71439-1464](https://www.mouser.de/ProductDetail/Molex/71439-1464)
+- RS422 circuit board ([oshwlab.com](https://oshwlab.com/matthiasm/interconnecttousb_copy_copy_copy))
+- XIAO RP2040 circuit board, [Seeed Studio](https://wiki.seeedstudio.com/XIAO-RP2040/)
+- optional: Pololu 4943 DC-DC power converter, [Pololu](https://www.pololu.com/product/4943)
+- optional: Adafruit microSD Card BFF, [Adafruit](https://www.adafruit.com/product/5683)
+- various pin headers that usually come with the boards above
 - 3d printed case (TODO: insert link)
 
 Tools:
@@ -43,15 +45,19 @@ Tools:
 
 The PCB design can be dowloaded for [oshwlab.com](https://oshwlab.com/matthiasm/interconnecttousb_copy_copy_copy). The PCB can be manufactured based on these
 files. Some services (I used JLCPCB) offer the complete assembly for a low rate
-if you can't sodler SMDs, especially the tiny diodes.
+if you can't solder SMDs, especially the tiny diode.
+
+The PCB should be 1.6mm thick.
 
 ### Preparing the Interconnect Port connector
 
 #### IEEE 1386
 
 The original Interconnect Port connector is no longer manufactured. We are 
-helping ourselves with a havily modified IEEE 1386 connector. One Molex 
+helping ourselves with a heavily modified IEEE 1386 connector. One Molex 
 71439-0964 (Mouser 538-71439-0964) yields two Newton connectors.
+
+V5 and up uses 71439-1464.
 
 Note that after cutting these to pieces, they wil not be as strong as the 
 originals, and I have not found a way to cut the shielding. For normal use, this
@@ -292,7 +298,7 @@ circumference - don't use those).
 
 <img src="../resources/fiber.png" width="60%">
 
-Use a drill to expand teh holes of the 3d printed case to 1.5mm. Cut 
+Use a drill to expand the holes of the 3d printed case to 1.5mm. Cut 
 10mm pieces of fiber from the roll. Add some liquid plastic glue and push 
 the three pieces int the holes. The State and Power light holes are a few
 mm deep, but the front RGB LED hole is quite shallow, but since that LED
