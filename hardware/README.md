@@ -25,7 +25,7 @@ Parts:
 - RS422 circuit board ([oshwlab.com](https://oshwlab.com/matthiasm/interconnecttousb_copy_copy_copy))
 - XIAO RP2040 circuit board, [Seeed Studio](https://wiki.seeedstudio.com/XIAO-RP2040/)
 - optional: Pololu 4943 DC-DC power converter, [Pololu](https://www.pololu.com/product/4943)
-- optional: Adafruit microSD Card BFF, [Adafruit](https://www.adafruit.com/product/5683)
+- optional: Adafruit 5683 microSD Card BFF, [Adafruit](https://www.adafruit.com/product/5683)
 - various pin headers that usually come with the boards above
 - 3d printed case (TODO: insert link)
 
