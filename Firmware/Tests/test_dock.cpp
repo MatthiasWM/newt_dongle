@@ -77,14 +77,18 @@ Bytes command(const char *fourcc, uint32_t size) {
     return cmd;
 }
 
-// A Dock command with a String in NSOF as its payload, padded to 4 bytes.
-Bytes command_with_string(const char *fourcc, const char16_t *str) {
+// A Dock command with an object in NSOF as its payload, padded to 4 bytes.
+Bytes command_with_ref(const char *fourcc, Ref ref) {
     NSOF nsof;
-    nsof.to_nsof(Ref(String::New(str)));
+    nsof.to_nsof(ref);
     Bytes cmd = command(fourcc, (uint32_t)nsof.data().size());
     cmd.insert(cmd.end(), nsof.data().begin(), nsof.data().end());
     while (cmd.size() % 4) cmd.push_back(0);
     return cmd;
+}
+
+Bytes command_with_string(const char *fourcc, const char16_t *str) {
+    return command_with_ref(fourcc, Ref(String::New(str)));
 }
 
 Bytes operator+(Bytes a, const Bytes &b) {
@@ -252,10 +256,20 @@ static const Bytes kDockLpkg = {
     0x6E, 0x65, 0x77, 0x74, 0x64, 0x6F, 0x63, 0x6B, 0x6C, 0x70, 0x6B, 0x67,
     0x00, 0x00, 0x00, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05, 0x00, 0x00, 0x00,
 };
-// `dres` with -48403 (file not found).
+// `dres` with kDockErrBrowserFileNotFound (-28105). Older firmware sent -48403.
 static const Bytes kDockDresNoFile = {
     0x6E, 0x65, 0x77, 0x74, 0x64, 0x6F, 0x63, 0x6B, 0x64, 0x72, 0x65, 0x73,
-    0x00, 0x00, 0x00, 0x04, 0xFF, 0xFF, 0x42, 0xED,
+    0x00, 0x00, 0x00, 0x04, 0xFF, 0xFF, 0x92, 0x37,
+};
+// `dres` with NewtonScript errors -48401 (expected an array) and -48402
+// (expected a string).
+static const Bytes kDockDresNotAnArray = {
+    0x6E, 0x65, 0x77, 0x74, 0x64, 0x6F, 0x63, 0x6B, 0x64, 0x72, 0x65, 0x73,
+    0x00, 0x00, 0x00, 0x04, 0xFF, 0xFF, 0x42, 0xEF,
+};
+static const Bytes kDockDresNotAString = {
+    0x6E, 0x65, 0x77, 0x74, 0x64, 0x6F, 0x63, 0x6B, 0x64, 0x72, 0x65, 0x73,
+    0x00, 0x00, 0x00, 0x04, 0xFF, 0xFF, 0x42, 0xEE,
 };
 static const Bytes kDockOcaa = {
     0x6E, 0x65, 0x77, 0x74, 0x64, 0x6F, 0x63, 0x6B, 0x6F, 0x63, 0x61, 0x61,
@@ -358,4 +372,17 @@ TEST(dock_queues_two_dres_with_different_results) {
     DockSession s;
     s.newton_sends(command("xxxx", Dock::kMaxPayload + 1) + command("rtbr", 0));
     CHECK_BYTES(s.to_newt.bytes, kDockDresBadCommandLength + kDockDresOK);
+}
+
+TEST(dock_rejects_spth_without_array) {
+    DockSession s;
+    s.newton_sends(command_with_string("spth", u"TEST"));
+    CHECK_BYTES(s.to_newt.bytes, kDockDresNotAnArray);
+}
+
+TEST(dock_rejects_spth_with_a_folder_that_is_not_a_string) {
+    DockSession s;
+    Ref path = Ref(Array::New({ Ref(String::New(u"NewtCOM")), Ref(String::New(u"TEST")), Ref((int32_t)5) }));
+    s.newton_sends(command_with_ref("spth", path));
+    CHECK_BYTES(s.to_newt.bytes, kDockDresNotAString);
 }

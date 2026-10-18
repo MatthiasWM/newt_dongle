@@ -234,6 +234,10 @@ private:
 #define kDockErrBrowserVolumeNotFound			(ERRBASE_DOCKER_ -  6)
 #define kDockErrBrowserPathNotFound				(ERRBASE_DOCKER_ -  7)
 
+// NewtonScript errors
+#define kNSErrNotAnArray							(-48401)
+#define kNSErrNotAString							(-48402)
+
 
 } // namespace nd
 

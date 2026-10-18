@@ -634,13 +634,13 @@ void Dock::handle_SetPath()
 	Array *arr = path_ref.as_array();
 	if (!arr) {
 		if (kLogDockErrors) Log.log("Dock: handle_SetPath: reply is not an Array\r\n");
-		send_cmd_dres(-48402); // expected an array
+		send_cmd_dres(kNSErrNotAnArray);
 		return;
 	}
 	uint32_t n = arr->size();
 	if (n < 1) {
 		if (kLogDockErrors) Log.log("Dock: handle_SetPath: array too short\r\n");
-		send_cmd_dres(-48401); // Expected an array with at least 2 elements
+		send_cmd_dres(kNSErrNotAnArray); // expected an array with at least 1 element
 		return;
 	}
 	if (n == 1) {
@@ -652,7 +652,7 @@ void Dock::handle_SetPath()
 			String *name = arr->at(i).as_string();
 			if (!name) {
 				if (kLogDockErrors) Log.logf("Dock: handle_SetPath: item %d is not a String\r\n", i);
-				send_cmd_dres(-48401); // Expected a string
+				send_cmd_dres(kNSErrNotAString);
 				return;
 			}
 			cwd_.push_back('/');
@@ -679,7 +679,7 @@ void Dock::handle_GetFileInfo()
 	String *filename = reply.as_string();
 	if (!filename) {
 		if (kLogDockErrors) Log.log("Dock: handle_GetFileInfo: reply is not a String\r\n");
-		error_code = -48402; // expected a string
+		error_code = kNSErrNotAString;
 		send_cmd_dres(error_code);
 		return;
 	}
@@ -754,7 +754,7 @@ void Dock::handle_LoadPackageFile()
 		current_task_ = Task::SEND_PACKAGE;
 	} else {
 		if (kLogDockErrors) Log.log("Dock: handle_LoadPackageFile: reply is not a String\r\n");
-		error_code = -48402; // expected a string
+		error_code = kNSErrNotAString;
 		// error_code = -10006; // bad parameter
 		// error_code = -28004; // kErrorInvalidParameter
 		send_cmd_dres(error_code);
@@ -768,7 +768,7 @@ void Dock::send_package_task()
 		uint32_t err = sdcard_endpoint.openfile(pkg_filename_);
 		if (err != FR_OK) {
 			if (kLogDockErrors) Log.logf("Dock: send_package_task: openfile error %d\r\n", err);
-			send_cmd_dres(-48403); // file not found
+			send_cmd_dres(kDockErrBrowserFileNotFound);
 			current_task_ = Task::NONE;
 			return;
 		}
