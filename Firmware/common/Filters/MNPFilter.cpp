@@ -124,6 +124,8 @@ class DockToNewtPipe : public Pipe {
     } out_state_ = OutState::SEND_SYN;
     uint16_t data_crsr_ = 0;
     uint8_t seq_no_ = 0; // sequence number for LT frames
+    uint64_t ack_deadline_ = 0; // resend `ack_pending_frame_` at this time
+    uint8_t retransmits_ = 0; // number of times we resent `ack_pending_frame_`
 
     MNPFrame *in_frame = nullptr;
 
@@ -131,6 +133,7 @@ class DockToNewtPipe : public Pipe {
     void mnp_to_newt_state_machine();
     void release_frame(MNPFrame *frame);
     void retain_until_ack();
+    void handle_ack_timeout();
     void start_next_job();
     void flush_in_frame();
     void acknowledge_frame(uint8_t seq);
@@ -257,6 +260,7 @@ void MNPFrame::prepare_LD(uint8_t reason) {
 	// 1 Protocol establishment phase error, LR expected but not received
 	// 2 LR constant parameter 1 contains an unexpected value
 	// 3 LR received with incompatible or unknown parameter value
+	// 4 Retransmission limit reached
 	// 255 User-initiated disconnect
 	clear();
 	header.push_back(kMNP_Frame_LD);
@@ -648,8 +652,11 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
  * \brief Handle incoming events from the Dock endpoint.
  * This will create MNP frames from the data stream and send them to the Newton.
  */
-void DockToNewtPipe::task() 
+void DockToNewtPipe::task()
 {
+    if (ack_pending_frame_ && (filter_.scheduler().now_us() >= ack_deadline_)) {
+        handle_ack_timeout();
+    }
     if (active_frame_) {
         mnp_to_newt_state_machine();        
     } else if (!job_list_.empty() || !job_list_lt_.empty()) {
@@ -797,6 +804,25 @@ void DockToNewtPipe::retain_until_ack()
     ack_pending_frame_ = active_frame_;
     active_frame_ = nullptr; // clear the active frame
     out_state_ = OutState::SEND_SYN; // reset the state machine
+    ack_deadline_ = filter_.scheduler().now_us() + MNPFilter::kRetransmitTimeout;
+}
+
+/**
+ * \brief The Newton did not acknowledge our last LT in time.
+ * Send the frame again, or disconnect after too many tries.
+ */
+void DockToNewtPipe::handle_ack_timeout()
+{
+    if (retransmits_ < MNPFilter::kMaxRetransmits) {
+        retransmits_++;
+        if (kLogMNPWarnings) Log.logf("MNP Warning: no LA for LT %d, resending.\r\n", ack_pending_frame_->header[1]);
+        add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LT, ack_pending_frame_->pool_index));
+        ack_pending_frame_ = nullptr; // the frame stays in use until it is acknowledged
+    } else {
+        if (kLogMNPErrors) Log.log("MNP ERROR: no LA for LT, disconnecting.\r\n");
+        filter_.set_disconnected();
+        add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LD, 4)); // 4: retransmission limit reached
+    }
 }
 
 /**
@@ -862,6 +888,7 @@ void DockToNewtPipe::start_next_job()
 						// We got the correct LA, release the frame.
 						if (kLogDock) Log.logf("DockToNewtPipe::start_next_job: Acknowledging frame %d\r\n", event.data());
 						release_frame(ack_pending_frame_);
+						retransmits_ = 0;
 					} else {
 						// Wrong sequence number, we need to resend the frame.
 						if (kLogDock) Log.logf("DockToNewtPipe::start_next_job: Wrong sequence number %d, resending frame.\r\n", event.data());
@@ -964,6 +991,7 @@ void DockToNewtPipe::reset() {
     out_state_ = OutState::SEND_SYN;
     data_crsr_ = 0;
     seq_no_ = 0;
+    retransmits_ = 0;
 }
 
 void DockToNewtPipe::flush_in_frame() {

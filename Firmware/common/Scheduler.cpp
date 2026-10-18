@@ -30,6 +30,7 @@ void Scheduler::init() {
 void Scheduler::run(int n) {
     for (; (n == -1) || (n > 0); ) {
         update_time();
+        now_us_ += cycle_time_;
         // -- Call all registered tasks
         for (auto &task : task_list_) {
             task->task();

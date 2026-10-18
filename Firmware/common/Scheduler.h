@@ -26,6 +26,7 @@ class Scheduler
 protected:
     uint32_t ticks_ = 0;
     uint32_t cycle_time_ = 1;
+    uint64_t now_us_ = 0;
     virtual void update_time() = 0;
     
 public:
@@ -52,6 +53,8 @@ public:
     // -- Additional scheduler features
     uint32_t ticks() const { return ticks_; }
     uint32_t cycle_time() const;
+    /// Microseconds since the scheduler started, the sum of all cycle times.
+    uint64_t now_us() const { return now_us_; }
 };
 
 } // namespace nd

@@ -56,6 +56,11 @@ class MNPFilter : public Task
     void release_frame(MNPFrame *frame);
 
 public:
+    /// Resend an LT if the Newton did not acknowledge it within this time (usec).
+    constexpr static uint64_t kRetransmitTimeout = 3'000'000;
+    /// Disconnect after resending an LT this many times without an LA.
+    constexpr static uint8_t kMaxRetransmits = 4;
+
     /// Publicly accessible pipe from the Newton endpoint to the Dock.
     Pipe &newt;
     /// Publicly accessible pipe from the Dock endpoint to the Newton.

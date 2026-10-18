@@ -131,7 +131,7 @@ Line numbers drift, so jobs refer to functions.
   duplicate, send the LA again and drop the data.
   *Verify:* host test feeding the same LT twice.
 
-- [ ] **2.3 Retransmit timer for our LT frames.**
+- [x] **2.3 Retransmit timer for our LT frames.**
   There is no timeout while waiting for an LA. A lost frame stalls the session
   forever. *Fix:* timer started after the last CRC byte; resend on timeout,
   give up after N retries with LD and `MNP_DISCONNECTED`. Needs a time source

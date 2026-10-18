@@ -72,6 +72,12 @@ static const Bytes kLD = {
     0x00, 0x10, 0x03, 0x0B, 0xC1,
 };
 
+// Link Disconnect sent by MNPFilter, reason 4 (retransmission limit reached).
+// Not captured; the CRC was calculated like the CRCs of the captured frames.
+static const Bytes kDockLD4 = {
+    0x16, 0x10, 0x02, 0x04, 0x02, 0x01, 0x01, 0x04, 0x10, 0x03, 0x6A, 0xB9,
+};
+
 // -- Test fixture
 
 namespace {
@@ -130,6 +136,9 @@ struct Session {
         for (auto b : payload) mnp.dock.send(Event(b));
         mnp.dock.send(Event(Event::Type::MNP, Event::Subtype::MNP_FRAME_END));
         scheduler.run(500);
+    }
+    void wait_us(uint64_t us) {
+        scheduler.run((int)(us / 100)); // TestScheduler: 100 usec per cycle
     }
     void connect() {
         newton_sends(kLR);
@@ -214,6 +223,45 @@ TEST(mnp_drops_lt_out_of_sequence) {
     s.newton_sends(kNewtonRtdk);
     CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonRtdk));
     CHECK_BYTES(s.to_newt.bytes, kDockLA1);
+}
+
+// Our LT got lost. We resend it after the timeout until the Newton acknowledges it.
+TEST(mnp_resends_lt_without_la) {
+    Session s;
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    s.to_newt.clear();
+
+    s.wait_us(MNPFilter::kRetransmitTimeout - 100'000);
+    CHECK(s.to_newt.bytes.empty());
+    s.wait_us(100'000);
+    CHECK_BYTES(s.to_newt.bytes, kDockDock);
+
+    s.newton_sends(kDockLA1); // same bytes as the Newton's LA for seq 1
+    s.to_newt.clear();
+    s.wait_us(2 * MNPFilter::kRetransmitTimeout);
+    CHECK(s.to_newt.bytes.empty());
+    s.dock_sends(lt_payload(kDockDock));
+    CHECK(s.to_newt.bytes.size() > 5 && s.to_newt.bytes[5] == 2); // next LT has seq 2
+}
+
+// The Newton is gone. We give up after the last resend and disconnect.
+TEST(mnp_disconnects_after_retransmit_limit) {
+    Session s;
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    s.wait_us((MNPFilter::kMaxRetransmits + 1) * MNPFilter::kRetransmitTimeout + 100'000);
+
+    Bytes expected;
+    for (int i = 0; i <= MNPFilter::kMaxRetransmits; i++)
+        expected.insert(expected.end(), kDockDock.begin(), kDockDock.end());
+    expected.insert(expected.end(), kDockLD4.begin(), kDockLD4.end());
+    CHECK_BYTES(s.to_newt.bytes, expected);
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    CHECK_BYTES(s.to_newt.bytes, kDockDock);
 }
 
 // The Newton never acknowledges our LT and starts over with a new LR.
