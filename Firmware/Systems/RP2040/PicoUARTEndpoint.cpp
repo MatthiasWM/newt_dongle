@@ -116,7 +116,10 @@ Result PicoUARTEndpoint::send(Event event) {
                 return Result::REJECTED;
             }
             bool cts = gpio_get(kUART_HSKO_Pin);
-            if (cts && uart_is_writable(kUART)) {
+            // Only write into an empty TX FIFO. When the Newton drops CTS, at most
+            // this byte and the one in the shift register still go out.
+            bool fifo_empty = uart_get_hw(kUART)->fr & UART_UARTFR_TXFE_BITS;
+            if (cts && fifo_empty) {
                 uart_putc_raw(kUART, event.data());
                 if (kLogUART) Log.log(event, 1);
                 return Result::OK;

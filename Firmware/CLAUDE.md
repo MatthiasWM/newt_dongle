@@ -215,7 +215,7 @@ Line numbers drift, so jobs refer to functions.
   Use `UART_UARTFR_BUSY_BITS` instead of `TXFE`; otherwise the last CRC byte
   (~260 µs at 38400) overlaps the pause.
 
-- [ ] **4.3 Keep the TX FIFO short for software CTS.**
+- [x] **4.3 Keep the TX FIFO short for software CTS.**
   HSKO is checked per byte, but up to 32 bytes sit in the hardware FIFO and
   still go out after the Newton drops CTS. *Fix:* only write when the FIFO is
   (nearly) empty, e.g. `TXFE`, or a low FIFO level via `UARTIFLS`/`UARTRIS`.
