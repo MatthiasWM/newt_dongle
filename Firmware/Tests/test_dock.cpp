@@ -57,6 +57,7 @@ class Recorder : public Pipe {
 public:
     Bytes bytes;
     std::string frames;
+    std::vector<Event> events; // all other events
     Result send(Event event) override {
         if (event.is_data()) {
             bytes.push_back(event.data());
@@ -64,8 +65,15 @@ public:
             frames += "[" + std::to_string(bytes.size()) + " ";
         } else if (event.subtype() == Event::Subtype::MNP_FRAME_END) {
             frames += "]" + std::to_string(bytes.size()) + " ";
+        } else {
+            events.push_back(event);
         }
         return Result::OK;
+    }
+    bool received(Event::Subtype subtype) const {
+        for (auto &e : events)
+            if (e.type() == Event::Type::MNP && e.subtype() == subtype) return true;
+        return false;
     }
 };
 
@@ -107,6 +115,8 @@ struct DockSession {
     }
     ~DockSession() {
         sdcard_endpoint.file.clear();
+        sdcard_endpoint.readable = SIZE_MAX;
+        sdcard_endpoint.is_open = false;
     }
     // Send the bytes as one MNP frame, as MNPFilter does.
     void newton_sends(const Bytes &bytes) {
@@ -387,4 +397,38 @@ TEST(dock_rejects_spth_with_a_folder_that_is_not_a_string) {
     Ref path = Ref(Array::New({ Ref(String::New(u"NewtCOM")), Ref(String::New(u"TEST")), Ref((int32_t)5) }));
     s.newton_sends(command_with_ref("spth", path));
     CHECK_BYTES(s.to_newt.bytes, kDockDresNotAString);
+}
+
+// -- Package transfer errors
+
+TEST(dock_reports_file_info_for_missing_file) {
+    DockSession s;
+    s.newton_sends(command_with_string("gfin", u"test.pkg"));
+    CHECK_BYTES(s.to_newt.bytes, kDockDresNoFile);
+}
+
+// A package that can't be read completely must not be installed. The Dock
+// asks MNP to end the session, because the Newton reads anything that follows
+// the lpkg header as package data.
+TEST(dock_disconnects_on_sd_read_error) {
+    DockSession s;
+    sdcard_endpoint.file = Bytes(600, 0x55);
+    sdcard_endpoint.readable = 100;
+    s.newton_sends(command_with_string("lpfl", u"test.pkg"));
+    CHECK_BYTES(s.to_newt.bytes, command("lpkg", 600));
+    CHECK(s.to_newt.received(Event::Subtype::MNP_SEND_LD));
+    CHECK(!sdcard_endpoint.is_open);
+
+    s.to_newt.bytes.clear();
+    s.newton_sends(command("rtdk", 0));
+    CHECK_BYTES(s.to_newt.bytes, kDockDock);
+}
+
+TEST(dock_closes_package_on_disconnect) {
+    DockSession s;
+    sdcard_endpoint.file = Bytes(4000, 0x55);
+    s.newton_sends(command_with_string("lpfl", u"test.pkg"));
+    CHECK(sdcard_endpoint.is_open);
+    s.dock.send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+    CHECK(!sdcard_endpoint.is_open);
 }

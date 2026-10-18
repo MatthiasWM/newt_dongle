@@ -5,7 +5,11 @@
 
 #include "test.h"
 
+#include "main.h"
+
+#include "common/Endpoints/Dock.h"
 #include "common/Filters/MNPFilter.h"
+#include "common/Newton/NSOF.h"
 #include "common/Scheduler.h"
 
 #include <vector>
@@ -347,6 +351,55 @@ TEST(mnp_drops_lt_with_too_much_data) {
     s.newton_sends(kNewtonName);
     CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonName));
     CHECK_BYTES(s.to_newt.bytes, kDockLA2);
+}
+
+// The Dock can't continue, e.g. after an SD card error, and ends the session.
+TEST(mnp_sends_ld_for_dock) {
+    Session s;
+    s.connect();
+    s.mnp.dock.send(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LD, 255));
+    s.scheduler.run(500);
+    CHECK_BYTES(s.to_newt.bytes, make_frame({ 0x02, 0x01, 0x01, 0xFF }, {}));
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+}
+
+// MNPFilter and Dock together: an SD card error in the middle of a package
+// transfer ends the session with LD, and the Dock closes the package.
+TEST(mnp_and_dock_end_session_on_sd_read_error) {
+    TestScheduler scheduler;
+    MNPFilter mnp { scheduler };
+    Dock dock { scheduler };
+    Recorder to_newt;
+    mnp.newt >> dock;
+    dock >> mnp.dock;
+    mnp.dock >> to_newt;
+    scheduler.init();
+    auto newton_sends = [&](const Bytes &frame) {
+        for (auto b : frame) mnp.newt.send(Event(b));
+        scheduler.run(2000);
+    };
+    newton_sends(kLR);
+    newton_sends(kNewtonLA0);
+    to_newt.clear();
+
+    NSOF nsof;
+    nsof.to_nsof(Ref(String::New(u"test.pkg")));
+    Bytes lpfl = { 'n', 'e', 'w', 't', 'd', 'o', 'c', 'k', 'l', 'p', 'f', 'l',
+                   0x00, 0x00, 0x00, (uint8_t)nsof.data().size() };
+    lpfl.insert(lpfl.end(), nsof.data().begin(), nsof.data().end());
+    while (lpfl.size() % 4) lpfl.push_back(0);
+
+    sdcard_endpoint.file = Bytes(600, 0x55);
+    sdcard_endpoint.readable = 100;
+    newton_sends(make_frame({ 0x04, 0x01 }, lpfl));
+    Bytes expected = kDockLA1;
+    Bytes ld = make_frame({ 0x02, 0x01, 0x01, 0xFF }, {});
+    expected.insert(expected.end(), ld.begin(), ld.end());
+    CHECK_BYTES(to_newt.bytes, expected);
+    CHECK(!sdcard_endpoint.is_open);
+
+    sdcard_endpoint.file.clear();
+    sdcard_endpoint.readable = SIZE_MAX;
 }
 
 // The Newton never acknowledges our LT and starts over with a new LR.

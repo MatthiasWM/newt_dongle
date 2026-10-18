@@ -971,6 +971,12 @@ Result DockToNewtPipe::send(Event event)
             }
             return Result::OK;
         }
+        if (event.subtype() == Event::Subtype::MNP_SEND_LD) {
+            // The Dock ends the session, e.g. after an SD card error.
+            filter_.set_disconnected();
+            add_job(event);
+            return Result::OK;
+        }
     } else if (event.type() == Event::Type::DATA) {
         if (!in_frame) {
             if (ack_pending_frame_ || !job_list_lt_.empty() || (active_frame_ && (active_frame_->header[0] == kMNP_Frame_LT))) {

@@ -103,6 +103,10 @@ void Dock::clear_data_queue_()
 
 void Dock::reset_()
 {
+	// After SEND_PACKAGE, a package transfer has the package file open.
+	if ((current_task_ != Task::NONE) && (current_task_ != Task::SEND_PACKAGE)) {
+		sdcard_endpoint.closefile();
+	}
 	clear_data_queue_();
     in_data_.clear();
 	in_data_.reserve(400);
@@ -711,7 +715,11 @@ void Dock::handle_GetFileInfo()
 		// <00. <00. <00. // padding
 		// <10. <03. <92. <47G // end, checksum
 
-	sdcard_endpoint.openfile(filename->str());
+	if (sdcard_endpoint.openfile(filename->str()) != FR_OK) {
+		if (kLogDockErrors) Log.log("Dock: handle_GetFileInfo: can't open the file\r\n");
+		send_cmd_dres(kDockErrBrowserFileNotFound);
+		return;
+	}
 	uint32_t file_size = sdcard_endpoint.filesize();
 	sdcard_endpoint.closefile();
 
@@ -796,6 +804,13 @@ void Dock::send_package_task()
 		uint32_t bytes_read = sdcard_endpoint.readfile(data->data(), read_size);
 		if (bytes_read != read_size) {
 			if (kLogDockErrors) Log.logf("Dock: send_package_task: readfile error %d\r\n", bytes_read);
+			// The Newton reads everything after the lpkg header as package data,
+			// so we can't send an error. End the session instead of letting the
+			// Newton install a corrupt package.
+			delete data;
+			out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LD, 255));
+			reset_();
+			return;
 		}
 		data_queue_.push(Dock::Data {
 			.bytes_ = data,
