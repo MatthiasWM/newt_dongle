@@ -74,7 +74,7 @@ void PicoAsyncLog::run() {
                 uint32_t sec = diff / 1'000'000;
                 uint32_t msec = (diff % 1'000'000) / 1000;
                 uint32_t usec = diff % 1000;
-                printf("\nt[%d.%03d.%03d]\n", sec, msec, usec);
+                printf("\nt[%d.%03d.%03d]\n", (int)sec, (int)msec, (int)usec);
             }
             prev_event_time_ = now;
         }
@@ -102,15 +102,15 @@ void PicoAsyncLog::run() {
             } else if (event.type() == Event::Type::TEXT) {
                 putchar(event.data());
             } else if (event.type() == Event::Type::ERROR) {
-                printf("\nE[%d,%d]", event.subtype(), event.data());
+                printf("\nE[%d,%d]", (int)event.subtype(), (int)event.data());
             } else if (event.type() == Event::Type::SET_BITRATE) {
-                printf("\nB[%d]", event.bitrate());
+                printf("\nB[%d]", (int)event.bitrate());
             } else if (event.type() == Event::Type::DELAY) {
-                printf("\nD[%d,%d]", event.subtype(), event.data());
+                printf("\nD[%d,%d]", (int)event.subtype(), (int)event.data());
             } else if (event.type() == Event::Type::HIGH_WATER) {
-                printf("\nH[%d,%d]", event.subtype(), event.data());
+                printf("\nH[%d,%d]", (int)event.subtype(), (int)event.data());
             } else {
-                printf("\n?[%d,%d,%d]", event.type(), event.subtype(), event.data());
+                printf("\n?[%d,%d,%d]", (int)event.type(), (int)event.subtype(), (int)event.data());
             }
         } else {
             Result result;

@@ -119,5 +119,11 @@ set(APP newt_dongle)
 add_subdirectory(common)
 add_subdirectory(RP2040)
 
+# Warnings for our own sources, but not for the Pico SDK. Zero filled fields
+# in aggregate initializers (e.g. the SD card hardware tables) are intended.
+get_target_property(ND_SOURCES newt_dongle SOURCES)
+set_source_files_properties(${ND_SOURCES} PROPERTIES
+        COMPILE_OPTIONS "-Wall;-Wextra;-Wno-missing-field-initializers")
+
 pico_add_extra_outputs(newt_dongle)
 

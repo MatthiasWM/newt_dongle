@@ -65,7 +65,6 @@ class NewtToDockPipe : public Pipe {
     std::queue<Event> job_list_;
 
     MNPFrame *in_frame_ = nullptr;
-    uint16_t in_frame_crsr_ = 0;
     enum class InState {  // TODO: move to class Frame?
         ABORT,                  // clear the in_buffer and start over
         WAIT_FOR_SYN,           // synchronous idle
@@ -246,6 +245,7 @@ void MNPFrame::print() {
 }
 
 void MNPFrame::prepare_LR(uint8_t in_index) {
+	(void)in_index; // our LR does not depend on the Newton's LR yet
 	clear();
 	header = { 
 		kMNP_Frame_LR, 
@@ -603,7 +603,7 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 			} else if (frame->header.size() == 4) {
 				seq = frame->header[3];
 			} else {
-				if (kLogMNPErrors) Log.logf("MNP ERROR: Unexpected LT header size %d\r\n", frame->header.size());
+				if (kLogMNPErrors) Log.logf("MNP ERROR: Unexpected LT header size %d\r\n", (int)frame->header.size());
 				filter_.release_frame(frame);
 				break; // we ignore the frame because we can't get the sequence number
 			}
@@ -648,8 +648,9 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 				seq = frame->header[3];
 				credit = frame->header[6];
 			} else {
-				if (kLogMNPErrors) Log.logf("MNP ERROR: Unexpected LA header size %d\r\n", frame->header.size());
+				if (kLogMNPErrors) Log.logf("MNP ERROR: Unexpected LA header size %d\r\n", (int)frame->header.size());
 			}
+			(void)credit; // TODO: a credit of 0 means that the Newton can't take more LTs right now
 			if (filter_.mnp_state_ == MNPFilter::MNPState::CONNECTED) {
 				// TODO: is there a Frame that we need to resend?
                 filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_RECEIVED_LA, seq));
@@ -667,7 +668,7 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 		}
 		default:
 			filter_.release_frame(frame);
-			if (kLogMNPErrors) Log.log("MNP ERROR: handle_valid_in_frame: Unknown frame type %d\r\n", frame->type());
+			if (kLogMNPErrors) Log.logf("MNP ERROR: handle_valid_in_frame: Unknown frame type %d\r\n", frame->type());
 			break;
 	}
 }
@@ -912,12 +913,12 @@ void DockToNewtPipe::start_next_job()
 					// We are waiting for an LA for the last LT frame.
 					if (ack_pending_frame_->header[1] == event.data()) {
 						// We got the correct LA, release the frame.
-						if (kLogDock) Log.logf("DockToNewtPipe::start_next_job: Acknowledging frame %d\r\n", event.data());
+						if (kLogDock) Log.logf("DockToNewtPipe::start_next_job: Acknowledging frame %d\r\n", (int)event.data());
 						release_frame(ack_pending_frame_);
 						retransmits_ = 0;
 					} else {
 						// Wrong sequence number, we need to resend the frame.
-						if (kLogDock) Log.logf("DockToNewtPipe::start_next_job: Wrong sequence number %d, resending frame.\r\n", event.data());
+						if (kLogDock) Log.logf("DockToNewtPipe::start_next_job: Wrong sequence number %d, resending frame.\r\n", (int)event.data());
 						add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LT, ack_pending_frame_->pool_index));
 						ack_pending_frame_ = nullptr; // clear the pending frame
 					}
@@ -990,7 +991,7 @@ Result DockToNewtPipe::send(Event event)
                 return Result::REJECTED;
             }
         }
-        if (kLogDock) Log.logf("+%02x ", event.data());
+        if (kLogDock) Log.logf("+%02x ", (unsigned)event.data());
         in_frame->data.push_back(event.data());
         if (in_frame->data.size() >= MNPFilter::kMaxData) {
             // We have enough data to send a LT frame.
@@ -1100,6 +1101,7 @@ Result MNPFilter::task() {
  * \brief Not used.
  */
 Result MNPFilter::send(Event event) {
+    (void)event;
     if (kLogMNPErrors) Log.log("ERROR: MNPFilter::send() not implemented. Send to `newt` or `dock` pipe instead!\r\n");
     return Result::OK__NOT_CONNECTED;
 }

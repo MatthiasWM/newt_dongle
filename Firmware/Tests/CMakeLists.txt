@@ -42,6 +42,9 @@ target_include_directories(tests PRIVATE
         ${ND_ROOT}
 )
 
+# The same warnings as the firmware builds.
+target_compile_options(tests PRIVATE -Wall -Wextra -Wno-missing-field-initializers)
+
 # Catch use-after-free, double free, out of bounds access, and undefined behavior.
 target_compile_options(tests PRIVATE -g -fsanitize=address,undefined -fno-omit-frame-pointer)
 target_link_options(tests PRIVATE -fsanitize=address,undefined)

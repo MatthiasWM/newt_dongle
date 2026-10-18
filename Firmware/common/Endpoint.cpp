@@ -58,6 +58,7 @@ Result Endpoint::send(Event event) {
  * that the event reached the endpoint.
  */
 Result Endpoint::rush(Event event) {
+    (void)event;
     return Result(Result::Type::OK, Result::Subtype::NOT_HANDLED);
 }
 

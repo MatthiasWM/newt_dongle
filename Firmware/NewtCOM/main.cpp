@@ -124,7 +124,7 @@ BufferedPipe buffer_to_uart(scheduler);
 
 
 // -- Everything is already allocated. Now link the endpoints and run the scheduler.
-int main(int argc, char *argv[])
+int main()
 {
     system_task.reset_hardware(); 
 

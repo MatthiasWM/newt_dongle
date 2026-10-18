@@ -132,7 +132,7 @@ void Ref::log(uint32_t depth, uint32_t indent) const
     switch (type_) {
         case Type::INT: // int32_t
             Log.indent(indent);
-            Log.logf("%d", as_int());
+            Log.logf("%d", (int)as_int());
             break;
         case Type::BOOL: // bool
             Log.indent(indent);
@@ -305,7 +305,6 @@ void push_xlong(std::vector<uint8_t> &vec, int32_t value) {
 
 void Ref::to_nsof(NSOF &nsof) const
 {
-    int32_t v;
     switch (type_) {
         case Type::INT: // int
             nsof.data().push_back(0);
@@ -348,7 +347,7 @@ void Ref::to_nsof(NSOF &nsof) const
  */
 bool NSOF::write_precedent(const Object *obj) {
     if (!obj) return false;
-    int i = 0;
+    uint32_t i = 0;
     for (i = 0; i<precedent_.size(); i++) {
         if (precedent_[i] == obj) {
             // Object was already written, write a precedent marker
@@ -447,7 +446,7 @@ Ref NSOF::to_ref_(int32_t &error_code)
         case 0: { // immediate
             uint32_t value = get_xlong(error_code);
             if (error_code) return Ref(false);
-            if (kLogNSOF) Log.logf("NSOF: to_ref: immediate %d\n", value);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: immediate %d\n", (int)value);
             return Ref::Raw(value); }
         case 1: { // character
             if (data_.size() <= crsr_) {
@@ -473,7 +472,7 @@ Ref NSOF::to_ref_(int32_t &error_code)
         case 5: { // plain array [#slots, values...]
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
-            if (kLogNSOF) Log.logf("NSOF: to_ref: array with %d slots\n", size);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: array with %d slots\n", (int)size);
             Array *array = Array::New();
             precedent_.push_back(array); // Add to precedent list
             for (uint32_t i = 0; i < size; i++) {
@@ -485,7 +484,7 @@ Ref NSOF::to_ref_(int32_t &error_code)
         case 6: { // frame [#slots, keys..., values...]
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
-            if (kLogNSOF) Log.logf("NSOF: to_ref: frame with %d slots\n", size);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: frame with %d slots\n", (int)size);
             Frame *frame = Frame::New();
             precedent_.push_back(frame); // Add to precedent list
             for (uint32_t i = 0; i < size; i++) {
@@ -563,7 +562,7 @@ Ref NSOF::to_ref_(int32_t &error_code)
         case 9: { // Precedent
             uint32_t index = get_xlong(error_code);
             if (error_code) return Ref(false);
-            if (kLogNSOF) Log.logf("NSOF: to_ref: precedent %d\n", index);
+            if (kLogNSOF) Log.logf("NSOF: to_ref: precedent %d\n", (int)index);
             if (index >= precedent_.size()) {
                 if (kLogNSOF) Log.log("NSOF: to_ref: precedent index out of bounds\n");
                 error_code = -28210; // Invalid Type

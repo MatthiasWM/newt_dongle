@@ -182,7 +182,6 @@ Result PicoSDCardEndpoint::init()
     SDCardEndpoint::init();
     if (!initialized_) {
         time_init();
-        sd_card_t *pSD = sd_get_by_num(0);
         f_unmount((const uint16_t*)u"0:");
     }
     return Result::OK;
@@ -196,6 +195,8 @@ Result PicoSDCardEndpoint::send(Event event) {
     switch (event.type()) {
         case Event::Type::DATA: {
         }
+        default:
+            break;
     }
     if (kLogSDCard) Log.log(event, 1);
     return SDCardEndpoint::send(event);
@@ -239,7 +240,6 @@ const std::u16string &PicoSDCardEndpoint::get_label() {
             label_ = u"ERROR";
             return label_;
         }
-        sd_card_t *pSD = sd_get_by_num(0);  // Get the first SD card
         TCHAR label_buffer[14];  // FF_LFN_UNICODE=1
         label_buffer[0] = 0; // Initialize the buffer to empty
         app_status.repeat(AppStatus::SDCARD_ACTIVE, 1); // Flash blue
@@ -260,7 +260,7 @@ uint32_t PicoSDCardEndpoint::opendir()
     if (!mounted_) {
         uint32_t err = mount_();
         if (err != FR_OK) {
-            if (kLogSDCard) Log.logf("opendir: mount error: %s (%d)\n", strerr(err), err);
+            if (kLogSDCard) Log.logf("opendir: mount error: %s (%d)\n", strerr(err), (int)err);
             return err;
         }
     }
@@ -271,6 +271,17 @@ uint32_t PicoSDCardEndpoint::opendir()
         return fr;
     }
     return FR_OK;
+}
+
+// For log messages only: a FatFS file name in ASCII, '?' for other characters.
+static const char *log_name(const TCHAR *name)
+{
+    static char buffer[64];
+    size_t i = 0;
+    for ( ; name[i] && i < sizeof(buffer) - 1; i++)
+        buffer[i] = (name[i] < 0x80) ? (char)name[i] : '?';
+    buffer[i] = 0;
+    return buffer;
 }
 
 static int strlen16(const TCHAR* strarg)
@@ -299,18 +310,18 @@ uint32_t PicoSDCardEndpoint::readdir(std::u16string &name) {
         }
         if (fno.fattrib & AM_HID) {
             // Skip hidden files
-            if (kLogSDCard) Log.logf("readdir: skipping hidden file: %s\n", fno.fname);
+            if (kLogSDCard) Log.logf("readdir: skipping hidden file: %s\n", log_name(fno.fname));
             continue;
         }
         if (fno.fattrib & AM_SYS) {
             // Skip system files
-            if (kLogSDCard) Log.logf("readdir: skipping system file: %s\n", fno.fname);
+            if (kLogSDCard) Log.logf("readdir: skipping system file: %s\n", log_name(fno.fname));
             continue;
         }
         if (fno.fattrib & AM_DIR) {
             // Send directories
             name = (const char16_t*)fno.fname; // Convert the TCHAR name to std::u16string
-            if (kLogSDCard) Log.logf("readdir: returning a directory: %s\n", fno.fname);
+            if (kLogSDCard) Log.logf("readdir: returning a directory: %s\n", log_name(fno.fname));
             return FR_IS_DIRECTORY; // Indicates a directory
         }
         auto n = fno.fname; // Get the file name
@@ -318,10 +329,10 @@ uint32_t PicoSDCardEndpoint::readdir(std::u16string &name) {
         if (len>=4 && n[len-4]=='.' && (n[len-3]=='p' || n[len-3]=='P') && (n[len-2]=='k' || n[len-2]=='K') && (n[len-1]=='g' || n[len-1]=='G')) {
             // Do return package files
             name = (const char16_t*)fno.fname; // Convert the TCHAR name to std::u16string
-            if (kLogSDCard) Log.logf("readdir: returning a package file: %s\n", fno.fname);
+            if (kLogSDCard) Log.logf("readdir: returning a package file: %s\n", log_name(fno.fname));
             return FR_IS_PACKAGE;
         }
-        if (kLogSDCard) Log.logf("readdir: skipping file: %s\n", fno.fname);
+        if (kLogSDCard) Log.logf("readdir: skipping file: %s\n", log_name(fno.fname));
     }
 }
 
@@ -340,7 +351,7 @@ uint32_t PicoSDCardEndpoint::chdir(const std::u16string &path)
     if (!mounted_) {
         uint32_t err = mount_();
         if (err != FR_OK) {
-            if (kLogSDCard) Log.logf("chdir: mount error: %s (%d)\n", strerr(err), err);
+            if (kLogSDCard) Log.logf("chdir: mount error: %s (%d)\n", strerr(err), (int)err);
             return err;
         }
     }
@@ -359,7 +370,7 @@ uint32_t PicoSDCardEndpoint::getcwd(std::u16string &path)
     if (!mounted_) {
         uint32_t err = PicoSDCardEndpoint::mount_();
         if (err != FR_OK) {
-            if (kLogSDCard) Log.logf("getcwd: mount error: %s (%d)\n", PicoSDCardEndpoint::strerr(err), err);
+            if (kLogSDCard) Log.logf("getcwd: mount error: %s (%d)\n", PicoSDCardEndpoint::strerr(err), (int)err);
             return err;
         }
     }

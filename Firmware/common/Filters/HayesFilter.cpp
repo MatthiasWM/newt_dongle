@@ -44,9 +44,9 @@ using namespace nd;
  */
 HayesFilter::HayesFilter(Scheduler &scheduler, uint8_t ix)
 :   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS),
+    index_(ix),
     upstream(*this),
-    downstream(*this),
-    index_(ix)
+    downstream(*this)
 {
 }
 
@@ -79,6 +79,8 @@ Result HayesFilter::signal(Event event) {
                 value = user_settings.data.hayes1_esc_code_guard_time;
             }
             esc_code_guard_timeout_ = value * 20'000; // 20ms
+            break;
+        default:
             break;
     }
     return Result::OK;
@@ -381,7 +383,7 @@ void HayesFilter::run_cmd_line() {
 // ATD*99# : Dial Access Point
 const char *HayesFilter::run_next_cmd(const char *cmd) {
     char c = *cmd++;
-    uint32_t a = 0, v = 0;
+    uint32_t a = 0;
     if (c>32 && c<127) c = toupper(c);
     switch (c) {
         case 0: // End of command line.
@@ -432,6 +434,7 @@ const char *HayesFilter::run_next_cmd(const char *cmd) {
                 send_string("\r\n");
                 return cmd;
             }
+            return cmd; // `ATSn` only selects register n
         // T - Select Tone Dialing Method
         // V - Result Code Format Options
         // W - Negotiation Progress Message Selection
@@ -531,7 +534,7 @@ const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
             return nullptr;
         }
         char buf[64];
-        snprintf(buf, 64, "Flashed %d %d %d %d\r\n", serial, id, version, revision);
+        snprintf(buf, 64, "Flashed %d %d %d %d\r\n", (int)serial, id, version, revision);
         send_string(buf);
         return cmd; 
     }

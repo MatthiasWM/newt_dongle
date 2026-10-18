@@ -21,7 +21,8 @@ public:
     virtual void log(Event event, int pipe=0);
     virtual void log(Result result, int pipe=0);
     virtual void log(const char *message, int pipe=0);
-    virtual void logf(const char *message, ...);
+    // `this` is the first argument, so the format is argument 2.
+    virtual void logf(const char *message, ...) __attribute__((format(printf, 2, 3)));
     void indent(uint32_t level);
 };
 

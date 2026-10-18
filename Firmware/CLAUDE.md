@@ -270,7 +270,7 @@ Line numbers drift, so jobs refer to functions.
 
 ### Phase 5 – Code quality (no behaviour change)
 
-- [ ] **5.1 Compiler warnings.** Build `common/` with `-Wall -Wextra` and fix
+- [x] **5.1 Compiler warnings.** Build `common/` with `-Wall -Wextra` and fix
   the findings (printf formats with `uint32_t`, `Log.logf` with unused
   arguments, unused variables, signed/unsigned compares). Also look for
   `Log.log("...%d", value)`: the second argument is the *pipe*, so the value

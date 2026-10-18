@@ -135,7 +135,7 @@ static uint32_t DESfrk(uint32_t Khi, uint32_t Klo, uint32_t R);
 
 void DESPermute(const unsigned char * inPermuteTable, uint32_t inKeyHi, uint32_t inKeyLo, SNewtNonce * outKey)
 {
-	uint32_t permutedHi, permutedLo;
+	uint32_t permutedHi, permutedLo = 0; // the first swap moves permutedLo into permutedHi, which is then cleared
 	uint32_t srcBits;
 	unsigned int bitPos;
 

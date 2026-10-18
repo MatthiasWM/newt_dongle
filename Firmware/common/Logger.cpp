@@ -65,12 +65,15 @@ Logger::Logger() {
 }
 
 void Logger::log(Event event, int pipe) {
+    (void)event; (void)pipe;
 }
 
 void Logger::log(Result result, int pipe) {
+    (void)result; (void)pipe;
 }
 
 void Logger::log(const char *message, int pipe) {
+    (void)message; (void)pipe;
 }
 
 void Logger::logf(const char *message, ...) {

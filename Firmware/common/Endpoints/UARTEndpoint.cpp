@@ -25,6 +25,8 @@ Result UARTEndpoint::send(Event event) {
         case Event::Type::SET_BITRATE:
             set_bitrate(event.bitrate());
             return Result::OK;
+        default:
+            break;
     }
     return Endpoint::send(event);
 }

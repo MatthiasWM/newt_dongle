@@ -34,7 +34,7 @@ Result StatusDisplay::init() {
  * Set the main status.
  */
 void StatusDisplay::set(AppStatus new_status) {
-
+    (void)new_status;
 }
 
 /**
@@ -42,5 +42,5 @@ void StatusDisplay::set(AppStatus new_status) {
  * When the ticks elapsed, go back to the main status.
  */
 void StatusDisplay::repeat(AppStatus temp_status, int repeats) {
-
+    (void)temp_status; (void)repeats;
 }

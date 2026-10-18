@@ -149,6 +149,8 @@ Result PicoUARTEndpoint::send(Event event) {
                 return Result::REJECTED;
             }
         }
+        default:
+            break;
     }
     if (kLogUART) Log.log(event, 1);
     return UARTEndpoint::send(event);

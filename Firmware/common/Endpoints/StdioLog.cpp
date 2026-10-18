@@ -36,7 +36,6 @@ bool StdioLog::would_block() {
  */
 Result StdioLog::send(Event event) {
     static char hex_lut[] = "0123456789ABCDEF";
-    static int count = 0;
     if (would_block()) {
         return Result::REJECTED;
     }
@@ -52,7 +51,7 @@ Result StdioLog::send(Event event) {
             }
             return Result::OK; }
         case Event::Type::ERROR:
-            printf("E[%d]\n", event.data());
+            printf("E[%d]\n", (int)event.data());
             return Result::OK;
         default:
             printf("U[%d]\n", static_cast<int>(event.type()));

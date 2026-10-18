@@ -26,7 +26,7 @@ public:
     Scheduler &scheduler() const { return scheduler_; }
     virtual Result init() { return Result::OK; }
     virtual Result task() { return Result::OK; }
-    virtual Result signal(Event event) { return Result::OK; }
+    virtual Result signal(Event event) { (void)event; return Result::OK; }
 };
 
 } // namespace nd

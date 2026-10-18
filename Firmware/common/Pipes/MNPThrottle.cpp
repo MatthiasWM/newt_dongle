@@ -110,7 +110,6 @@ Result MNPThrottle::send(Event event)
 }
 
 Result MNPThrottle::signal(Event event) {
-    uint8_t value = 0;
     if (event.type() != Event::Type::SIGNAL)
         return Result::OK;
     switch (event.subtype()) {

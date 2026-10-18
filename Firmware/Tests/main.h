@@ -22,7 +22,7 @@ namespace nd {
 class TestLog {
 public:
     void log(const char *message, int pipe = 0);
-    void logf(const char *format, ...);
+    void logf(const char *format, ...) __attribute__((format(printf, 2, 3)));
     void indent(uint32_t depth);
 };
 

@@ -71,7 +71,7 @@ uint8_t Event::bitrate_to_id(uint32_t bitrate) {
         case 115200: return 10; 
         case 230400: return 11;
         default:
-            if (kDebugErrors) printf("**** ERROR ***: unsupported bitrate %d\n", bitrate);
+            if (kDebugErrors) printf("**** ERROR ***: unsupported bitrate %d\n", (int)bitrate);
             return 0xff;
     }
 }

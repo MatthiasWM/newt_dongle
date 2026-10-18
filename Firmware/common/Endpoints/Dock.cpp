@@ -232,7 +232,7 @@ Result Dock::send(Event event)
 				if (c == 'n') {
 					in_stream_state_++; 
 				} else {
-					if (kLogDockErrors) Log.logf("\r\nERROR: Dock::send: State out of sync!\r\n", cmd_, size);
+					if (kLogDockErrors) Log.log("\r\nERROR: Dock::send: State out of sync!\r\n");
 				}
 				break; // 'n'
 			case  1: if (c == 'e') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'e'
@@ -285,7 +285,7 @@ Result Dock::send(Event event)
 				} 
 				if (in_index_ == aligned_size) {
 					// We have received all the data, process the command.
-					if (kLogDockProgress) Log.logf("Dock::send: Received '%s' with %d bytes payload.\r\n", cmd_, size);
+					if (kLogDockProgress) Log.logf("Dock::send: Received '%s' with %u bytes payload.\r\n", cmd_, (unsigned)size);
 					process_command();
 					in_stream_state_ = 0; // reset state
 				}
@@ -325,12 +325,14 @@ void Dock::process_command()
 					result = (int32_t)((in_data_[0] << 24) | (in_data_[1] << 16) | (in_data_[2] << 8) | in_data_[3]);
 				Log.logf("Dock::process_command: kDResult %d, next command is %08x\r\n", (int)result, (unsigned)dres_next_);
 			}
-			if (kLogDock) Log.log("\r\nDRES: ");
-			for (int i=0; i<in_data_.size(); i++) {
-				uint8_t c = in_data_[i];
-				//if (kLogDock) Log.logf("%02x%c ", in_data_[i], (c>0x20 && c<0x7f) ? c : '.');
+			if (kLogDock) {
+				Log.log("\r\nDRES: ");
+				for (size_t i=0; i<in_data_.size(); i++) {
+					uint8_t c = in_data_[i];
+					Log.logf("%02x%c ", c, (c>0x20 && c<0x7f) ? c : '.');
+				}
+				Log.log("\r\n");
 			}
-			//if (kLogDock) Log.log("\r\n");
 			if (dres_next_ == kDSetTimeout) {
 				dres_next_ = 0;
 				send_cmd_stim();
@@ -374,7 +376,7 @@ void Dock::process_command()
 			if (kLogDockProgress) Log.log("Dock::process_command: kDDisconnect\r\n");
 			break;
 		default:
-			if (kLogDockErrors) Log.logf("Dock::process_command: Unknown command '%s' (%08x)\r\n", cmd_, cmd);
+			if (kLogDockErrors) Log.logf("Dock::process_command: Unknown command '%s' (%08x)\r\n", cmd_, (unsigned)cmd);
 			break;
 	}
 }
@@ -608,10 +610,10 @@ void Dock::send_cmd_pass() {
 	SNewtNonce response = newtNonce;
 	UniChar password[] = { 0x0000 };
 
-	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08lx'%08lx\r\n", newt_challenge_hi, newt_challenge_lo);
+	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08x'%08x\r\n", (unsigned)newt_challenge_hi, (unsigned)newt_challenge_lo);
 	DESCharToKey(password, &key); // hi = 4060593999, lo = 2233144957
 	DESEncodeNonce(&key, &response);
-	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08lx'%08lx\r\n", response.hi, response.lo);
+	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08x'%08x\r\n", (unsigned)response.hi, (unsigned)response.lo);
 
 	std::vector<uint8_t> payload;
 	append_ulong(payload, response.hi);
@@ -630,7 +632,7 @@ void Dock::handle_SetPath()
 	int32_t error_code = 0;
 	Ref path_ref = nsof.to_ref(error_code);
 	if (error_code != 0) {
-		if (kLogDockErrors) Log.logf("Dock: handle_SetPath: NSOF error %d\r\n", error_code);
+		if (kLogDockErrors) Log.logf("Dock: handle_SetPath: NSOF error %d\r\n", (int)error_code);
 		send_cmd_dres(error_code);
 		return;
 	}
@@ -652,10 +654,10 @@ void Dock::handle_SetPath()
 		cwd_ = u"/";
 	} else {
 		path_is_desktop_ = false;
-		for (int i = 2; i < n; ++i) {
+		for (uint32_t i = 2; i < n; ++i) {
 			String *name = arr->at(i).as_string();
 			if (!name) {
-				if (kLogDockErrors) Log.logf("Dock: handle_SetPath: item %d is not a String\r\n", i);
+				if (kLogDockErrors) Log.logf("Dock: handle_SetPath: item %d is not a String\r\n", (int)i);
 				send_cmd_dres(kNSErrNotAString);
 				return;
 			}
@@ -675,7 +677,7 @@ void Dock::handle_GetFileInfo()
 	int32_t error_code = 0;
 	Ref reply = nsof_in.to_ref(error_code);
 	if (error_code != 0) {
-		if (kLogDockErrors) Log.logf("Dock: handle_GetFileInfo: NSOF error %d\r\n", error_code);
+		if (kLogDockErrors) Log.logf("Dock: handle_GetFileInfo: NSOF error %d\r\n", (int)error_code);
 		send_cmd_dres(error_code);
 		return;
 	}
@@ -750,7 +752,7 @@ void Dock::handle_LoadPackageFile()
 	int32_t error_code = 0;
 	Ref reply = nsof.to_ref(error_code);
 	if (error_code != 0) {
-		if (kLogDockErrors) Log.logf("Dock: handle_LoadPackageFile: NSOF error %d\r\n", error_code);
+		if (kLogDockErrors) Log.logf("Dock: handle_LoadPackageFile: NSOF error %d\r\n", (int)error_code);
 		send_cmd_dres(error_code);
 		return;
 	}
@@ -775,7 +777,7 @@ void Dock::send_package_task()
 		if (kLogDockProgress) Log.log("Dock: start SEND_PACKAGE\r\n");
 		uint32_t err = sdcard_endpoint.openfile(pkg_filename_);
 		if (err != FR_OK) {
-			if (kLogDockErrors) Log.logf("Dock: send_package_task: openfile error %d\r\n", err);
+			if (kLogDockErrors) Log.logf("Dock: send_package_task: openfile error %d\r\n", (int)err);
 			send_cmd_dres(kDockErrBrowserFileNotFound);
 			current_task_ = Task::NONE;
 			return;
@@ -799,11 +801,11 @@ void Dock::send_package_task()
 			package_size += (pkg_size_aligned_ - pkg_size_); // add padding to align to 4 bytes
 		}
 		if (current_task_ == Task::CANCEL_SEND_PACKAGE) last_package = true; // we want to cancel the package
-		if (kLogDock) Log.logf("Dock: send_package_task: read_size = %d, pkg_crsr_ = %d, pkg_size_ = %d\r\n", read_size, pkg_crsr_, pkg_size_);
+		if (kLogDock) Log.logf("Dock: send_package_task: read_size = %u, pkg_crsr_ = %u, pkg_size_ = %u\r\n", (unsigned)read_size, (unsigned)pkg_crsr_, (unsigned)pkg_size_);
 		auto data = new std::vector<uint8_t>(package_size); 
 		uint32_t bytes_read = sdcard_endpoint.readfile(data->data(), read_size);
 		if (bytes_read != read_size) {
-			if (kLogDockErrors) Log.logf("Dock: send_package_task: readfile error %d\r\n", bytes_read);
+			if (kLogDockErrors) Log.logf("Dock: send_package_task: readfile error %d\r\n", (int)bytes_read);
 			// The Newton reads everything after the lpkg header as package data,
 			// so we can't send an error. End the session instead of letting the
 			// Newton install a corrupt package.

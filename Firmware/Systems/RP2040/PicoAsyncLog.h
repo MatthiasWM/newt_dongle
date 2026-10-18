@@ -27,7 +27,7 @@ public:
     void log(Event event, int pipe=0) override;
     void log(Result result, int pipe=0) override;
     void log(const char *message, int pipe=0) override;
-    void logf(const char *message, ...) override;
+    void logf(const char *message, ...) override __attribute__((format(printf, 2, 3)));
 };
 
 } // namespace nd
