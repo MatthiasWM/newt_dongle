@@ -100,12 +100,14 @@ Result PicoUARTEndpoint::task() {
 Result PicoUARTEndpoint::send(Event event) {
     switch (event.type()) {
         case Event::Type::DATA: {
-            if (tx_wait_for_fifo_empty_) {
-                if (!(uart_get_hw(kUART)->fr & UART_UARTFR_TXFE_BITS)) {
+            if (tx_wait_for_idle_) {
+                // BUSY stays set until the stop bit of the last byte has left
+                // the shift register. TXFE would start the pause one byte early.
+                if (uart_get_hw(kUART)->fr & UART_UARTFR_BUSY_BITS) {
                     return Result::REJECTED;
                 } else {
                     // Start the pause now. Its length doesn't depend on how often we are called.
-                    tx_wait_for_fifo_empty_ = false;
+                    tx_wait_for_idle_ = false;
                     tx_deadline_ = scheduler().now_us() + tx_delay_;
                     tx_delay_ = 0;
                 }
@@ -139,12 +141,12 @@ void PicoUARTEndpoint::delay(uint32_t usec, uint32_t chars) {
         usec += ((chars * 1'000'000) / bitrate()) * 10;  
     }
     if (usec > 0) {
-        if (tx_wait_for_fifo_empty_) {
+        if (tx_wait_for_idle_) {
             tx_delay_ += usec;          // the pause has not started yet
         } else if (scheduler().now_us() < tx_deadline_) {
             tx_deadline_ += usec;       // extend the running pause
         } else {
-            tx_wait_for_fifo_empty_ = true;
+            tx_wait_for_idle_ = true;
             tx_delay_ = usec;
         }
     }

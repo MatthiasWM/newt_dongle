@@ -211,7 +211,7 @@ Line numbers drift, so jobs refer to functions.
   *Note:* the ATS300/ATS301 defaults were tuned against the old behaviour and
   will need re-tuning on hardware.
 
-- [ ] **4.2 Start the pause when the line is idle, not when the FIFO is empty.**
+- [x] **4.2 Start the pause when the line is idle, not when the FIFO is empty.**
   Use `UART_UARTFR_BUSY_BITS` instead of `TXFE`; otherwise the last CRC byte
   (~260 µs at 38400) overlaps the pause.
 
