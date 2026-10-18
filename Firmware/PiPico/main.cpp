@@ -152,6 +152,10 @@ int main(int argc, char *argv[])
     uart_hayes.link(&sdcard_endpoint);
     cdc_hayes.link(&sdcard_endpoint);
 
+    // -- Let both serial ports show the UART error counters (ATI3)
+    uart_hayes.link(&uart_endpoint);
+    cdc_hayes.link(&uart_endpoint);
+
     // -- The scheduler will call all instances of classes that are derived from Task.
     scheduler.init();
 

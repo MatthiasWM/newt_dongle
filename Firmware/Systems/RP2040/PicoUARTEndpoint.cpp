@@ -9,6 +9,7 @@
 #include "common/Pipe.h"
 #include "common/Scheduler.h"
 
+#include <hardware/irq.h>
 #include <hardware/uart.h>
 #include <pico/stdlib.h>
 #include <pico/time.h>
@@ -16,6 +17,33 @@
 #include <stdio.h>
 
 using namespace nd;
+
+// The UART interrupt moves received bytes from the 32 byte hardware FIFO into
+// this ring buffer, so a slow scheduler cycle doesn't lose data. Only the
+// interrupt writes `rx_head`, and only task() writes `rx_tail`.
+static constexpr uint32_t kRxBufferSize = 1024; // must be a power of 2
+static volatile uint8_t rx_buffer[kRxBufferSize];
+static volatile uint32_t rx_head = 0;
+static volatile uint32_t rx_tail = 0;
+static volatile UARTEndpoint::RxErrors rx_error_count;
+
+static void __not_in_flash_func(on_uart_rx)()
+{
+    while (uart_is_readable(kUART)) {
+        // The data register holds the error flags of each byte above bit 7.
+        uint32_t dr = uart_get_hw(kUART)->dr;
+        if (dr & UART_UARTDR_OE_BITS) rx_error_count.overrun++;
+        if (dr & UART_UARTDR_FE_BITS) rx_error_count.framing++;
+        if (dr & UART_UARTDR_BE_BITS) rx_error_count.brk++;
+        uint32_t next = (rx_head + 1) & (kRxBufferSize - 1);
+        if (next == rx_tail) {
+            rx_error_count.lost++;
+        } else {
+            rx_buffer[rx_head] = (uint8_t)dr;
+            rx_head = next;
+        }
+    }
+}
 
 PicoUARTEndpoint::PicoUARTEndpoint(Scheduler &scheduler)
 :   UARTEndpoint(scheduler)
@@ -48,6 +76,11 @@ Result PicoUARTEndpoint::init()
     gpio_put(kUART_HSKI_Pin, 1);             // we are able to receive data
     gpio_set_dir(kUART_HSKI_Pin, GPIO_OUT);  // we want to write the pin
 
+    // -- Receive by interrupt
+    irq_set_exclusive_handler(UART_IRQ_NUM(kUART), on_uart_rx);
+    irq_set_enabled(UART_IRQ_NUM(kUART), true);
+    uart_set_irqs_enabled(kUART, true, false);
+
     return UARTEndpoint::init();
 }
 
@@ -60,29 +93,18 @@ Result PicoUARTEndpoint::init()
  * 
  * \return Result::OK
  * 
- * \todo Notify the user of a buffer overflow.
+ * Receive errors and buffer overflows are counted, see `ATI3`.
  */
 Result PicoUARTEndpoint::task() {
-    // RP2040 hardware does not allow us to peek at the next character in the FIFO.
-    // So we must read and buffer it in case the out pipe rejects the event.
-    if (event_pending_) {
-        Result r = out()->send(pending_event_);
-        if (r.rejected())
-            return Result::OK;
-        else
-            event_pending_ = false;
-        if (kLogUART) Log.log(pending_event_, 0);
-    }
-    if (uart_is_readable(kUART)) {
-        uint8_t c = uart_getc(kUART);
-        Event event { c };
+    // Forward the received bytes until the pipe rejects one. A rejected byte
+    // stays in the ring buffer and is sent again in the next cycle.
+    while (rx_tail != rx_head) {
+        Event event { rx_buffer[rx_tail] };
         Result r = out()->send(event);
-        if (r.rejected()) {
-            event_pending_ = true;
-            pending_event_ = event;
-            return Result::OK;
-        }
+        if (r.rejected())
+            break;
         if (kLogUART) Log.log(event, 0);
+        rx_tail = (rx_tail + 1) & (kRxBufferSize - 1);
     }
     return Result::OK;
 }
@@ -181,5 +203,17 @@ void PicoUARTEndpoint::set_high_water(bool on) {
 void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {
     UARTEndpoint::set_bitrate(new_bitrate); // keep bitrate() in sync for delay()
     uart_set_baudrate(kUART, new_bitrate);
+}
+
+/**
+ * \brief Get the number of receive errors since startup.
+ */
+UARTEndpoint::RxErrors PicoUARTEndpoint::rx_errors() const {
+    RxErrors errors;
+    errors.overrun = rx_error_count.overrun;
+    errors.framing = rx_error_count.framing;
+    errors.brk = rx_error_count.brk;
+    errors.lost = rx_error_count.lost;
+    return errors;
 }
 

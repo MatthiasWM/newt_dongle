@@ -239,7 +239,7 @@ Line numbers drift, so jobs refer to functions.
   *Verify:* NCX/NTK at 38400 and 115200, with apps that set the rate before
   and after raising DTR.
 
-- [ ] **4.6 UART receive: drain the FIFO and count errors.**
+- [x] **4.6 UART receive: drain the FIFO and count errors.**
   `PicoUARTEndpoint::task()` reads one byte per scheduler cycle and
   `uart_getc()` discards overrun/framing errors. A slow cycle (SD mount,
   directory listing) can overflow the 32 byte RX FIFO unnoticed.

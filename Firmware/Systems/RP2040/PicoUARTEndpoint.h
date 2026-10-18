@@ -16,8 +16,6 @@ namespace nd {
 class CtrlBlock;
 
 class PicoUARTEndpoint : public UARTEndpoint {
-    bool event_pending_ = false;
-    Event pending_event_ { Event::Type::NIL};
     uint32_t tx_delay_ = 0;             // pause in usec, starts when the TX line is idle
     bool tx_wait_for_idle_ = false;
     uint64_t tx_deadline_ = 0;          // don't send data before this time (Scheduler::now_us())
@@ -31,6 +29,7 @@ public:
     void delay(uint32_t usec, uint32_t chars) override;
     void set_high_water(bool) override;
     void set_bitrate(uint32_t new_bitrate) override;
+    RxErrors rx_errors() const override;
 };
 
 } // namespace nd

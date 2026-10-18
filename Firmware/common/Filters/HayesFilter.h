@@ -13,6 +13,7 @@
 namespace nd {
 
 class SDCardEndpoint;
+class UARTEndpoint;
 
 class HayesFilter: public Task {
 
@@ -45,6 +46,7 @@ class HayesFilter: public Task {
     uint32_t esc_code_guard_timeout_ = 1'000'000; // 1 second (see Register 12)
 
     SDCardEndpoint *sdcard_ = nullptr;
+    UARTEndpoint *uart_ = nullptr;
 
     void send_string(const char *str);
 
@@ -79,6 +81,7 @@ public:
     bool send_info(uint32_t ix);
 
     void link(SDCardEndpoint *sdcard);
+    void link(UARTEndpoint *uart);
 
     bool set_register(uint32_t reg, uint32_t value);
     uint32_t get_register(uint32_t reg) const;

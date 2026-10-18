@@ -10,6 +10,7 @@
 #include "common/Scheduler.h"
 #include "common/version.h"
 #include "common/Endpoints/SDCardEndpoint.h"
+#include "common/Endpoints/UARTEndpoint.h"
 #include "common/Pipes/MNPThrottle.h"
 
 //#include <pico/unique_id.h>
@@ -475,6 +476,10 @@ void HayesFilter::link(SDCardEndpoint *sdcard) {
     sdcard_ = sdcard;
 }
 
+void HayesFilter::link(UARTEndpoint *uart) {
+    uart_ = uart;
+}
+
 const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
     // if ((strncasecmp(cmd, "DS", 2) == 0) || (strncasecmp(cmd, "DI", 2) == 0)) { // disk status
     //     auto status = 0;
@@ -607,6 +612,21 @@ bool HayesFilter::send_info(uint32_t ix) {
             itoa10(user_settings.hardware_revision(), buf);
             send_string(buf);
             send_string("\r\n");
+            break;
+        case 3:
+            if (!uart_) return false;
+            {
+                UARTEndpoint::RxErrors errors = uart_->rx_errors();
+                send_string("UART: overrun ");
+                itoa10(errors.overrun, buf); send_string(buf);
+                send_string(", framing ");
+                itoa10(errors.framing, buf); send_string(buf);
+                send_string(", break ");
+                itoa10(errors.brk, buf); send_string(buf);
+                send_string(", lost ");
+                itoa10(errors.lost, buf); send_string(buf);
+                send_string("\r\n");
+            }
             break;
         default:
             return false;
