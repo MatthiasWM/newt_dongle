@@ -77,7 +77,10 @@ add_executable(newt_dongle
 )
 
 pico_set_program_name(newt_dongle "newt_dongle")
-pico_set_program_version(newt_dongle "0.6a")
+# The version number is defined once in common/version.h
+file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/common/version.h ND_VERSION_LINE REGEX "^#define ND_VERSION_STRING ")
+string(REGEX REPLACE ".*\"(.*)\".*" "\\1" ND_VERSION "${ND_VERSION_LINE}")
+pico_set_program_version(newt_dongle "${ND_VERSION}")
 
 # no_flash means the target is to run from RAM
 pico_set_binary_type(newt_dongle no_flash)

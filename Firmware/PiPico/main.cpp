@@ -25,7 +25,9 @@
 /*
  Use this project for live logging and debugging with the BreadBoard PiPico.
 
- This is Version 0.6. It has the following features:
+ The version number is defined in common/version.h.
+ Version 0.7a: robustness fixes, see Firmware/CLAUDE.md.
+ Version 0.6 has the following features:
   - Connects the UART to the CDC endpoint.
   - Hayes filter on both ends to allow Modem commands
   - Throttle MNP Packages from CDC to UART

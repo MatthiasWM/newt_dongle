@@ -8,6 +8,7 @@
 #include "main.h"
 
 #include "common/Scheduler.h"
+#include "common/version.h"
 #include "common/Endpoints/SDCardEndpoint.h"
 #include "common/Pipes/MNPThrottle.h"
 
@@ -590,7 +591,7 @@ bool HayesFilter::send_info(uint32_t ix) {
     char buf[32]; buf[0] = 0;
     switch (ix) {
         case 0:
-            send_string("NewtDongle V0.6a\r\n");
+            send_string("NewtDongle V" ND_VERSION_STRING "\r\n");
             break;
         case 1:
             itoa10(user_settings.serial(), buf);
