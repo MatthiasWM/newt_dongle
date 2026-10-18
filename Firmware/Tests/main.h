@@ -74,6 +74,7 @@ constexpr bool kDebugErrors = false;
 constexpr bool kLogDock = false;
 constexpr bool kLogDockProgress = false;
 constexpr bool kLogDockErrors = false;
+constexpr bool kLogDTRSwitch = false;
 constexpr bool kLogMNPErrors = false;
 constexpr bool kLogMNPWarnings = false;
 constexpr bool kLogMNPState = false;

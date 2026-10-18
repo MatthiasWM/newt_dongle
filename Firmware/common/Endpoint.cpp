@@ -70,8 +70,10 @@ Result Endpoint::rush_back(Event event) {
             high_water_count_++;
             if (high_water_count_ == 1) set_high_water(true);
         } else if (event.subtype() == Event::Subtype::OFF) {
-            high_water_count_--;
-            if (high_water_count_ == 0) set_high_water(false);
+            if (high_water_count_ > 0) { // ignore an OFF that arrives after a RESET
+                high_water_count_--;
+                if (high_water_count_ == 0) set_high_water(false);
+            }
         } else if (event.subtype() == Event::Subtype::RESET) {
             high_water_count_ = 0;
             set_high_water(false);

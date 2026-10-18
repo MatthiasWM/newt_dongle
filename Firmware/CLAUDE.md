@@ -221,7 +221,7 @@ Line numbers drift, so jobs refer to functions.
   (nearly) empty, e.g. `TXFE`, or a low FIFO level via `UARTIFLS`/`UARTRIS`.
   Measure throughput at 38400 and 115200 afterwards.
 
-- [ ] **4.4 Make `HIGH_WATER` work.**
+- [x] **4.4 Make `HIGH_WATER` work.**
   Three bugs that together make it a no-op:
   `BufferedPipe` builds `Event{HIGH_WATER, 1}` (data, not subtype ON/OFF);
   `space()` returns the *used* count; and the event goes to `out()`

@@ -51,10 +51,14 @@ public:
     }
     Result rush(Event event) override  {
         if ((event.type() == Event::Type::UART) && (event.subtype() == Event::Subtype::UART_DTR)) {
-            // Switching modes ends the MNP session on the Dock side.
             bool dtr = (event.data() != 0);
-            if ((dtr != dtr_switch_.dtr_set) && dtr_switch_.dock_->out()) {
-                dtr_switch_.dock_->out()->rush(event);
+            if (dtr != dtr_switch_.dtr_set) {
+                // Switching modes ends the MNP session on the Dock side...
+                if (dtr_switch_.dock_->out())
+                    dtr_switch_.dock_->out()->rush(event);
+                // ...and a full buffer on the old side must not throttle the Newton.
+                if (dtr_switch_.in())
+                    dtr_switch_.in()->rush_back(Event(Event::Type::HIGH_WATER, Event::Subtype::RESET));
             }
             if (event.data() == 0) {
                 dtr_switch_.dtr_set = false;

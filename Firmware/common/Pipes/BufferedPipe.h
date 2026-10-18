@@ -31,6 +31,7 @@ protected:
     bool is_full() const;
     bool is_empty() const;
     uint32_t space() const;
+    void set_high_water_(bool on);
 
 public:
     BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2 = 11); // 2^11 = 2048

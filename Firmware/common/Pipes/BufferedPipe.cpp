@@ -46,15 +46,11 @@ Result BufferedPipe::task() {
 
     if (high_water_mark_set_) {
         if (space() > high_water_off_mark_) {
-            Event event { Event::Type::HIGH_WATER, 0 };
-            r = out()->rush_back(event);
-            high_water_mark_set_ = false;
+            set_high_water_(false);
         }
     } else {
         if (space() < high_water_on_mark) {
-            Event event { Event::Type::HIGH_WATER, 1 };
-            r = out()->rush_back(event);
-            high_water_mark_set_ = true;
+            set_high_water_(true);
         }
     }
         
@@ -67,9 +63,7 @@ void BufferedPipe::push_back(Event event) {
     head_ = (head_ + 1) & ring_mask_;
     if (!high_water_mark_set_) {
         if (space() < high_water_on_mark) {
-            Event event { Event::Type::HIGH_WATER, 1 };
-            out()->rush_back(event);
-            high_water_mark_set_ = true;
+            set_high_water_(true);
         }
     }
 
@@ -80,9 +74,7 @@ Event BufferedPipe::pop_front() {
     tail_ = (tail_ + 1) & ring_mask_;
     if (high_water_mark_set_) {
         if (space() > high_water_off_mark_) {
-            Event event { Event::Type::HIGH_WATER, 0 };
-            out()->rush_back(event);
-            high_water_mark_set_ = false;
+            set_high_water_(false);
         }
     }
     return event;
@@ -100,8 +92,22 @@ bool BufferedPipe::is_empty() const {
     return head_ == tail_;
 }
 
+/**
+ * @brief Number of events that can still be added to the buffer.
+ */
 uint32_t BufferedPipe::space() const {
-    return (head_ - tail_) & ring_mask_;
+    return ring_mask_ - ((head_ - tail_) & ring_mask_);
+}
+
+/**
+ * @brief Tell the pipes upstream that this buffer is (no longer) about to overflow.
+ * 
+ * The endpoint at the source, e.g. the UART, then throttles its sender.
+ */
+void BufferedPipe::set_high_water_(bool on) {
+    high_water_mark_set_ = on;
+    if (in())
+        in()->rush_back(Event(Event::Type::HIGH_WATER, on ? Event::Subtype::ON : Event::Subtype::OFF));
 }
 
 

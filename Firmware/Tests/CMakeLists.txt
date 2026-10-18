@@ -29,9 +29,11 @@ add_executable(tests
         ${ND_ROOT}/common/Pipe.cpp
         ${ND_ROOT}/common/Scheduler.cpp
         ${ND_ROOT}/common/Task.cpp
+        ${ND_ROOT}/common/Filters/DTRSwitch.cpp
         ${ND_ROOT}/common/Filters/MNPFilter.cpp
         ${ND_ROOT}/common/Newton/DESKey.cpp
         ${ND_ROOT}/common/Newton/NSOF.cpp
+        ${ND_ROOT}/common/Pipes/BufferedPipe.cpp
 )
 
 # This directory comes first, so `#include "main.h"` finds the test stub.
