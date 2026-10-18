@@ -48,10 +48,14 @@ This architecture ensures flexibility, scalability, and maintainability, making 
 
 2. **Building the Firmware**:
    - Clone this repository.
-   - Follow the instructions in the `CMakeLists.txt` file to build the firmware using the Pico SDK.
+   - Build with the Pico SDK in one of two directories:
+     - `Firmware/NewtCOM` for the NewtCOM dongle. The firmware runs from Flash.
+     - `Firmware/PiPico` for a Raspberry Pi Pico on a breadboard. The firmware
+       runs from RAM, is loaded with a debug probe, and has error logging on.
 
 3. **Flashing the Firmware**:
-   - Use the Raspberry Pi Pico's bootloader to flash the firmware onto the device.
+   - Start the RP2040 in BOOTSEL mode and copy `Firmware/NewtCOM/build/newt_dongle.uf2`
+     to the `RPI-RP2` drive that appears.
 
 4. **Connecting Your Newton**:
    - Plug the dongle into your Newton's serial port and your computer's USB port.

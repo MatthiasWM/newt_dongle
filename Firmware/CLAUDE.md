@@ -19,20 +19,34 @@ USB CDC DTR line (`DTRSwitch`):
   settings, async log on core 1, status LED).
 - `Systems/Posix/`, `CommandLine/` – host builds (useful for unit tests).
 - `Systems/ESP32*` – early experiments, not in scope right now.
-- `PiPico/` – the RP2040 build. `PiPico/common` and `PiPico/RP2040` are
-  symlinks to `../common` and `../Systems/RP2040`.
-- `PiPico/main.cpp` – all objects are globals; the pipe graph is wired there.
-- `PiPico/main.h` – pin map and the `kLog*` / `kDebug*` switches.
+- `PiPico/` and `NewtCOM/` – the two RP2040 builds of the same firmware (see
+  Build). In both, `common` and `RP2040` are symlinks to `../common` and
+  `../Systems/RP2040`.
+- `*/main.cpp` – all objects are globals; the pipe graph is wired there. Each
+  build has its own copy; keep the two pipe graphs the same.
+- `*/main.h` – pin map and the `kLog*` / `kDebug*` switches, per build.
 
 ## Build
 
+There are two builds. They share all code and differ in `CMakeLists.txt` and
+`main.h`:
+
+| Build | Hardware | Binary | Logs | Load with |
+|---|---|---|---|---|
+| `PiPico/` | breadboard test rig: Raspberry Pi Pico, PiPico pin map | `no_flash`, runs from RAM | errors on, `ND_DEBUG_DOCK` 1 | external debug probe |
+| `NewtCOM/` | the dongle, XIAO RP2040 pin map | flash (SDK default) | all off | `build/newt_dongle.uf2` via BOOTSEL |
+
+Release images for dongle owners always come from `NewtCOM/`. The binary type
+is set by `pico_set_binary_type(newt_dongle no_flash)` in `PiPico/CMakeLists.txt`;
+Matthias sometimes changes it by hand, e.g. to run the test rig from flash.
+Both build the same way:
+
 ```sh
-cd Firmware/PiPico
+cd Firmware/PiPico     # or Firmware/NewtCOM
 ~/.pico-sdk/ninja/v1.12.1/ninja -C build
 ```
 
-`NewtCOM/` builds the ROM image for the dongle hardware the same way. Binary
-type is `no_flash` (runs from RAM). Flashing and hardware tests are done by
+Always build both after a change. Flashing and hardware tests are done by
 Matthias; Claude cannot run code on the dongle. C++17, exceptions and RTTI are
 enabled. The version number lives in `common/version.h` only.
 

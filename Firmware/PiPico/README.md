@@ -6,11 +6,16 @@
 # PiPico configuration
 
 This is the build configuration for running the NewtCOM firmware on a 
-PiPico developer card with an RP2040 CPU. The firmware installes to RAM
-for speed and to avoid Flash use.
+PiPico developer card with an RP2040 CPU, the breadboard test rig. The
+firmware installs to RAM for speed and to avoid Flash use
+(`pico_set_binary_type(newt_dongle no_flash)` in `CMakeLists.txt`), and is
+loaded and debugged with an external debug probe. Error logging is on. To run
+the test rig without a probe, remove the `no_flash` line and rebuild; the
+firmware then installs to Flash.
 
 Parallel to this configuration is the NewtCOM setup for compiling the 
-same firmware directly for the RP2040 based dongle.
+same firmware directly for the RP2040 based dongle. Firmware for dongles
+always comes from `../NewtCOM`.
 
 ## My TODO List for PiPico
 

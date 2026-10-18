@@ -6,10 +6,16 @@
 # NewtCOM Dongle configuration
 
 This is the build configuration for running the NewtCOM firmware on a 
-NewtCOM Dongle with an RP2040 CPU. The firmware installes to Flash memory.
+NewtCOM Dongle with an RP2040 CPU (XIAO RP2040 pin map). The firmware
+installs to Flash memory, and all logging is off. Use this build for the
+firmware that goes onto dongles.
+
+To install, build `build/newt_dongle.uf2` and copy it to the `RPI-RP2` drive
+that appears when the RP2040 starts in BOOTSEL mode.
 
 Parallel to this configuration is the PiPico setup for compiling the 
-same firmware for the PiPico developer board.
+same firmware for a PiPico developer board on a breadboard, which runs from
+RAM and is loaded with a debug probe. See [../PiPico/README.md](../PiPico/README.md).
 
 ## My TODO List for NewtCOM Dongle
 
