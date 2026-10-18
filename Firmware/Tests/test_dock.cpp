@@ -11,6 +11,7 @@
 #include "common/Newton/NSOF.h"
 #include "common/Scheduler.h"
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -431,4 +432,10 @@ TEST(dock_closes_package_on_disconnect) {
     CHECK(sdcard_endpoint.is_open);
     s.dock.send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
     CHECK(!sdcard_endpoint.is_open);
+}
+
+// Dock commands are compared with, and copied to, the bytes on the wire.
+TEST(fourcc_is_in_memory_order) {
+    uint32_t fourcc = ND_FOURCC('a', 'b', 'c', 'd');
+    CHECK(memcmp(&fourcc, "abcd", 4) == 0);
 }

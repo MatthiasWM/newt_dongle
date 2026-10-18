@@ -276,7 +276,7 @@ Line numbers drift, so jobs refer to functions.
   `Log.log("...%d", value)`: the second argument is the *pipe*, so the value
   is never printed (e.g. `handle_newt_frame()` default case in MNPFilter).
 - [x] **5.2** Make `Result::OK` etc. `const` (or `constexpr`).
-- [ ] **5.3** `ND_FOURCC`: use `__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__`;
+- [x] **5.3** `ND_FOURCC`: use `__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__`;
   today, if both macros are undefined, `0 == 0` silently picks little endian.
 - [ ] **5.4** Replace `new` sub-pipes in `DTRSwitch` / `MNPFilter` with
   members; remove stale comments (e.g. `BufferedPipe` buffer sizes).

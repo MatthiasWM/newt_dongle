@@ -12,10 +12,14 @@
 #include <vector>
 #include <string>
 
+// ND_FOURCC keeps the four characters in memory order, so a command can be
+// compared with, or copied to, the bytes on the wire.
 #ifndef ND_FOURCC
-#  if __BYTE_ORDER == __LITTLE_ENDIAN 
+#  if !defined(__BYTE_ORDER__)
+#    error "Can't determine endianess"
+#  elif __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #    define ND_FOURCC(a, b, c, d) ((uint32_t)(a) | ((uint32_t)(b) << 8) | ((uint32_t)(c) << 16) | ((uint32_t)(d) << 24))
-#  elif __BYTE_ORDER == __BIG_ENDIAN
+#  elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #    define ND_FOURCC(a, b, c, d) ((uint32_t)(d) | ((uint32_t)(c) << 8) | ((uint32_t)(b) << 16) | ((uint32_t)(a) << 24))
 #  else
 #    error "Can't determine endianess"
