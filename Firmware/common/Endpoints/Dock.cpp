@@ -204,6 +204,11 @@ Result Dock::send(Event event)
 				break;
 			case Event::Subtype::MNP_FRAME_START: // data() is index in out_pool
 				if (kLogDock) Log.log("Dock::send: MNP_FRAME_START\r\n");
+				// Commands start at a new frame, but a payload may continue in the next frame.
+				if ((in_stream_state_ > 0) && (in_stream_state_ < 16)) {
+					if (kLogDockErrors) Log.log("\r\nERROR: Dock::send: Incomplete command header.\r\n");
+					in_stream_state_ = 0;
+				}
 				break;
 			case Event::Subtype::MNP_FRAME_END: // data() is index in out_pool
 				if (kLogDock) Log.log("Dock::send: MNP_FRAME_END\r\n");
@@ -226,13 +231,13 @@ Result Dock::send(Event event)
 					if (kLogDockErrors) Log.logf("\r\nERROR: Dock::send: State out of sync!\r\n", cmd_, size);
 				}
 				break; // 'n'
-			case  1: if (c == 'e') in_stream_state_++; else in_stream_state_ = 0; break; // 'e'
-			case  2: if (c == 'w') in_stream_state_++; else in_stream_state_ = 0; break; // 'w'
-			case  3: if (c == 't') in_stream_state_++; else in_stream_state_ = 0; break; // 't'
-			case  4: if (c == 'd') in_stream_state_++; else in_stream_state_ = 0; break; // 'd'
-			case  5: if (c == 'o') in_stream_state_++; else in_stream_state_ = 0; break; // 'o'
-			case  6: if (c == 'c') in_stream_state_++; else in_stream_state_ = 0; break; // 'c'
-			case  7: if (c == 'k') in_stream_state_++; else in_stream_state_ = 0; break; // 'k'
+			case  1: if (c == 'e') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'e'
+			case  2: if (c == 'w') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'w'
+			case  3: if (c == 't') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 't'
+			case  4: if (c == 'd') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'd'
+			case  5: if (c == 'o') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'o'
+			case  6: if (c == 'c') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'c'
+			case  7: if (c == 'k') in_stream_state_++; else in_stream_state_ = (c == 'n'); break; // 'k'
 			case  8: cmd_[0] = c; in_stream_state_++; break;
 			case  9: cmd_[1] = c; in_stream_state_++; break;
 			case 10: cmd_[2] = c; in_stream_state_++; break;
@@ -256,6 +261,12 @@ Result Dock::send(Event event)
 					size = 0; // TODO: this is of course wrong, but the best we can currently do
 					aligned_size = 0; // no alignment, we will receive data until the next command
 					in_stream_state_ = 0; // reset state and wait for the next "newtdock" sequence
+				} else if (size > kMaxPayload) {
+					// Too large to buffer, or the stream is out of sync. Tell the Newton
+					// and wait for the next "newtdock" sequence.
+					if (kLogDockErrors) Log.logf("\r\nERROR: Dock::send: '%s' payload of %u bytes is too large.\r\n", cmd_, (unsigned)size);
+					send_cmd_dres(kDockErrBadCommandLength);
+					in_stream_state_ = 0;
 				} else {
 					aligned_size = (size + 3) & ~3;
 					in_stream_state_++;

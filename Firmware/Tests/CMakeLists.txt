@@ -23,11 +23,14 @@ file(GLOB ND_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/test_*.cpp
 
 add_executable(tests
         ${ND_TEST_SOURCES}
+        ${ND_ROOT}/common/Endpoint.cpp
+        ${ND_ROOT}/common/Endpoints/Dock.cpp
         ${ND_ROOT}/common/Event.cpp
         ${ND_ROOT}/common/Pipe.cpp
         ${ND_ROOT}/common/Scheduler.cpp
         ${ND_ROOT}/common/Task.cpp
         ${ND_ROOT}/common/Filters/MNPFilter.cpp
+        ${ND_ROOT}/common/Newton/DESKey.cpp
         ${ND_ROOT}/common/Newton/NSOF.cpp
 )
 

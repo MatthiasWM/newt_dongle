@@ -9,7 +9,10 @@
 #ifndef ND_MAIN_H
 #define ND_MAIN_H
 
+#include "common/StatusDisplay.h"
+
 #include <cstdint>
+#include <string>
 
 namespace nd {
 
@@ -21,11 +24,40 @@ public:
     void indent(uint32_t depth);
 };
 
+// Stand-in for PicoStatusDisplay. Remembers the last status.
+class TestAppStatus {
+public:
+    AppStatus status = AppStatus::IDLE;
+    void set(AppStatus new_status) { status = new_status; }
+};
+
+// Same values as FatFS and PicoSDCard.h.
+constexpr uint32_t FR_OK = 0;
+constexpr uint32_t FR_IS_DIRECTORY = 20;
+constexpr uint32_t FR_IS_PACKAGE = 21;
+
+// Stand-in for PicoSDCardEndpoint: an empty card that can't open files.
+class TestSDCard {
+public:
+    std::u16string label = u"TEST";
+    const std::u16string &get_label() { return label; }
+    uint32_t opendir() { return FR_OK; }
+    uint32_t readdir(std::u16string &name) { name.clear(); return FR_OK; }
+    uint32_t closedir() { return FR_OK; }
+    uint32_t openfile(const std::u16string &) { return FR_OK + 1; }
+    uint32_t filesize() { return 0; }
+    uint32_t readfile(uint8_t *, uint32_t) { return 0; }
+    uint32_t closefile() { return FR_OK; }
+    uint32_t chdir(const std::u16string &) { return FR_OK; }
+};
+
 // Debugger settings
 constexpr bool kDebugErrors = false;
 
 // Log settings
 constexpr bool kLogDock = false;
+constexpr bool kLogDockProgress = false;
+constexpr bool kLogDockErrors = false;
 constexpr bool kLogMNPErrors = false;
 constexpr bool kLogMNPWarnings = false;
 constexpr bool kLogMNPState = false;
@@ -35,5 +67,7 @@ constexpr bool kLogNSOF = false;
 } // namespace nd
 
 extern nd::TestLog Log;
+extern nd::TestAppStatus app_status;
+extern nd::TestSDCard sdcard_endpoint;
 
 #endif // ND_MAIN_H

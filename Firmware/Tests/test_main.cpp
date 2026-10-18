@@ -12,6 +12,8 @@
 #include <vector>
 
 nd::TestLog Log;
+nd::TestAppStatus app_status;
+nd::TestSDCard sdcard_endpoint;
 
 void nd::TestLog::log(const char *message, int pipe) {
     (void)pipe;

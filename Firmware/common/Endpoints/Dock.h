@@ -149,6 +149,9 @@ public:
     Result task() override;
     // Result signal(Event event) override;
 
+    /// Largest payload of a received command that we buffer. Larger ones get an error reply.
+    constexpr static uint32_t kMaxPayload = 32 * 1024;
+
     // -- Dock specific methods
     void process_command();
     void send_lpkg(const std::u16string &filename);
@@ -182,8 +185,6 @@ private:
     } NewtonInfo;
 
 };
-
-#if 0
 
 #define ERRBASE_DOCKER			(-28000)	// Docker errors
 
@@ -229,7 +230,6 @@ private:
 #define kDockErrBrowserFileNotFound				(ERRBASE_DOCKER_ -  5)
 #define kDockErrBrowserVolumeNotFound			(ERRBASE_DOCKER_ -  6)
 #define kDockErrBrowserPathNotFound				(ERRBASE_DOCKER_ -  7)
-#endif
 
 
 } // namespace nd

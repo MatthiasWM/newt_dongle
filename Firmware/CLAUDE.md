@@ -149,7 +149,7 @@ Line numbers drift, so jobs refer to functions.
 
 ### Phase 3 – Dock robustness
 
-- [ ] **3.1 Cap the Dock payload size and resync on frame start.**
+- [x] **3.1 Cap the Dock payload size and resync on frame start.**
   `Dock::send()` trusts the 32-bit length. After a desync, random bytes become
   a huge size: the parser waits in state 16 forever and `in_data_` grows until
   the heap is gone. *Fix:* cap the size (e.g. 64 KB); if the cap is exceeded,
