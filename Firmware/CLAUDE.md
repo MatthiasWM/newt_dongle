@@ -115,7 +115,7 @@ Line numbers drift, so jobs refer to functions.
 
 ### Phase 2 – MNP robustness (standalone/Dock mode)
 
-- [ ] **2.1 Clean up all MNP state on disconnect and on a new LR.**
+- [x] **2.1 Clean up all MNP state on disconnect and on a new LR.**
   `MNPFilter::set_disconnected()` is a stub. `ack_pending_frame_`,
   `active_frame_`, `in_frame`, both job queues, `out_frame_`, `seq_no_` and
   the frame pool survive. After a session ends with an unacknowledged LT, the

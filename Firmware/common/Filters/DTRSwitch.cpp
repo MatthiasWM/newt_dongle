@@ -51,6 +51,11 @@ public:
     }
     Result rush(Event event) override  {
         if ((event.type() == Event::Type::UART) && (event.subtype() == Event::Subtype::UART_DTR)) {
+            // Switching modes ends the MNP session on the Dock side.
+            bool dtr = (event.data() != 0);
+            if ((dtr != dtr_switch_.dtr_set) && dtr_switch_.dock_->out()) {
+                dtr_switch_.dock_->out()->rush(event);
+            }
             if (event.data() == 0) {
                 dtr_switch_.dtr_set = false;
                 app_status.set(AppStatus::IDLE);

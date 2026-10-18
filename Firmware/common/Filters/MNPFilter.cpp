@@ -61,6 +61,7 @@ public:
 };
 
 class NewtToDockPipe : public Pipe {
+    friend class MNPFilter;
     std::queue<Event> job_list_;
 
     MNPFrame *in_frame_ = nullptr;
@@ -93,9 +94,10 @@ public:
     NewtToDockPipe(MNPFilter &filter) : filter_(filter) { }
     void task();
     Result send(Event event) override;
-	// TODO: rush()
+    Result rush(Event event) override;
 	// TODO: rush_back()
     void add_job(Event event) { job_list_.push(event); }
+    void reset();
 };
 
 class DockToNewtPipe : public Pipe {
@@ -141,6 +143,7 @@ public:
 	// TODO: rush()
 	// TODO: rush_back()
     void add_job(Event event);
+    void reset();
 };
 
 } // namespace nd
@@ -344,6 +347,32 @@ void NewtToDockPipe::mnp_to_dock_state_machine()
     }
 }
 
+/**
+ * \brief Drop all frames on their way to the Dock and forget the sequence number.
+ * The receiver state is not changed, because the caller may still be handling
+ * the frame that was just received.
+ */
+void NewtToDockPipe::reset() {
+    job_list_ = {};
+    out_frame_ = nullptr;
+    out_frame_crsr_ = 0;
+    in_seq_no_ = 0;
+}
+
+/**
+ * \brief Handle urgent events from the Newton side.
+ * A DTR change switches between Dock and direct connect mode. This ends the
+ * MNP session and the frame that is currently being received.
+ */
+Result NewtToDockPipe::rush(Event event) {
+	if ((event.type() == Event::Type::UART) && (event.subtype() == Event::Subtype::UART_DTR)) {
+		in_state_ = InState::ABORT;
+		filter_.set_disconnected();
+		return Result::OK;
+	}
+	return Pipe::rush(event);
+}
+
 /** 
  * \brief Handle events comming from the Newton and hand them over to the MNP Filter.
  */
@@ -529,7 +558,6 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 			if (kLogMNPState) Log.log("\r\n**** MNP Disconnected\r\n");
 			filter_.release_frame(frame);
             // We *could* acknowledge this, maybe later
-            out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
 			filter_.set_disconnected();
 			// TODO: we can print the reason for disconnecting
 			break;
@@ -919,6 +947,20 @@ void DockToNewtPipe::add_job(Event event) {
     }
 }
 
+/**
+ * \brief Drop all jobs and frames on their way to the Newton and restart the sequence.
+ */
+void DockToNewtPipe::reset() {
+    job_list_lt_ = {};
+    job_list_ = {};
+    active_frame_ = nullptr;
+    ack_pending_frame_ = nullptr;
+    in_frame = nullptr;
+    out_state_ = OutState::SEND_SYN;
+    data_crsr_ = 0;
+    seq_no_ = 0;
+}
+
 void DockToNewtPipe::flush_in_frame() {
     MNPFrame *f = in_frame;
     in_frame = nullptr;
@@ -1020,11 +1062,19 @@ void MNPFilter::release_frame(MNPFrame *frame) {
 }
 
 
+/**
+ * \brief End the MNP session and tell the Dock.
+ * This clears both pipes and releases all frames, except for the frame that
+ * the receiver is currently filling or handling.
+ */
 void MNPFilter::set_disconnected() {
-	// TODO: free up all in and out frames
-	// TODO: clear the in and out jobs queue
 	mnp_state_ = MNPState::DISCONNECTED;
-    // TODO: call disconnected onnewt and dock pipes
+	newt_->reset();
+	dock_->reset();
+	for (auto &frame : frame_pool_) {
+		if (frame != newt_->in_frame_) release_frame(frame);
+	}
+	if (newt_->out()) newt_->out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
 }
 
 void MNPFilter::set_negotiating() {

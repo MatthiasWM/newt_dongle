@@ -66,6 +66,12 @@ static const Bytes kDockDock = {
     0x10, 0x03, 0xBA, 0x4F,
 };
 
+// Link Disconnect, reason 0, user code 0, followed by two data bytes.
+static const Bytes kLD = {
+    0x16, 0x10, 0x02, 0x07, 0x02, 0x01, 0x01, 0x00, 0x02, 0x01, 0x00, 0x00,
+    0x00, 0x10, 0x03, 0x0B, 0xC1,
+};
+
 // -- Test fixture
 
 namespace {
@@ -175,6 +181,56 @@ TEST(mnp_forwards_lt_to_dock_and_acknowledges) {
 TEST(mnp_sends_dock_data_like_ncu) {
     Session s;
     s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    CHECK_BYTES(s.to_newt.bytes, kDockDock);
+}
+
+// The Newton never acknowledges our LT and starts over with a new LR.
+TEST(mnp_new_lr_resets_unacknowledged_session) {
+    Session s;
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    s.to_newt.clear();
+
+    s.newton_sends(kLR);
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+    CHECK_BYTES(s.to_newt.bytes, kLR);
+    s.newton_sends(kNewtonLA0);
+    s.to_newt.clear();
+    s.dock_sends(lt_payload(kDockDock));
+    CHECK_BYTES(s.to_newt.bytes, kDockDock);
+}
+
+// The Newton disconnects while our LT is not acknowledged, then connects again.
+TEST(mnp_ld_resets_unacknowledged_session) {
+    Session s;
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+
+    s.newton_sends(kLD);
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    CHECK_BYTES(s.to_newt.bytes, kDockDock);
+}
+
+// DTR changes in the middle of a session and of a received frame.
+TEST(mnp_dtr_change_resets_session) {
+    Session s;
+    s.connect();
+    s.dock_sends(lt_payload(kDockDock));
+    s.newton_sends(Bytes(kNewtonRtdk.begin(), kNewtonRtdk.begin() + 10));
+    s.to_dock.clear();
+
+    s.mnp.newt.rush(Event(Event::Type::UART, Event::Subtype::UART_DTR, 1));
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+    s.mnp.newt.rush(Event(Event::Type::UART, Event::Subtype::UART_DTR, 0));
+    s.to_newt.clear();
+
+    s.newton_sends(kLR);
+    CHECK_BYTES(s.to_newt.bytes, kLR);
+    s.newton_sends(kNewtonLA0);
+    s.to_newt.clear();
     s.dock_sends(lt_payload(kDockDock));
     CHECK_BYTES(s.to_newt.bytes, kDockDock);
 }
