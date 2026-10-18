@@ -497,9 +497,7 @@ void Dock::send_cmd_wicn(uint32_t icon_map) {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_wicn\r\n");
 	std::vector<uint8_t> payload;
 	append_ulong(payload, icon_map);
-	// NOTE: the header says 0 bytes, but the icon map follows. This is what
-	// the Dock always sent. TODO: should the size be 4?
-	queue_command_(kDWhichIcons, 0, payload, true);
+	queue_command_(kDWhichIcons, payload);
 }
 
 void Dock::send_cmd_path() 
