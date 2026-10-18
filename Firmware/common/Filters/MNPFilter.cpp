@@ -12,7 +12,7 @@
 
 using namespace nd; 
 
-static void update_crc16(unsigned short *pCrc16, const char data[], size_t length);
+static void update_crc16(uint16_t *pCrc16, const uint8_t data[], size_t length);
 
 /**
  * \class nd::MNPFilter
@@ -191,10 +191,10 @@ uint16_t MNPFrame::calculate_crc() {
 	static uint8_t ETX = 0x03;
 	uint16_t my_crc = 0;
 	uint8_t hsze = header.size();
-	update_crc16(&my_crc, (const char*)&hsze, 1);
-	update_crc16(&my_crc, (const char*)header.data(), header.size());
-	update_crc16(&my_crc, (const char*)data.data(), data.size());
-	update_crc16(&my_crc, (const char*)&ETX, 1);
+	update_crc16(&my_crc, &hsze, 1);
+	update_crc16(&my_crc, header.data(), header.size());
+	update_crc16(&my_crc, data.data(), data.size());
+	update_crc16(&my_crc, &ETX, 1);
 	return my_crc;
 }
 
@@ -1077,8 +1077,9 @@ static uint16_t kCRC16Table[256] = {
     0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040
 };
 
-/* Generate CRC16 checksum. Note that this is different than the FatFS CRC16 calculation. */
-static void update_crc16(unsigned short *pCrc16, const char data[], size_t length) {
+/* Generate CRC16 checksum. Note that this is different than the FatFS CRC16 calculation.
+   `data` must be unsigned. A signed `char` >= 0x80 would index outside of the table. */
+static void update_crc16(uint16_t *pCrc16, const uint8_t data[], size_t length) {
 	for (size_t i = 0; i < length; i++) {
 		uint16_t in_crc = *pCrc16;
 		*pCrc16 = (uint16_t)(((in_crc >> 8) & 0xFF) ^ kCRC16Table[ (in_crc & 0xFF) ^ data[i] ]);

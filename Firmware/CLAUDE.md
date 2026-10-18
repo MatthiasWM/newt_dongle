@@ -94,11 +94,12 @@ Line numbers drift, so jobs refer to functions.
   registry is a function-local static.
   *Verify:* `Tests/test_nsof.cpp` decodes and re-encodes the captured `dinf`.
 
-- [ ] **1.2 MNP CRC uses `const char[]`.**
+- [x] **1.2 MNP CRC uses `const char[]`.**
   `update_crc16()` in `MNPFilter.cpp` indexes the table with a possibly signed
   `char`. Correct on ARM by luck, wrong (and out of bounds) on x86 hosts.
   *Fix:* use `const uint8_t*`.
-  *Verify:* host test with a captured Newton frame (bytes >= 0x80) and its CRC.
+  *Verify:* `Tests/test_mnp.cpp` replays the captured session start; our LR,
+  LAs and LT must match NCU byte for byte.
 
 - [ ] **1.3 `Dock::task()` uses `data` after `data_queue_.pop()`.**
   `data` is a reference to `front()`; `free_after_send_`/`bytes_` are read
