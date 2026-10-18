@@ -27,6 +27,7 @@ protected:
     uint32_t ticks_ = 0;
     uint32_t cycle_time_ = 1;
     uint64_t now_us_ = 0;
+    uint32_t max_cycle_time_ = 0;
     virtual void update_time() = 0;
     
 public:
@@ -55,6 +56,9 @@ public:
     uint32_t cycle_time() const;
     /// Microseconds since the scheduler started, the sum of all cycle times.
     uint64_t now_us() const { return now_us_; }
+    /// Longest cycle in microseconds since startup or reset_max_cycle_time().
+    uint32_t max_cycle_time() const { return max_cycle_time_; }
+    void reset_max_cycle_time() { max_cycle_time_ = 0; }
 };
 
 } // namespace nd

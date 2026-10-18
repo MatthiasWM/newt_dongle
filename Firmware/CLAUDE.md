@@ -246,10 +246,27 @@ Line numbers drift, so jobs refer to functions.
   *Fix:* IRQ (or per task call drain) into a ring buffer; count OE/FE/BE and
   make the counters visible (AT command or log).
 
-- [ ] **4.7 Measure worst case scheduler cycle time.**
+- [x] **4.7 Measure worst case scheduler cycle time.**
   Track the maximum `cycle_time` and show it next to the UART error counters.
   Decide afterwards whether SD access must move out of `Dock::send()` (it
   currently runs inside the UART receive call chain).
+  *Results (2026-10-19, `ATI3`):* 0.7–0.9 ms after startup, 1.6 ms for a
+  package install via NCX (direct connect), 162 ms in standalone mode after
+  boot, folder browsing and a large install (probably the SD mount or a whole
+  folder read in one cycle). Errors: 1 framing error, no overrun, nothing lost.
+  *Decision:* SD access stays in `Dock::send()`. Revisit if the limits below
+  are exceeded, or before 6.1 (a larger MNP window lets the Newton send more
+  while the dongle is busy).
+  *Limits for later checks.* The 1024 byte RX ring from 4.6 holds 267 ms of
+  data at 38400 (Dock mode) and 89 ms at 115200 (direct connect only):
+
+  | `ATI3` value | OK | Look into it | Data will be lost |
+  |---|---|---|---|
+  | max cycle, standalone (38400) | < 130 ms | 130–250 ms | > 250 ms |
+  | max cycle, direct connect at 115200 | < 45 ms | 45–80 ms | > 80 ms |
+  | `lost` | 0 | – | > 0: a cycle was too long, or a pipe rejected data for too long |
+  | `overrun` | 0 | – | > 0: interrupts were off for > 8 ms at 38400 (2.8 ms at 115200), e.g. a flash write |
+  | `framing` | a few | growing during a session | wrong bitrate or noise; single ones at plug-in are normal |
 
 ### Phase 5 – Code quality (no behaviour change)
 

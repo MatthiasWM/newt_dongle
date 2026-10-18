@@ -614,8 +614,7 @@ bool HayesFilter::send_info(uint32_t ix) {
             send_string("\r\n");
             break;
         case 3:
-            if (!uart_) return false;
-            {
+            if (uart_) {
                 UARTEndpoint::RxErrors errors = uart_->rx_errors();
                 send_string("UART: overrun ");
                 itoa10(errors.overrun, buf); send_string(buf);
@@ -627,6 +626,11 @@ bool HayesFilter::send_info(uint32_t ix) {
                 itoa10(errors.lost, buf); send_string(buf);
                 send_string("\r\n");
             }
+            // The longest scheduler cycle since the last ATI3
+            send_string("Scheduler: max cycle ");
+            itoa10(scheduler().max_cycle_time(), buf); send_string(buf);
+            send_string(" us\r\n");
+            scheduler().reset_max_cycle_time();
             break;
         default:
             return false;
