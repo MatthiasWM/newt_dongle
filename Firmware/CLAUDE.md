@@ -110,7 +110,7 @@ Line numbers drift, so jobs refer to functions.
   `UARTEndpoint::bitrate()` stays at 38400, so `DELAY`/`CHARS` events are
   computed with the wrong rate. *Fix:* call `UARTEndpoint::set_bitrate()`.
 
-- [ ] **1.5 `sd_get_by_num()` / `spi_get_by_num()` use `<=`.**
+- [x] **1.5 `sd_get_by_num()` / `spi_get_by_num()` use `<=`.**
   Off by one in `PicoSDCard.cpp`; `spi_get_by_num` also uses `sd_get_num()`.
 
 ### Phase 2 – MNP robustness (standalone/Dock mode)
