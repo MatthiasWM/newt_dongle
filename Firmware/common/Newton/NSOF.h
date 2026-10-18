@@ -55,11 +55,14 @@ public:
     Ref(real d) : real_(d), type_(Type::REAL) {}
     Ref(Object *obj) : object_(obj), type_(Type::OBJECT) {}
     Ref(Object &obj) : object_(&obj), type_(Type::OBJECT) {}
+    // Without this, any other pointer (e.g. `const Object*`) silently becomes Ref(bool).
+    Ref(const void *) = delete;
     Ref(const Ref &other);
     Ref(Ref &&other) noexcept;
     Ref &operator=(const Ref &other);
     Ref &operator=(Ref &&other) noexcept;
     static Ref Raw(uint32_t v);
+    static Ref Share(const Object *obj);
     ~Ref();
 
     Type type() const { return type_; }
@@ -107,7 +110,7 @@ public:
 
 class Symbol : public Object {
 protected:
-    static std::vector<Symbol*> known_symbols_;
+    static std::vector<Symbol*> &known_symbols();
     std::string sym_;
 public:
     Symbol(const char *name);

@@ -73,3 +73,56 @@ TEST(nsof_decodes_an_array_of_strings) {
     CHECK(array->at(0).as_string() && array->at(0).as_string()->str() == u"SD");
     CHECK(array->at(1).as_string() && array->at(1).as_string()->str() == u"Packages");
 }
+
+TEST(nsof_decodes_a_symbol) {
+    NSOF nsof({ 0x02, 0x07, 0x04, 'n', 'a', 'm', 'e' });
+    int32_t error = 0;
+    Ref ref = nsof.to_ref(error);
+    CHECK(error == 0);
+    CHECK(ref.as_symbol() == &symName);
+}
+
+TEST(nsof_decodes_and_reencodes_dinf) {
+    NSOF in(kDinfNSOF);
+    int32_t error = 0;
+    Ref ref = in.to_ref(error);
+    CHECK(error == 0);
+    CHECK(ref.as_array() != nullptr);
+    if (!ref.as_array()) return;
+    CHECK(ref.as_array()->size() == 1);
+    CHECK(ref.as_array()->at(0).as_frame() != nullptr);
+
+    NSOF out;
+    out.to_nsof(ref);
+    CHECK_BYTES(out.data(), kDinfNSOF);
+}
+
+TEST(nsof_decodes_a_precedent_to_a_string) {
+    // [ "A", <precedent 1> ] - precedent 0 is the array, 1 is the string
+    NSOF nsof({ 0x02, 0x05, 0x02, 0x08, 0x04, 0x00, 'A', 0x00, 0x00, 0x09, 0x01 });
+    int32_t error = 0;
+    Ref ref = nsof.to_ref(error);
+    CHECK(error == 0);
+    Array *array = ref.as_array();
+    CHECK(array != nullptr);
+    if (!array || array->size() != 2) { CHECK(false); return; }
+    CHECK(array->at(0).as_string() != nullptr);
+    CHECK(array->at(1).as_string() == array->at(0).as_string());
+    // When `ref` goes out of scope, the string must be deleted exactly once.
+}
+
+TEST(nsof_reuses_symbols_as_precedents) {
+    // [ { name: "A" }, { name: "B" } ] - the second `name` is precedent 2
+    const std::vector<uint8_t> list = {
+        0x02, 0x05, 0x02,
+        0x06, 0x01, 0x07, 0x04, 'n', 'a', 'm', 'e', 0x08, 0x04, 0x00, 'A', 0x00, 0x00,
+        0x06, 0x01, 0x09, 0x02, 0x08, 0x04, 0x00, 'B', 0x00, 0x00,
+    };
+    NSOF in(list);
+    int32_t error = 0;
+    Ref ref = in.to_ref(error);
+    CHECK(error == 0);
+    NSOF out;
+    out.to_nsof(ref);
+    CHECK_BYTES(out.data(), list);
+}

@@ -82,17 +82,17 @@ Line numbers drift, so jobs refer to functions.
 
 ### Phase 1 – Confirmed bugs, small fixes
 
-- [ ] **1.1 NSOF: symbols and precedents decode as `TRUE`.** (confirmed)
-  `NSOF::to_ref_()` returns `Ref(sym)` and `Ref(precedent_[index])` with a
-  `const Object*`. `Ref` only has `Ref(Object*)`, so the pointer converts to
-  `bool`. Every frame received from the Newton fails with -28210.
-  *Fix:* add `Ref(const Object*)` (const_cast internally), make `Ref(bool)`
-  explicit or add a deleted `Ref(const void*)` so this can't happen silently
-  again. Check that a precedent Ref increments the refcount (heap objects
-  from the parser start at refcount 1; a second owning Ref without increment
-  would double delete).
-  *Verify:* host test – parse `{name: "A"}`, a bare symbol, and an array that
-  uses a precedent.
+- [x] **1.1 NSOF: received symbols and precedents are broken.** (confirmed)
+  Three bugs: (a) `Ref(sym)` / `Ref(precedent_[index])` pass a `const
+  Object*`, which silently converts to `Ref(bool)`; (b) the symbol parser
+  reads one character too few and refuses the last byte of the buffer;
+  (c) `Symbol::known_symbols_` is initialized *after* the global symbols
+  registered themselves, which erases the list (verified in the RP2040
+  binary), so `Symbol::find()` always returned `symUnknown`.
+  *Fix:* `Ref::Share()` adds a counted reference; deleted `Ref(const void*)`
+  turns any future pointer mix-up into a compile error; symbol loop fixed;
+  registry is a function-local static.
+  *Verify:* `Tests/test_nsof.cpp` decodes and re-encodes the captured `dinf`.
 
 - [ ] **1.2 MNP CRC uses `const char[]`.**
   `update_crc16()` in `MNPFilter.cpp` indexes the table with a possibly signed

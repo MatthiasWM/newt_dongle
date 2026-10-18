@@ -92,6 +92,20 @@ Ref Ref::Raw(uint32_t v) {
     return Ref(false);
 }
 
+/**
+ * \brief Create an additional Ref to an object that is already referenced.
+ *
+ * `Ref(Object*)` takes over the initial reference count of a newly created
+ * object. Use `Share()` for an object that is already owned by another Ref,
+ * for example an NSOF precedent. Static objects like Symbols are not
+ * reference counted, so this works for them, too.
+ */
+Ref Ref::Share(const Object *obj) {
+    Ref ref(const_cast<Object*>(obj));
+    if (ref.object_->ref_count_) ref.object_->ref_count_++;
+    return ref;
+}
+
 Ref::~Ref()  // Destructor
 {
     clear_();
@@ -189,20 +203,26 @@ Symbol *Ref::as_symbol() const
 
 // This array will be filled by the Symbol constructor
 // and contains all known symbols. It is used to find symbols by name.
-std::vector<Symbol*> Symbol::known_symbols_;
+// It is a function-local static, so it is constructed before the first global
+// Symbol registers itself. A static member would be initialized after the
+// Symbols at the top of this file and erase them again.
+std::vector<Symbol*> &Symbol::known_symbols() {
+    static std::vector<Symbol*> symbols;
+    return symbols;
+}
 
 Symbol::Symbol(const char *name) : sym_(name) { 
     type_ = Type::SYMBOL; 
-    known_symbols_.push_back(this); // Add to known symbols
+    known_symbols().push_back(this); // Add to known symbols
 }
 
 Symbol::Symbol(const std::string &name) : sym_(name) { 
     type_ = Type::SYMBOL; 
-    known_symbols_.push_back(this); // Add to known symbols
+    known_symbols().push_back(this); // Add to known symbols
 }
 
 const Symbol *Symbol::find(const std::string &name) {
-    for (auto &sym : known_symbols_) {
+    for (auto &sym : known_symbols()) {
         if (sym->sym_ == name) return sym;
     }
     return &symUnknown;
@@ -491,8 +511,8 @@ Ref NSOF::to_ref_(int32_t &error_code)
             if (error_code) return Ref(false);
             std::string str;
             if (kLogNSOF) Log.log("\n\nSYMBOL:\n");
-            while (size > 1) {
-                if (crsr_ + 1 >= data_.size()) {
+            while (size > 0) {
+                if (crsr_ >= data_.size()) {
                     if (kLogNSOF) Log.log("NSOF: to_ref: Symbol too short\n");
                     error_code = -54002; // Zero Length data
                     return Ref(false);
@@ -511,7 +531,7 @@ Ref NSOF::to_ref_(int32_t &error_code)
             if (kLogNSOF) Log.log("\nDONE\n");
             const Symbol *sym = Symbol::find(str); // -> existing symbols only!
             precedent_.push_back(sym); // Add to precedent list
-            return Ref(sym); }
+            return Ref::Share(sym); }
         case 8: { // String
             uint32_t size = get_xlong(error_code);
             if (error_code) return Ref(false);
@@ -549,7 +569,7 @@ Ref NSOF::to_ref_(int32_t &error_code)
                 error_code = -28210; // Invalid Type
                 return Ref(false);
             }
-            return Ref(precedent_[index]); }
+            return Ref::Share(precedent_[index]); }
         case 10: // NIL
             if (kLogNSOF) Log.log("NSOF: to_ref: NIL\n");
             return Ref(false); // Return a Ref with false, indicating NIL
