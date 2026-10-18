@@ -156,12 +156,12 @@ Result Dock::task() {
 				data.end_frame_ = false; // we sent the end frame, no need to send it again
 			}
 		}
-		data_queue_.pop();
+		// `data` is a reference into the queue, so free the bytes before popping.
 		if (data.free_after_send_ && data.bytes_) {
 			delete data.bytes_; 
 			data.bytes_ = nullptr; // free the data if we are done with it
 		}
-		// TODO: delete *data; ????
+		data_queue_.pop();
 	} else if (connected_) {
 		// If we are conected, but have not sent any data for more than 5 seconds, 
 		// we remind the Newton that we are still alive.

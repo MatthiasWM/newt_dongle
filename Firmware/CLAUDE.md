@@ -101,7 +101,7 @@ Line numbers drift, so jobs refer to functions.
   *Verify:* `Tests/test_mnp.cpp` replays the captured session start; our LR,
   LAs and LT must match NCU byte for byte.
 
-- [ ] **1.3 `Dock::task()` uses `data` after `data_queue_.pop()`.**
+- [x] **1.3 `Dock::task()` uses `data` after `data_queue_.pop()`.**
   `data` is a reference to `front()`; `free_after_send_`/`bytes_` are read
   after the pop. *Fix:* copy the fields (or delete) before popping.
   *Verify:* build; install a package on hardware.
