@@ -175,6 +175,7 @@ void PicoUARTEndpoint::set_high_water(bool on) {
  * \param new_bitrate The new bitrate to set.
  */
 void PicoUARTEndpoint::set_bitrate(uint32_t new_bitrate) {
+    UARTEndpoint::set_bitrate(new_bitrate); // keep bitrate() in sync for delay()
     uart_set_baudrate(kUART, new_bitrate);
 }
 

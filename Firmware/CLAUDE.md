@@ -106,7 +106,7 @@ Line numbers drift, so jobs refer to functions.
   after the pop. *Fix:* copy the fields (or delete) before popping.
   *Verify:* build; install a package on hardware.
 
-- [ ] **1.4 `PicoUARTEndpoint::set_bitrate()` does not call the base class.**
+- [x] **1.4 `PicoUARTEndpoint::set_bitrate()` does not call the base class.**
   `UARTEndpoint::bitrate()` stays at 38400, so `DELAY`/`CHARS` events are
   computed with the wrong rate. *Fix:* call `UARTEndpoint::set_bitrate()`.
 
