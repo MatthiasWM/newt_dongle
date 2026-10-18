@@ -17,6 +17,10 @@ class DTRSwitch: public Pipe {
 
     class ToDockPipe *dock_ = nullptr; // Pipe to the Dock emulator
     class ToCDCPipe *cdc_ = nullptr;   // Pipe to the USB CDC port
+    uint32_t host_bitrate_ = 0;        // last bitrate set by the USB host, 0 if none yet
+    uint32_t pending_bitrate_ = 0;     // bitrate the UART side did not accept yet, 0 if none
+
+    Result send_pending_bitrate_();
 public:
     bool dtr_set = false; // If true, route to CDC, else route to Dock.
 

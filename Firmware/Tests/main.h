@@ -67,6 +67,9 @@ public:
     uint32_t chdir(const std::u16string &) { return FR_OK; }
 };
 
+// Newton Interconnect Port serial UART, also the bitrate for Dock mode
+constexpr uint32_t kUART_BaudRate = 38400;
+
 // Debugger settings
 constexpr bool kDebugErrors = false;
 

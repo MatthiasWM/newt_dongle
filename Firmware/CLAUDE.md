@@ -230,7 +230,7 @@ Line numbers drift, so jobs refer to functions.
   *Verify:* host test of `BufferedPipe` thresholds; on hardware, stop reading
   the USB port while the Newton sends.
 
-- [ ] **4.5 Don't lose the host baud rate.**
+- [x] **4.5 Don't lose the host baud rate.**
   `PicoCDCEndpoint::device_changed_bitrate()` sends `SET_BITRATE` downstream,
   but `ToCDCPipe::send()` drops it while DTR is low, and a rejected event is
   lost (existing TODO). *Fix:* remember the last host bitrate and apply it to
