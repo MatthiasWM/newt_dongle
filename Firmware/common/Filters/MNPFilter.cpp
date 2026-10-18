@@ -389,10 +389,6 @@ Result NewtToDockPipe::send(Event event) {
 	
 	// TODO: Add a timeouts, send the correct LA frames.
 
-	// TODO: let's have a second state machine run parallel that watches for 
-	// the 0x16 0x10 0x02 sequnce, which can't be anywhere but at the start of a 
-	// frame. If so, abort the current frame and start over.
-
 	uint16_t my_crc;
 
 	if (event.type() != Event::Type::DATA) {
@@ -412,6 +408,28 @@ Result NewtToDockPipe::send(Event event) {
 	// At this point, in_frame is guaranteed to point to a valid frame.
 	uint8_t c = event.data();
 	// Log.logf("%02x%c ", c, (c>0x20 && c<0x7f) ? c : '.');
+
+	// Inside the header, DLE DLE is an escaped DLE, and DLE STX starts a new frame.
+	if ((in_state_ == InState::WAIT_FOR_HDR_SIZE) || (in_state_ == InState::WAIT_FOR_HDR_TYPE)
+		|| (in_state_ == InState::WAIT_FOR_HDR_DATA)) {
+		if (in_frame_->escaping_dle) {
+			in_frame_->escaping_dle = false;
+			if (c == 0x02) {
+				in_frame_->clear();
+				in_state_ = InState::WAIT_FOR_HDR_SIZE;
+				return Result::OK;
+			} else if (c != 0x10) {
+				if (kLogMNPErrors) Log.logf("MNP ERROR: invalid DLE escape 0x10 0x%02x\r\n", c);
+				in_state_ = InState::ABORT;
+				return Result::OK;
+			}
+			// An escaped DLE is handled like any other header byte.
+		} else if (c == 0x10) {
+			in_frame_->escaping_dle = true;
+			return Result::OK;
+		}
+	}
+
 	switch (in_state_) {
 		case InState::ABORT:
 			// -- abort the current frame and start over
@@ -424,12 +442,15 @@ Result NewtToDockPipe::send(Event event) {
 			break;
 		case InState::WAIT_FOR_DLE:
 			if (c == 0x10) in_state_ = InState::WAIT_FOR_STX;
+			else if (c == 0x16) in_state_ = InState::WAIT_FOR_DLE; // repeated SYN
 			else in_state_ = InState::ABORT;
 			break;
 		case InState::WAIT_FOR_STX:
 			if (c == 0x02) {
 				in_frame_->clear();
 				in_state_ = InState::WAIT_FOR_HDR_SIZE;
+			} else if (c == 0x16) {
+				in_state_ = InState::WAIT_FOR_DLE;
 			} else {
 				in_state_ = InState::ABORT;
 			}
@@ -464,21 +485,11 @@ Result NewtToDockPipe::send(Event event) {
 				in_state_ = InState::ABORT;
 				break;
 			}
+			if (in_frame_->header.size() == in_frame_->expected_header_size) {
+				in_state_ = InState::WAIT_FOR_DATA;
+			}
 			break;
 		case InState::WAIT_FOR_HDR_DATA:
-			if (c == 0x10) {
-				if (in_frame_->escaping_dle) {
-					in_frame_->escaping_dle = false;
-					// fall through
-				} else {
-					in_frame_->escaping_dle = true;
-					break;
-				}
-			}
-			if (in_frame_->escaping_dle) {
-				if (kLogMNPErrors) Log.logf("MNP ERROR: invalid DLE escape 0x10 0x%02x\r\n", c);
-				in_state_ = InState::ABORT;
-			}
 			in_frame_->header.push_back(c);
 			if (in_frame_->header.size() == in_frame_->expected_header_size) {
 				in_state_ = InState::WAIT_FOR_DATA;
@@ -487,17 +498,32 @@ Result NewtToDockPipe::send(Event event) {
 
 		// -- read data until we reach the 0x10 0x03
 		case InState::WAIT_FOR_DATA:
-			if (c == 0x10) in_state_ = InState::WAIT_FOR_ETX;
-			else in_frame_->data.push_back(c); // TODO: check for overflow
+			if (c == 0x10) {
+				in_state_ = InState::WAIT_FOR_ETX;
+				break;
+			}
+			in_frame_->data.push_back(c);
+			if (in_frame_->data.size() > MNPFilter::kMaxInData) {
+				if (kLogMNPErrors) Log.log("MNP ERROR: too much data in frame\r\n");
+				in_state_ = InState::ABORT;
+			}
 			break;
 
 		// -- read the end of the block
 		case InState::WAIT_FOR_ETX:
 			if (c == 0x10) {
-				in_frame_->data.push_back(c); // TODO: check for overflow
+				in_frame_->data.push_back(c);
 				in_state_ = InState::WAIT_FOR_DATA;
+				if (in_frame_->data.size() > MNPFilter::kMaxInData) {
+					if (kLogMNPErrors) Log.log("MNP ERROR: too much data in frame\r\n");
+					in_state_ = InState::ABORT;
+				}
 			} else if (c == 0x03) {
 				in_state_ = InState::WAIT_FOR_CRC_lo;
+			} else if (c == 0x02) {
+				// DLE STX: the end of this frame got lost, and a new frame starts.
+				in_frame_->clear();
+				in_state_ = InState::WAIT_FOR_HDR_SIZE;
 			} else {
 				in_state_ = InState::ABORT; // abort
 			}

@@ -116,6 +116,28 @@ Bytes lt_payload(const Bytes &frame) {
     return payload;
 }
 
+// Build a frame that is not in the capture. This bitwise CRC is independent
+// of the table in MNPFilter, and gives the same CRCs as the captured frames.
+Bytes make_frame(const Bytes &header, const Bytes &data) {
+    Bytes content = { (uint8_t)header.size() };
+    content.insert(content.end(), header.begin(), header.end());
+    content.insert(content.end(), data.begin(), data.end());
+    Bytes frame = { 0x16, 0x10, 0x02 };
+    uint16_t crc = 0;
+    content.push_back(0x03); // ETX is part of the CRC, but not of the escaped content
+    for (size_t i = 0; i < content.size(); i++) {
+        uint8_t c = content[i];
+        crc ^= c;
+        for (int bit = 0; bit < 8; bit++)
+            crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
+        if (i == content.size() - 1) break;
+        frame.push_back(c);
+        if (c == 0x10) frame.push_back(0x10);
+    }
+    frame.insert(frame.end(), { 0x10, 0x03, (uint8_t)(crc & 0xFF), (uint8_t)(crc >> 8) });
+    return frame;
+}
+
 struct Session {
     TestScheduler scheduler;
     MNPFilter mnp { scheduler };
@@ -262,6 +284,69 @@ TEST(mnp_disconnects_after_retransmit_limit) {
     s.connect();
     s.dock_sends(lt_payload(kDockDock));
     CHECK_BYTES(s.to_newt.bytes, kDockDock);
+}
+
+TEST(mnp_test_frame_builder_matches_capture) {
+    CHECK_BYTES(make_frame({ 0x04, 0x01 }, lt_payload(kNewtonRtdk)), kNewtonRtdk);
+    CHECK_BYTES(make_frame({ 0x04, 0x02 }, lt_payload(kNewtonName)), kNewtonName);
+    CHECK_BYTES(make_frame({ 0x02, 0x01, 0x01, 0x04 }, {}), kDockLD4);
+}
+
+// SYN SYN DLE STX is a valid frame start.
+TEST(mnp_accepts_repeated_syn) {
+    Session s;
+    s.connect();
+    s.newton_sends({ 0x16 });
+    s.newton_sends(kNewtonRtdk);
+    CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonRtdk));
+    CHECK_BYTES(s.to_newt.bytes, kDockLA1);
+}
+
+// The end of an LT got lost. DLE STX starts the next frame.
+TEST(mnp_restarts_on_dle_stx_in_data) {
+    Session s;
+    s.connect();
+    s.newton_sends(Bytes(kNewtonRtdk.begin(), kNewtonRtdk.begin() + 20));
+    s.newton_sends(kNewtonRtdk);
+    CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonRtdk));
+    CHECK_BYTES(s.to_newt.bytes, kDockLA1);
+}
+
+// The end of an LR header got lost. DLE STX starts the next frame.
+TEST(mnp_restarts_on_dle_stx_in_header) {
+    Session s;
+    s.newton_sends(Bytes(kLR.begin(), kLR.begin() + 10));
+    s.newton_sends(kLR);
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_NEGOTIATING));
+    CHECK_BYTES(s.to_newt.bytes, kLR);
+}
+
+// A header size of 16 is sent as DLE DLE.
+TEST(mnp_unescapes_header_size) {
+    Session s;
+    s.connect();
+    Bytes ld = make_frame({ 0x02, 0x01, 0x01, 0xFF, 0x02, 0x01, 0x00,
+                            0x03, 0x07, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 }, {});
+    CHECK(ld[3] == 0x10 && ld[4] == 0x10);
+    s.newton_sends(ld);
+    CHECK(s.to_dock.received(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+}
+
+// An LT may carry up to 256 bytes of data. Larger frames are dropped.
+TEST(mnp_drops_lt_with_too_much_data) {
+    Session s;
+    s.connect();
+    s.newton_sends(make_frame({ 0x04, 0x01 }, Bytes(256, 'x')));
+    CHECK_BYTES(s.to_dock.bytes, Bytes(256, 'x'));
+    CHECK_BYTES(s.to_newt.bytes, kDockLA1);
+
+    s.to_dock.clear(); s.to_newt.clear();
+    s.newton_sends(make_frame({ 0x04, 0x02 }, Bytes(257, 'x')));
+    CHECK(s.to_dock.bytes.empty());
+    CHECK(s.to_newt.bytes.empty());
+    s.newton_sends(kNewtonName);
+    CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonName));
+    CHECK_BYTES(s.to_newt.bytes, kDockLA2);
 }
 
 // The Newton never acknowledges our LT and starts over with a new LR.

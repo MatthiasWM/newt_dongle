@@ -38,6 +38,7 @@ class MNPFilter : public Task
     constexpr static int kPoolSize = 8;
     constexpr static uint32_t kMaxData = 251; // DCL: 253???
     // constexpr static uint32_t kMaxData = 256; // DCL: 253???
+    constexpr static uint32_t kMaxInData = 256; // Our LR allows 256 data bytes per LT (parameter 8).
 
     // -- MNP state machine
     enum class MNPState {

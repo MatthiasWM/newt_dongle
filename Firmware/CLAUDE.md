@@ -139,7 +139,7 @@ Line numbers drift, so jobs refer to functions.
   *Verify:* host test with a dropped frame; on hardware, pull the cable
   during a transfer.
 
-- [ ] **2.4 Bound and resynchronise MNP input.**
+- [x] **2.4 Bound and resynchronise MNP input.**
   `WAIT_FOR_DATA` grows `data` without limit. `SYN SYN DLE STX` is not
   recognised; a `DLE STX` inside a frame (lost ETX) is not treated as a new
   frame start. A header size of 0x10 isn't un-escaped on input.
