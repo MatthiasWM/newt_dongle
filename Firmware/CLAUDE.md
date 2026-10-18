@@ -31,9 +31,21 @@ cd Firmware/PiPico
 ~/.pico-sdk/ninja/v1.12.1/ninja -C build
 ```
 
-Binary type is `no_flash` (runs from RAM). Flashing and hardware tests are
-done by Matthias; Claude cannot run code on the dongle. C++17, exceptions and
-RTTI are enabled.
+`NewtCOM/` builds the ROM image for the dongle hardware the same way. Binary
+type is `no_flash` (runs from RAM). Flashing and hardware tests are done by
+Matthias; Claude cannot run code on the dongle. C++17, exceptions and RTTI are
+enabled. The version number lives in `common/version.h` only.
+
+Host unit tests (macOS, AddressSanitizer + UBSan; `char` is signed here):
+
+```sh
+cd Firmware/Tests
+cmake -B build -G Ninja && cmake --build build && ./build/tests
+```
+
+New `Tests/test_*.cpp` files are picked up automatically. `Tests/main.h`
+stands in for the platform `main.h`. Test data comes from real captures where
+possible (`PiPico/unused.cpp` has a full Newton <-> NCU session).
 
 ## Working agreement
 
@@ -61,7 +73,7 @@ Line numbers drift, so jobs refer to functions.
 
 ### Phase 0 – Test harness
 
-- [ ] **0.1 Host unit test target.**
+- [x] **0.1 Host unit test target.**
   Add a small host CMake target (e.g. `Firmware/Tests/`) that compiles
   selected `common/` files against a stub `main.h` (stub `Log`, all `kLog*`
   flags false). Start with `Newton/NSOF.cpp` and the MNP CRC. No framework
@@ -225,7 +237,9 @@ Line numbers drift, so jobs refer to functions.
 
 - [ ] **5.1 Compiler warnings.** Build `common/` with `-Wall -Wextra` and fix
   the findings (printf formats with `uint32_t`, `Log.logf` with unused
-  arguments, unused variables, signed/unsigned compares).
+  arguments, unused variables, signed/unsigned compares). Also look for
+  `Log.log("...%d", value)`: the second argument is the *pipe*, so the value
+  is never printed (e.g. `handle_newt_frame()` default case in MNPFilter).
 - [ ] **5.2** Make `Result::OK` etc. `const` (or `constexpr`).
 - [ ] **5.3** `ND_FOURCC`: use `__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__`;
   today, if both macros are undefined, `0 == 0` silently picks little endian.
