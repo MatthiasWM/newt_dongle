@@ -305,12 +305,22 @@ void Dock::process_command()
 			send_cmd_dinf(); 
 			break;
 		case kDNewtonInfo: // protocol version, encryption key
+			if (in_data_.size() < 12) {
+				if (kLogDockErrors) Log.logf("Dock::process_command: 'ninf' payload too short (%u bytes)\r\n", (unsigned)in_data_.size());
+				send_cmd_dres(kDockErrBadCommandLength);
+				break;
+			}
 			dres_next_ = kDSetTimeout; // next command to send
 			newt_challenge_hi = in_data_[4] << 24 | in_data_[5] << 16 | in_data_[6] << 8 | in_data_[7];
 			newt_challenge_lo = in_data_[8] << 24 | in_data_[9] << 16 | in_data_[10] << 8 | in_data_[11];
 			send_cmd_wicn(kInstallIcon); break;
 		case kDResult:
-			if (kLogDockProgress) Log.logf("Dock::process_command: kDResult %d, next command is %08x\r\n", in_data_[3], dres_next_);
+			if (kLogDockProgress) {
+				int32_t result = 0;
+				if (in_data_.size() >= 4)
+					result = (int32_t)((in_data_[0] << 24) | (in_data_[1] << 16) | (in_data_[2] << 8) | in_data_[3]);
+				Log.logf("Dock::process_command: kDResult %d, next command is %08x\r\n", (int)result, (unsigned)dres_next_);
+			}
 			if (kLogDock) Log.log("\r\nDRES: ");
 			for (int i=0; i<in_data_.size(); i++) {
 				uint8_t c = in_data_[i];

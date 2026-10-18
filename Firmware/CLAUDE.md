@@ -156,7 +156,7 @@ Line numbers drift, so jobs refer to functions.
   or `MNP_FRAME_START` arrives while the header is half parsed, reset to
   state 0. Also re-check `'n'` after a failed match so `nnewtdock` resyncs.
 
-- [ ] **3.2 Bounds checks on received payloads.**
+- [x] **3.2 Bounds checks on received payloads.**
   `kDNewtonInfo` reads `in_data_[4..11]`, `kDResult` logs `in_data_[3]`,
   without checking the size.
 

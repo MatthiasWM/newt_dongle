@@ -25,6 +25,13 @@ static const Bytes kDockDock = {
     0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01,
 };
 
+// `ninf` as sent by the Newton: protocol version 10 and the DES challenge.
+static const Bytes kNewtonNinf = {
+    'n', 'e', 'w', 't', 'd', 'o', 'c', 'k', 'n', 'i', 'n', 'f',
+    0x00, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x0A,
+    0x00, 0x65, 0xE0, 0xBC, 0xFF, 0xA7, 0x74, 0x1B,
+};
+
 // `dres` with error kDockErrBadCommandLength (-28007).
 static const Bytes kDockDresBadCommandLength = {
     'n', 'e', 'w', 't', 'd', 'o', 'c', 'k', 'd', 'r', 'e', 's',
@@ -108,6 +115,21 @@ TEST(dock_accepts_payload_at_limit) {
     CHECK(s.to_newt.bytes.empty());
     s.newton_sends(kNewtonRtdk);
     CHECK_BYTES(s.to_newt.bytes, kDockDock);
+}
+
+TEST(dock_answers_ninf_with_wicn) {
+    DockSession s;
+    s.newton_sends(kNewtonNinf);
+    CHECK(s.to_newt.bytes.size() >= 12);
+    CHECK_BYTES(Bytes(s.to_newt.bytes.begin(), s.to_newt.bytes.begin() + 12),
+                (Bytes{ 'n', 'e', 'w', 't', 'd', 'o', 'c', 'k', 'w', 'i', 'c', 'n' }));
+}
+
+// `ninf` without the challenge.
+TEST(dock_rejects_short_ninf) {
+    DockSession s;
+    s.newton_sends(command("ninf", 4) + Bytes{ 0x00, 0x00, 0x00, 0x0A });
+    CHECK_BYTES(s.to_newt.bytes, kDockDresBadCommandLength);
 }
 
 // Commands start at an MNP frame, so a new frame ends a half received header.
