@@ -124,7 +124,7 @@ Line numbers drift, so jobs refer to functions.
   *Verify:* on hardware, cancel docking in the middle of a package install,
   then connect again without replugging.
 
-- [ ] **2.2 Detect duplicate LT frames from the Newton.**
+- [x] **2.2 Detect duplicate LT frames from the Newton.**
   `NewtToDockPipe::handle_newt_frame()` accepts any sequence number. If our LA
   is lost, the Newton resends and the Dock gets the payload twice (the "State
   out of sync" log in `Dock.cpp`). *Fix:* only accept `last + 1`; for a

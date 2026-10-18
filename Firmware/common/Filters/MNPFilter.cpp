@@ -567,25 +567,30 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 			// Input Pipe sent us data. Check if the sequence number is correct.
 			// - if so, send an LA frame to acknowledge the data and forward it to the Dock
 			// - if not, send an LA frame with the last sequence number we received
+			uint8_t seq = 0;
 			if (frame->header.size() == 2) {
-				// TODO: this assumes that the previous frame was received correctly.
-				// We should only set the new seq# if it is the old seq# plus 1.
-				in_seq_no_ = frame->header[1];
+				seq = frame->header[1];
 			} else if (frame->header.size() == 4) {
-				// TODO: this assumes that the previous frame was received correctly.
-				// We should only set the new seq# if it is the old seq# plus 1.
-				in_seq_no_ = frame->header[3];
+				seq = frame->header[3];
 			} else {
 				if (kLogMNPErrors) Log.logf("MNP ERROR: Unexpected LT header size %d\r\n", frame->header.size());
 				filter_.release_frame(frame);
 				break; // we ignore the frame because we can't get the sequence number
 			}
-			// TODO: we must verify that this is a valid sequence number
 			if (filter_.mnp_state_ == MNPFilter::MNPState::CONNECTED) {
-				if (kLogMNPState) Log.log("\r\n**** MNP Data Packet\r\n");
-				filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
-				filter_.newt_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_DATA_TO_DOCK, frame->pool_index));
-				// NOTE: the LT handler must eventually release the in_frame
+				if (seq == (uint8_t)(in_seq_no_ + 1)) {
+					in_seq_no_ = seq;
+					if (kLogMNPState) Log.log("\r\n**** MNP Data Packet\r\n");
+					filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
+					filter_.newt_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_DATA_TO_DOCK, frame->pool_index));
+					// NOTE: the LT handler must eventually release the in_frame
+				} else {
+					// A duplicate (our LA got lost) or a frame out of sequence:
+					// acknowledge the last frame we accepted again and drop this one.
+					if (kLogMNPWarnings) Log.logf("MNP Warning: LT seq %d dropped, expected %d\r\n", seq, (uint8_t)(in_seq_no_ + 1));
+					filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
+					filter_.release_frame(frame);
+				}
 			} else {
 				if (kLogMNPErrors) Log.log("\r\n**** ERROR: MNP Data Packet while not connected\r\n");
 				filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LD, 255));

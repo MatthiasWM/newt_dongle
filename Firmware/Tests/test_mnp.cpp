@@ -185,6 +185,37 @@ TEST(mnp_sends_dock_data_like_ncu) {
     CHECK_BYTES(s.to_newt.bytes, kDockDock);
 }
 
+// Our LA got lost and the Newton sends the same LT again.
+TEST(mnp_acknowledges_duplicate_lt_but_drops_it) {
+    Session s;
+    s.connect();
+    s.newton_sends(kNewtonRtdk);
+    s.newton_sends(kNewtonRtdk);
+    CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonRtdk));
+    Bytes two_las = kDockLA1;
+    two_las.insert(two_las.end(), kDockLA1.begin(), kDockLA1.end());
+    CHECK_BYTES(s.to_newt.bytes, two_las);
+
+    s.to_dock.clear(); s.to_newt.clear();
+    s.newton_sends(kNewtonName);
+    CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonName));
+    CHECK_BYTES(s.to_newt.bytes, kDockLA2);
+}
+
+// An LT out of sequence is dropped, and we acknowledge the last good one again.
+TEST(mnp_drops_lt_out_of_sequence) {
+    Session s;
+    s.connect();
+    s.newton_sends(kNewtonName);
+    CHECK(s.to_dock.bytes.empty());
+    CHECK_BYTES(s.to_newt.bytes, kNewtonLA0); // same bytes as our LA for seq 0
+
+    s.to_newt.clear();
+    s.newton_sends(kNewtonRtdk);
+    CHECK_BYTES(s.to_dock.bytes, lt_payload(kNewtonRtdk));
+    CHECK_BYTES(s.to_newt.bytes, kDockLA1);
+}
+
 // The Newton never acknowledges our LT and starts over with a new LR.
 TEST(mnp_new_lr_resets_unacknowledged_session) {
     Session s;
