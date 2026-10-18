@@ -17,7 +17,7 @@ using namespace nd;
  * The internal buffer is implemented as a power-of-2 sized ring buffer for
  * efficient circular operation using bit masking.
  * 
- * @note Buffer size is specified as a power of 2 (default is 2^9 = 512 elements)
+ * @note Buffer size is specified as a power of 2 (default is 2^11 = 2048 elements)
  */
 
 
@@ -27,8 +27,8 @@ BufferedPipe::BufferedPipe(Scheduler &scheduler, uint8_t buffer_size_pow2)
     ring_mask_ { ring_size_ - 1 },
     head_ { 0 },
     tail_ { 0 },
-    high_water_on_mark { ring_size_/16 },       // default is 32 for a 512 event buffer
-    high_water_off_mark_ { ring_size_/32*3 }    // defaults to 48 for a 512 event buffer
+    high_water_on_mark { ring_size_/16 },       // free events, default is 128 for a 2048 event buffer
+    high_water_off_mark_ { ring_size_/32*3 }    // free events, default is 192 for a 2048 event buffer
 {
     buffer_.resize(ring_size_);
 }

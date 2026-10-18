@@ -278,7 +278,7 @@ Line numbers drift, so jobs refer to functions.
 - [x] **5.2** Make `Result::OK` etc. `const` (or `constexpr`).
 - [x] **5.3** `ND_FOURCC`: use `__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__`;
   today, if both macros are undefined, `0 == 0` silently picks little endian.
-- [ ] **5.4** Replace `new` sub-pipes in `DTRSwitch` / `MNPFilter` with
+- [x] **5.4** Replace `new` sub-pipes in `DTRSwitch` / `MNPFilter` with
   members; remove stale comments (e.g. `BufferedPipe` buffer sizes).
 - [ ] **5.5 Dependency injection.** `common/` reaches into the platform's
   `main.h` for `Log`, `user_settings`, `sdcard_endpoint`, `app_status`. Pass

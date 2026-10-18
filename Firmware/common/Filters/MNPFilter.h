@@ -25,8 +25,95 @@ constexpr uint8_t kMNP_Frame_LNA = 7; // Link Attention Acknowledgement (not sup
 
 
 class MNPFrame;
-class NewtToDockPipe;
-class DockToNewtPipe;
+class MNPFilter;
+
+class NewtToDockPipe : public Pipe {
+    friend class MNPFilter;
+    std::queue<Event> job_list_;
+
+    MNPFrame *in_frame_ = nullptr;
+    enum class InState {  // TODO: move to class Frame?
+        ABORT,                  // clear the in_buffer and start over
+        WAIT_FOR_SYN,           // synchronous idle
+        WAIT_FOR_DLE,           // data link escape
+        WAIT_FOR_STX,           // start of text
+        WAIT_FOR_HDR_SIZE,      // 0..254
+        WAIT_FOR_HDR_TYPE,      // LR, LD, LT, or LA
+        WAIT_FOR_HDR_DATA,      // header data
+        WAIT_FOR_DATA,          // data link escape ends data
+        WAIT_FOR_ETX,           // end of text
+        WAIT_FOR_CRC_lo,        // low byte of CRC
+        WAIT_FOR_CRC_hi,        // high byte of CRC
+    } in_state_ = InState::WAIT_FOR_SYN;
+
+    uint8_t in_seq_no_ = 0;
+
+    MNPFrame *out_frame_ = nullptr;
+    uint16_t out_frame_crsr_ = 0;
+
+    void mnp_to_dock_state_machine();
+    void start_next_job();
+    void handle_newt_frame(MNPFrame *frame);
+
+public:
+    MNPFilter &filter_;
+    NewtToDockPipe(MNPFilter &filter) : filter_(filter) { }
+    void task();
+    Result send(Event event) override;
+    Result rush(Event event) override;
+	// TODO: rush_back()
+    void add_job(Event event) { job_list_.push(event); }
+    void reset();
+};
+
+class DockToNewtPipe : public Pipe {
+    std::queue<Event> job_list_lt_;     // List all LT jobs here in a fifo.
+    std::queue<Event> job_list_;        // Queue all other jobs here.
+
+    // State machine for sending MNP frames to the Newton.
+    MNPFrame *active_frame_ = nullptr;
+    MNPFrame *ack_pending_frame_ = nullptr;
+    enum class OutState {
+        SEND_SYN,
+        SEND_DLE,
+        SEND_STX,
+        SEND_HDR_SIZE,
+        SEND_HDR_SIZE_DLE,
+        SEND_HDR_DATA,
+        SEND_HDR_DATA_DLE,
+        SEND_DATA,
+        SEND_DATA_DLE,
+        SEND_DLE2,
+        SEND_ETX,
+        SEND_CRC_lo,
+        SEND_CRC_hi,
+    } out_state_ = OutState::SEND_SYN;
+    uint16_t data_crsr_ = 0;
+    uint8_t seq_no_ = 0; // sequence number for LT frames
+    uint64_t ack_deadline_ = 0; // resend `ack_pending_frame_` at this time
+    uint8_t retransmits_ = 0; // number of times we resent `ack_pending_frame_`
+
+    MNPFrame *in_frame = nullptr;
+
+
+    void mnp_to_newt_state_machine();
+    void release_frame(MNPFrame *frame);
+    void retain_until_ack();
+    void handle_ack_timeout();
+    void start_next_job();
+    void flush_in_frame();
+    void acknowledge_frame(uint8_t seq);
+
+public:
+    MNPFilter &filter_;
+    DockToNewtPipe(MNPFilter &filter) : filter_(filter) { }
+    void task();
+    Result send(Event event) override;
+	// TODO: rush()
+	// TODO: rush_back()
+    void add_job(Event event);
+    void reset();
+};
 
 
 class MNPFilter : public Task 
@@ -49,8 +136,8 @@ class MNPFilter : public Task
 
     uint8_t dock_state_ = 0;
 
-    NewtToDockPipe *newt_;      // Pipe from the Newton endpoint to the Dock.
-    DockToNewtPipe *dock_;      // Pipe from the Dock endpoint to the Newton.
+    NewtToDockPipe newt_;       // Pipe from the Newton endpoint to the Dock.
+    DockToNewtPipe dock_;       // Pipe from the Dock endpoint to the Newton.
     std::array<MNPFrame*, kPoolSize> frame_pool_; // A pool with a fixed number of frames.
 
     MNPFrame *acquire_frame();

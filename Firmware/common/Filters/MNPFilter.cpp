@@ -60,94 +60,6 @@ public:
     void prepare_LA(uint8_t seq_no);
 };
 
-class NewtToDockPipe : public Pipe {
-    friend class MNPFilter;
-    std::queue<Event> job_list_;
-
-    MNPFrame *in_frame_ = nullptr;
-    enum class InState {  // TODO: move to class Frame?
-        ABORT,                  // clear the in_buffer and start over
-        WAIT_FOR_SYN,           // synchronous idle
-        WAIT_FOR_DLE,           // data link escape
-        WAIT_FOR_STX,           // start of text
-        WAIT_FOR_HDR_SIZE,      // 0..254
-        WAIT_FOR_HDR_TYPE,      // LR, LD, LT, or LA
-        WAIT_FOR_HDR_DATA,      // header data
-        WAIT_FOR_DATA,          // data link escape ends data
-        WAIT_FOR_ETX,           // end of text
-        WAIT_FOR_CRC_lo,        // low byte of CRC
-        WAIT_FOR_CRC_hi,        // high byte of CRC
-    } in_state_ = InState::WAIT_FOR_SYN;
-
-    uint8_t in_seq_no_ = 0;
-
-    MNPFrame *out_frame_ = nullptr;
-    uint16_t out_frame_crsr_ = 0;
-
-    void mnp_to_dock_state_machine();
-    void start_next_job();
-    void handle_newt_frame(MNPFrame *frame);
-
-public:
-    MNPFilter &filter_;
-    NewtToDockPipe(MNPFilter &filter) : filter_(filter) { }
-    void task();
-    Result send(Event event) override;
-    Result rush(Event event) override;
-	// TODO: rush_back()
-    void add_job(Event event) { job_list_.push(event); }
-    void reset();
-};
-
-class DockToNewtPipe : public Pipe {
-    std::queue<Event> job_list_lt_;     // List all LT jobs here in a fifo.
-    std::queue<Event> job_list_;        // Queue all other jobs here.
-
-    // State machine for sending MNP frames to the Newton.
-    MNPFrame *active_frame_ = nullptr;
-    MNPFrame *ack_pending_frame_ = nullptr;
-    enum class OutState {
-        SEND_SYN,
-        SEND_DLE,
-        SEND_STX,
-        SEND_HDR_SIZE,
-        SEND_HDR_SIZE_DLE,
-        SEND_HDR_DATA,
-        SEND_HDR_DATA_DLE,
-        SEND_DATA,
-        SEND_DATA_DLE,
-        SEND_DLE2,
-        SEND_ETX,
-        SEND_CRC_lo,
-        SEND_CRC_hi,
-    } out_state_ = OutState::SEND_SYN;
-    uint16_t data_crsr_ = 0;
-    uint8_t seq_no_ = 0; // sequence number for LT frames
-    uint64_t ack_deadline_ = 0; // resend `ack_pending_frame_` at this time
-    uint8_t retransmits_ = 0; // number of times we resent `ack_pending_frame_`
-
-    MNPFrame *in_frame = nullptr;
-
-
-    void mnp_to_newt_state_machine();
-    void release_frame(MNPFrame *frame);
-    void retain_until_ack();
-    void handle_ack_timeout();
-    void start_next_job();
-    void flush_in_frame();
-    void acknowledge_frame(uint8_t seq);
-
-public:
-    MNPFilter &filter_;
-    DockToNewtPipe(MNPFilter &filter) : filter_(filter) { }
-    void task();
-    Result send(Event event) override;
-	// TODO: rush()
-	// TODO: rush_back()
-    void add_job(Event event);
-    void reset();
-};
-
 } // namespace nd
 
 // ==== MNPFrame ===============================================================
@@ -576,7 +488,7 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 			if (filter_.mnp_state_ != MNPFilter::MNPState::DISCONNECTED) filter_.set_disconnected();
 			filter_.set_negotiating();
 			if (kLogMNPState) Log.log("\r\n**** MNP Negotiating\r\n");
-			filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LR, frame->pool_index));
+			filter_.dock_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LR, frame->pool_index));
             out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_NEGOTIATING));
 			// NOTE: the LR frame must be released by `dock` after creating the reply.
 			break;
@@ -611,19 +523,19 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 				if (seq == (uint8_t)(in_seq_no_ + 1)) {
 					in_seq_no_ = seq;
 					if (kLogMNPState) Log.log("\r\n**** MNP Data Packet\r\n");
-					filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
-					filter_.newt_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_DATA_TO_DOCK, frame->pool_index));
+					filter_.dock_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
+					filter_.newt_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_DATA_TO_DOCK, frame->pool_index));
 					// NOTE: the LT handler must eventually release the in_frame
 				} else {
 					// A duplicate (our LA got lost) or a frame out of sequence:
 					// acknowledge the last frame we accepted again and drop this one.
 					if (kLogMNPWarnings) Log.logf("MNP Warning: LT seq %d dropped, expected %d\r\n", seq, (uint8_t)(in_seq_no_ + 1));
-					filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
+					filter_.dock_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LA, in_seq_no_));
 					filter_.release_frame(frame);
 				}
 			} else {
 				if (kLogMNPErrors) Log.log("\r\n**** ERROR: MNP Data Packet while not connected\r\n");
-				filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LD, 255));
+				filter_.dock_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_SEND_LD, 255));
 				filter_.release_frame(frame);
 			}
 			break;
@@ -653,12 +565,12 @@ void NewtToDockPipe::handle_newt_frame(MNPFrame *frame) {
 			(void)credit; // TODO: a credit of 0 means that the Newton can't take more LTs right now
 			if (filter_.mnp_state_ == MNPFilter::MNPState::CONNECTED) {
 				// TODO: is there a Frame that we need to resend?
-                filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_RECEIVED_LA, seq));
+                filter_.dock_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_RECEIVED_LA, seq));
 				// TODO: also, is there a timeout with no LA?
 			} else if (filter_.mnp_state_ == MNPFilter::MNPState::NEGOTIATING) {
 				// TODO: add a timeout to an earlier LR with no LA!
 				filter_.set_connected();
-                filter_.dock_->add_job(Event(Event::Type::MNP, Event::Subtype::MNP_RECEIVED_LA, seq + 0x0100));
+                filter_.dock_.add_job(Event(Event::Type::MNP, Event::Subtype::MNP_RECEIVED_LA, seq + 0x0100));
 				if (kLogMNPState) Log.log("\r\n**** MNP Connected\r\n");
                 out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_CONNECTED));
 			} else {
@@ -1058,16 +970,13 @@ void DockToNewtPipe::acknowledge_frame(uint8_t seq) {
 
 /**
  * \brief Create a new MNPFilter object.
- * \todo This will be renamed to MNPFilter or similar
- * \todo This should not be an Endpoint, but a filter that forwards the decoded
- *    MNP data as a stream down the pipe to a Dock class.
  */
 MNPFilter::MNPFilter(Scheduler &scheduler) 
 :   super(scheduler),
-	newt_(new NewtToDockPipe(*this)),
-	dock_(new DockToNewtPipe(*this)),
-	newt(*newt_),
-	dock(*dock_)
+	newt_(*this),
+	dock_(*this),
+	newt(newt_),
+	dock(dock_)
 {
 	uint8_t ix = 0;
     for (auto &f : frame_pool_) {
@@ -1077,12 +986,10 @@ MNPFilter::MNPFilter(Scheduler &scheduler)
 
 /**
  * \brief Release all resources.
- * This will delete the dock and newt pipes, and all frames in the pool.
+ * This deletes all frames in the pool.
  */
 MNPFilter::~MNPFilter() 
 {
-    delete dock_;
-    delete newt_;
     for (auto &f : frame_pool_) {
         delete f;
     }
@@ -1092,8 +999,8 @@ MNPFilter::~MNPFilter()
  * \brief Handle out pipes and timeouts.
  */
 Result MNPFilter::task() {
-    dock_->task();
-    newt_->task();
+    dock_.task();
+    newt_.task();
     return Result::OK;
 }
 
@@ -1136,12 +1043,12 @@ void MNPFilter::release_frame(MNPFrame *frame) {
  */
 void MNPFilter::set_disconnected() {
 	mnp_state_ = MNPState::DISCONNECTED;
-	newt_->reset();
-	dock_->reset();
+	newt_.reset();
+	dock_.reset();
 	for (auto &frame : frame_pool_) {
-		if (frame != newt_->in_frame_) release_frame(frame);
+		if (frame != newt_.in_frame_) release_frame(frame);
 	}
-	if (newt_->out()) newt_->out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
+	if (newt_.out()) newt_.out()->send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
 }
 
 void MNPFilter::set_negotiating() {
