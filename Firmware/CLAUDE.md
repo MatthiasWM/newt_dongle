@@ -160,7 +160,7 @@ Line numbers drift, so jobs refer to functions.
   `kDNewtonInfo` reads `in_data_[4..11]`, `kDResult` logs `in_data_[3]`,
   without checking the size.
 
-- [ ] **3.3 One command builder instead of static buffers.**
+- [x] **3.3 One command builder instead of static buffers.**
   `send_cmd_dres`, `send_cmd_dock`, `send_cmd_wicn` and the `lpkg` header
   write into a `static std::vector` and queue a pointer to it; a second
   command queued before the first is sent overwrites it. The header + NSOF +

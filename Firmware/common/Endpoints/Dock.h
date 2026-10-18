@@ -65,6 +65,7 @@ class Dock : public Endpoint
     constexpr static uint32_t kDSetPath = ND_FOURCC('s', 'p', 't', 'h'); // Newt -> Dock
 
     constexpr static uint32_t kDLoadPackageFile = ND_FOURCC('l', 'p', 'f', 'l'); // Newt -> Dock
+    constexpr static uint32_t kDLoadPackage = ND_FOURCC('l', 'p', 'k', 'g'); // Dock -> Newt
     constexpr static uint32_t kDOperationCanceled = ND_FOURCC('o', 'p', 'c', 'a'); // Newt <-> Dock
     void send_cmd_opca();
     constexpr static uint32_t kDOpCanceledAck = ND_FOURCC('o', 'c', 'a', 'a'); // Dock <-> Newt
@@ -128,6 +129,8 @@ class Dock : public Endpoint
 
     void clear_data_queue_();
     void reset_();
+    void queue_command_(uint32_t command, const std::vector<uint8_t> &payload = {});
+    void queue_command_(uint32_t command, uint32_t size, const std::vector<uint8_t> &payload, bool end_frame);
 
 public:
     Dock(Scheduler &scheduler) : Endpoint(scheduler) { 

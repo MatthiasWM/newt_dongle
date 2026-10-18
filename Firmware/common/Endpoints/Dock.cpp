@@ -376,115 +376,100 @@ void Dock::process_command()
 }
 
 
-void Dock::send_cmd_dock(uint32_t session_type) {
-	if (kLogDockProgress) Log.log("Dock: send_cmd_dock\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x64, 0x6f, 0x63, 0x6b, 0x00, 0x00, 0x00, 0x04,
-		0x00, 0x00, 0x00, 0x04
-	};
-	cmd[19] = session_type;
+/**
+ * \brief Append a 32 bit value in Newton (big endian) byte order.
+ */
+static void append_ulong(std::vector<uint8_t> &bytes, uint32_t value)
+{
+	bytes.push_back((value >> 24) & 0xff);
+	bytes.push_back((value >> 16) & 0xff);
+	bytes.push_back((value >> 8) & 0xff);
+	bytes.push_back(value & 0xff);
+}
+
+/**
+ * \brief Queue a command for the Newton in one MNP frame.
+ * \param command the command, e.g. kDResult
+ * \param payload the payload, its size is written into the header
+ */
+void Dock::queue_command_(uint32_t command, const std::vector<uint8_t> &payload)
+{
+	queue_command_(command, (uint32_t)payload.size(), payload, true);
+}
+
+/**
+ * \brief Queue a command for the Newton.
+ * This creates a new buffer with "newtdock", the command, `size`, the payload,
+ * and zero padding to a multiple of 4 bytes. The queue owns the buffer, so a
+ * command can be queued while earlier commands are still waiting.
+ * \param command the command, e.g. kDResult
+ * \param size the size that is written into the header
+ * \param payload the payload, may be empty
+ * \param end_frame if false, more data for this command follows in the same
+ *        MNP frame, see `send_package_task()`
+ */
+void Dock::queue_command_(uint32_t command, uint32_t size, const std::vector<uint8_t> &payload, bool end_frame)
+{
+	auto *bytes = new std::vector<uint8_t> { 'n', 'e', 'w', 't', 'd', 'o', 'c', 'k' };
+	uint8_t fourcc[4];
+	memcpy(fourcc, &command, 4); // ND_FOURCC keeps the characters in memory order
+	bytes->insert(bytes->end(), fourcc, fourcc + 4);
+	append_ulong(*bytes, size);
+	bytes->insert(bytes->end(), payload.begin(), payload.end());
+	while (bytes->size() & 3) bytes->push_back(0);
 	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
+		.bytes_ = bytes,
 		.pos_ = 0,
 		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
+		.end_frame_ = end_frame,
+		.free_after_send_ = true,
 	});
+}
+
+void Dock::send_cmd_dock(uint32_t session_type) {
+	if (kLogDockProgress) Log.log("Dock: send_cmd_dock\r\n");
+	std::vector<uint8_t> payload;
+	append_ulong(payload, session_type);
+	queue_command_(kDInitiateDocking, payload);
 }
 
 void Dock::send_cmd_stim() {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_stim\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 's',  't',  'i',  'm', 0x00, 0x00, 0x00, 0x04,
+	std::vector<uint8_t> payload;
 #if ND_DEBUG_DOCK
-		0x00, 0x00, 0x00, 0x0A // 10 seconds for debugging
+	append_ulong(payload, 10); // 10 seconds for debugging
 #else
-		0x00, 0x00, 0x00, 0x0A // 10 seconds 
-		// 0x00, 0x00, 0x00, 0x5A /// 90 seconds is the original time, but too long
+	append_ulong(payload, 10); // 10 seconds
+	// append_ulong(payload, 90); // 90 seconds is the original time, but too long
 #endif
-	};
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
+	queue_command_(kDSetTimeout, payload);
 }
 
 void Dock::send_cmd_opca() {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_opca\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'o',  'p',  'c',  'a', 0x00, 0x00, 0x00, 0x00,
-	};
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
+	queue_command_(kDOperationCanceled);
 }
 
 void Dock::send_cmd_ocaa() {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_ocaa\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'o',  'c',  'a',  'a', 0x00, 0x00, 0x00, 0x00,
-	};
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
+	queue_command_(kDOpCanceledAck);
 }
 
 void Dock::send_cmd_helo() {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_helo\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'h',  'e',  'l',  'o', 0x00, 0x00, 0x00, 0x00,
-	};
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
+	queue_command_(kDHello);
 }
 
 void Dock::send_cmd_dres(uint32_t error_code) {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_dres\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'd',  'r',  'e',  's', 0x00, 0x00, 0x00, 0x04,
-		0x00, 0x00, 0x00, 0x00
-	};
-	cmd[16] = (error_code >> 24) & 0xFF;
-	cmd[17] = (error_code >> 16) & 0xFF;
-	cmd[18] = (error_code >> 8) & 0xFF;
-	cmd[19] = error_code & 0xFF;
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
+	std::vector<uint8_t> payload;
+	append_ulong(payload, error_code);
+	queue_command_(kDResult, payload);
 }
 
 void Dock::send_cmd_dinf() {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_dinf\r\n");
-	static const std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x64, 0x69, 0x6e, 0x66, 0x00, 0x00, 0x00, 0x66,
-
+	static const std::vector<uint8_t> payload = {
 		0x00, 0x00, 0x00, 0x0A, // protocol version (9 or 10)
 		0x00, 0x00, 0x00, 0x00, // Desktop Type (0=Mac, 1=Windows)
 		0x5F, 0xFE, 0xF6, 0x6A, 0x5B, 0xE3, 0xDA, 0x62, // encrypted key (random challange)
@@ -495,7 +480,7 @@ void Dock::send_cmd_dinf() {
 		0x07, 0x08, 0x64, 0x6F, 0x65, 0x73, 0x41, 0x75, 0x74, 0x6F, 0x08, 0x24, 0x00, 0x4E, 0x00, 0x65, 
 		0x00, 0x77, 0x00, 0x74, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x20, 0x00, 0x43, 0x00, 0x6F, 0x00, 0x6E, 
 		0x00, 0x6E, 0x00, 0x65, 0x00, 0x63, 0x00, 0x74, 0x00, 0x69, 0x00, 0x6F, 0x00, 0x6E, 0x00, 0x00, 
-		0x00, 0x08, 0x00, 0x04, 0x00, 0x1A, 0x00, 0x00, 
+		0x00, 0x08, 0x00, 0x04, 0x00, 0x1A,
 		// [ 
 		// 	 { name: "Newton Connection"
 		//     id: 2
@@ -505,40 +490,20 @@ void Dock::send_cmd_dinf() {
 		// ]
 
 	};
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
+	queue_command_(kDDesktopInfo, payload);
 }
 
 void Dock::send_cmd_wicn(uint32_t icon_map) {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_wicn\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x77, 0x69, 0x63, 0x6e, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x04
-	};
-	cmd[19] = icon_map;
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = false,
-	});
-
+	std::vector<uint8_t> payload;
+	append_ulong(payload, icon_map);
+	// NOTE: the header says 0 bytes, but the icon map follows. This is what
+	// the Dock always sent. TODO: should the size be 4?
+	queue_command_(kDWhichIcons, 0, payload, true);
 }
 
 void Dock::send_cmd_path() 
 {
-	static const std::vector<uint8_t> cmd_header = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'p',  'a',  't',  'h', 0x00, 0x00, 0x00, 0x00,
-	};
-
 	if (kLogDockProgress) Log.log("Dock: send_cmd_path\r\n");
 	
 	// NSOF path as an array of folder frames:
@@ -579,38 +544,12 @@ void Dock::send_cmd_path()
 	nsof.to_nsof(path);
 	if (kLogDock) nsof.log();
 
-	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
-	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
-
-	uint32_t nsof_size = nsof.data().size();
-	uint32_t aligned_size = (nsof_size + 3) & 0xfffffffc; // align to 4 bytes
-	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
-	for (uint32_t i = nsof_size; i < aligned_size; i++) {
-		cmd->push_back(0); // fill with 0s to align to 4 bytes
-	}
-	// The size of the NSOF data is stored at offset 12 in the command data
-	(*cmd)[12] = (nsof_size >> 24) & 0xff;
-	(*cmd)[13] = (nsof_size >> 16) & 0xff;
-	(*cmd)[14] = (nsof_size >> 8) & 0xff;
-	(*cmd)[15] = nsof_size & 0xff;
-
-	data_queue_.push(Dock::Data {
-		.bytes_ = cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = true,
-	});
-	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
+	if (kLogDock) Log.logf("Dock: send_cmd_path: NSOF size = %d\r\n", (int)nsof.data().size());
+	queue_command_(kDPath, nsof.data());
 }
 
 void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 	if (kLogDockProgress) Log.log("Dock: send_cmd_file\r\n");
-
-	static const std::vector<uint8_t> cmd_header = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		 'f',  'i',  'l',  'e', 0x00, 0x00, 0x00, 0x00,
-	};
 
 	Array file_list;
 
@@ -656,39 +595,12 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 	nsof.to_nsof(file_list);
 	//if (kLogDock) nsof.log();
 
-	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
-	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
-
-	uint32_t nsof_size = nsof.data().size();
-	uint32_t aligned_size = (nsof_size + 3) & 0xfffffffc; // align to 4 bytes
-	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
-	for (uint32_t i = nsof_size; i < aligned_size; i++) {
-		cmd->push_back(0); // fill with 0s to align to 4 bytes
-	}
-	// The size of the NSOF data is stored at offset 12 in the command data
-	(*cmd)[12] = (nsof_size >> 24) & 0xff;
-	(*cmd)[13] = (nsof_size >> 16) & 0xff;
-	(*cmd)[14] = (nsof_size >> 8) & 0xff;
-	(*cmd)[15] = nsof_size & 0xff;
-
-	data_queue_.push(Dock::Data {
-		.bytes_ = cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = true,
-	});
-	if (kLogDock) Log.logf("Dock: send_cmd_file: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
+	if (kLogDock) Log.logf("Dock: send_cmd_file: NSOF size = %d\r\n", (int)nsof.data().size());
+	queue_command_(kDFilesAndFolders, nsof.data());
 }
 
 void Dock::send_cmd_pass() {
 	if (kLogDockProgress) Log.log("Dock: send_cmd_pass\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x70, 0x61, 0x73, 0x73, 0x00, 0x00, 0x00, 0x08,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	};
-
 	SNewtNonce key;
 	SNewtNonce newtNonce = { newt_challenge_hi, newt_challenge_lo };
 	SNewtNonce response = newtNonce;
@@ -699,37 +611,15 @@ void Dock::send_cmd_pass() {
 	DESEncodeNonce(&key, &response);
 	if (kLogDock) Log.logf("Dock: send_cmd_pass: pass = %08lx'%08lx\r\n", response.hi, response.lo);
 
-	cmd[16] = (response.hi >> 24) & 0xff;
-	cmd[17] = (response.hi >> 16) & 0xff;
-	cmd[18] = (response.hi >> 8) & 0xff;
-	cmd[19] = response.hi & 0xff;
-	cmd[20] = (response.lo >> 24) & 0xff;
-	cmd[21] = (response.lo >> 16) & 0xff;
-	cmd[22] = (response.lo >> 8) & 0xff;
-	cmd[23] = response.lo & 0xff;
-
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true, // we want to start with a start frame marker
-		.end_frame_ = true, // we want to end with an end frame marker
-		.free_after_send_ = false, // we don't want to free the data after sending
-	});
+	std::vector<uint8_t> payload;
+	append_ulong(payload, response.hi);
+	append_ulong(payload, response.lo);
+	queue_command_(kDPassword, payload);
 }
 
 void Dock::send_disc() {
 	if (kLogDockProgress) Log.log("Dock: send_disc\r\n");
-	static std::vector<uint8_t> cmd = {
-		0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b,
-		0x64, 0x69, 0x73, 0x63, 0x00, 0x00, 0x00, 0x00
-	};
-	data_queue_.push(Dock::Data {
-		.bytes_ = &cmd,
-		.pos_ = 0,
-		.start_frame_ = true, // we want to start with a start frame marker
-		.end_frame_ = true, // we want to end with an end frame marker
-		.free_after_send_ = false, // we don't want to free the data after sending
-	});
+	queue_command_(kDDisconnect);
 }
 
 void Dock::handle_SetPath() 
@@ -796,10 +686,7 @@ void Dock::handle_GetFileInfo()
 		return;
 	}
 	if (kLogDockProgress) Log.log("Dock: send file info 'finf'\r\n");
-	static std::vector<uint8_t> cmd_header = {
-		'n', 'e', 'w', 't', 'd', 'o', 'c', 'k',
-		'f', 'i', 'n', 'f', 0x00, 0x00, 0x00, 0x85,
-
+	// A file info reply as NCU sends it:
 		// <02. 
 		// <06. <06. 
 		// <07. <04. <6Bk <69i <6En <64d  // kind
@@ -826,8 +713,6 @@ void Dock::handle_GetFileInfo()
 		// <00. <00. <00. // padding
 		// <10. <03. <92. <47G // end, checksum
 
-	};
-
 	sdcard_endpoint.openfile(filename->str());
 	uint32_t file_size = sdcard_endpoint.filesize();
 	sdcard_endpoint.closefile();
@@ -844,28 +729,8 @@ void Dock::handle_GetFileInfo()
 	nsof.to_nsof(info);
 	if (kLogDock) nsof.log();
 
-	std::vector<uint8_t> *cmd = new std::vector<uint8_t>(cmd_header);
-	cmd->insert(cmd->end(), nsof.data().begin(), nsof.data().end());
-
-	uint32_t nsof_size = nsof.data().size();
-	uint32_t aligned_size = (nsof_size + 3) & 0xfffffffc; // align to 4 bytes
-	if (kLogDock) Log.logf("Dock: send_cmd_path: size = %d (NSOF: %d, aligned: %d)\r\n", cmd->size(), nsof_size, aligned_size);
-	for (uint32_t i = nsof_size; i < aligned_size; i++) {
-		cmd->push_back(0); // fill with 0s to align to 4 bytes
-	}
-	// The size of the NSOF data is stored at offset 12 in the command data
-	(*cmd)[12] = (nsof_size >> 24) & 0xff;
-	(*cmd)[13] = (nsof_size >> 16) & 0xff;
-	(*cmd)[14] = (nsof_size >> 8) & 0xff;
-	(*cmd)[15] = nsof_size & 0xff;
-
-	data_queue_.push(Dock::Data {
-		.bytes_ = cmd,
-		.pos_ = 0,
-		.start_frame_ = true,
-		.end_frame_ = true,
-		.free_after_send_ = true,
-	});
+	if (kLogDock) Log.logf("Dock: handle_GetFileInfo: NSOF size = %d\r\n", (int)nsof.data().size());
+	queue_command_(kDFileInfo, nsof.data());
 }
 
 void Dock::handle_LoadPackageFile()
@@ -913,21 +778,7 @@ void Dock::send_package_task()
 		pkg_size_aligned_ = (pkg_size_ + 3) & 0xfffffffc; // align to 4 bytes
 		pkg_crsr_ = 0;
 
-		static std::vector<uint8_t> cmd = {
-			0x6e, 0x65, 0x77, 0x74, 0x64, 0x6f, 0x63, 0x6b, 
-			 'l',  'p',  'k',  'g', 0x00, 0x00, 0x08, 0x00, // lpkg
-		};
-		cmd[12] = (pkg_size_ >> 24) & 0xff; // size of the package
-		cmd[13] = (pkg_size_ >> 16) & 0xff;
-		cmd[14] = (pkg_size_ >> 8) & 0xff;
-		cmd[15] = pkg_size_ & 0xff;
-		data_queue_.push(Dock::Data {
-			.bytes_ = &cmd,
-			.pos_ = 0,
-			.start_frame_ = true, // we want to start with a start frame marker
-			.end_frame_ = false, // we want to end with an end frame marker
-			.free_after_send_ = false, // we don't want to free the data after sending
-		});
+		queue_command_(kDLoadPackage, pkg_size_, {}, false); // the package data follows in the same frame
 		current_task_ = Task::CONTINUE_SEND_PACKAGE;
 	} else if (current_task_ == Task::CONTINUE_SEND_PACKAGE || current_task_ == Task::CANCEL_SEND_PACKAGE) {
 		if (kLogDockProgress) Log.log("Dock: continue SEND_PACKAGE\r\n");

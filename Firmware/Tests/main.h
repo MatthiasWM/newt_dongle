@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace nd {
 
@@ -36,17 +37,24 @@ constexpr uint32_t FR_OK = 0;
 constexpr uint32_t FR_IS_DIRECTORY = 20;
 constexpr uint32_t FR_IS_PACKAGE = 21;
 
-// Stand-in for PicoSDCardEndpoint: an empty card that can't open files.
+// Stand-in for PicoSDCardEndpoint: a card without directory entries. Every
+// file name opens `file`, unless `file` is empty.
 class TestSDCard {
 public:
     std::u16string label = u"TEST";
+    std::vector<uint8_t> file;
+    size_t pos = 0;
     const std::u16string &get_label() { return label; }
     uint32_t opendir() { return FR_OK; }
     uint32_t readdir(std::u16string &name) { name.clear(); return FR_OK; }
     uint32_t closedir() { return FR_OK; }
-    uint32_t openfile(const std::u16string &) { return FR_OK + 1; }
-    uint32_t filesize() { return 0; }
-    uint32_t readfile(uint8_t *, uint32_t) { return 0; }
+    uint32_t openfile(const std::u16string &) { pos = 0; return file.empty() ? FR_OK + 1 : FR_OK; }
+    uint32_t filesize() { return (uint32_t)file.size(); }
+    uint32_t readfile(uint8_t *buffer, uint32_t size) {
+        uint32_t n = 0;
+        while (n < size && pos < file.size()) buffer[n++] = file[pos++];
+        return n;
+    }
     uint32_t closefile() { return FR_OK; }
     uint32_t chdir(const std::u16string &) { return FR_OK; }
 };
