@@ -178,10 +178,13 @@ Line numbers drift, so jobs refer to functions.
   - Use the Dock error codes for file errors (`kDockErrBrowserFileNotFound`
     -28105 etc., already listed in `Dock.h`) instead of -48403.
 
-- [ ] **3.5 Password protected Newtons.**
+- [x] **3.5 Password protected Newtons.**
   The password is hard-coded to empty. At minimum reply with a clear error
   (`kDockErrBadPasswordError`); optionally store a password in user settings
   (`AT` command). Discuss before implementing.
+  *Decision:* not supported. A Newton with a password rejects our answer and
+  shows its own error. Almost no owner uses AT commands, and there will be no
+  dongle settings app on the Newton side.
 
 ### Phase 4 – Throttling and serial flow control (direct connect mode)
 
