@@ -104,17 +104,14 @@ Result PicoUARTEndpoint::send(Event event) {
                 if (!(uart_get_hw(kUART)->fr & UART_UARTFR_TXFE_BITS)) {
                     return Result::REJECTED;
                 } else {
+                    // Start the pause now. Its length doesn't depend on how often we are called.
                     tx_wait_for_fifo_empty_ = false;
-                }
-            }
-            if (tx_delay_ > 0) {
-                uint32_t cycle_time = scheduler().cycle_time();
-                if (tx_delay_ >= cycle_time) {
-                    tx_delay_ -= cycle_time;
-                    return Result::REJECTED;
-                } else {
+                    tx_deadline_ = scheduler().now_us() + tx_delay_;
                     tx_delay_ = 0;
                 }
+            }
+            if (scheduler().now_us() < tx_deadline_) {
+                return Result::REJECTED;
             }
             bool cts = gpio_get(kUART_HSKO_Pin);
             if (cts && uart_is_writable(kUART)) {
@@ -142,8 +139,10 @@ void PicoUARTEndpoint::delay(uint32_t usec, uint32_t chars) {
         usec += ((chars * 1'000'000) / bitrate()) * 10;  
     }
     if (usec > 0) {
-        if (tx_delay_ > 0) {
-            tx_delay_ += usec;
+        if (tx_wait_for_fifo_empty_) {
+            tx_delay_ += usec;          // the pause has not started yet
+        } else if (scheduler().now_us() < tx_deadline_) {
+            tx_deadline_ += usec;       // extend the running pause
         } else {
             tx_wait_for_fifo_empty_ = true;
             tx_delay_ = usec;

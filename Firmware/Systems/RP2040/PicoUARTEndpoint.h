@@ -18,8 +18,9 @@ class CtrlBlock;
 class PicoUARTEndpoint : public UARTEndpoint {
     bool event_pending_ = false;
     Event pending_event_ { Event::Type::NIL};
-    uint32_t tx_delay_ = 0;
+    uint32_t tx_delay_ = 0;             // pause in usec, starts when the TX FIFO is empty
     bool tx_wait_for_fifo_empty_ = false;
+    uint64_t tx_deadline_ = 0;          // don't send data before this time (Scheduler::now_us())
 public:
     PicoUARTEndpoint(Scheduler &scheduler);
     ~PicoUARTEndpoint() override;

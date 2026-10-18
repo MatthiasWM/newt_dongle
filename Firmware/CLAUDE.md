@@ -202,7 +202,7 @@ Line numbers drift, so jobs refer to functions.
 
 ### Phase 4 – Throttling and serial flow control (direct connect mode)
 
-- [ ] **4.1 Time based TX delay.**
+- [x] **4.1 Time based TX delay.**
   `PicoUARTEndpoint::send()` subtracts `cycle_time` on every send attempt.
   `BufferedPipe` calls it from both `task()` and `send()`, so the pause runs
   up to twice as fast under load and depends on the cycle time.
