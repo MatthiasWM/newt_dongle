@@ -12,6 +12,8 @@
 
 namespace nd {
 
+class UserSettings;
+
 class MNPThrottle: public Task {
     enum class State: uint8_t {
         WAIT_FOR_DLE,
@@ -25,9 +27,10 @@ class MNPThrottle: public Task {
     uint32_t bitrate_ = 38400;
     uint32_t reg_absolute_delay_ = 400;
     uint32_t reg_num_char_delay_ = 8;
+    UserSettings &settings_;
 
 public:
-    MNPThrottle(Scheduler &scheduler);
+    MNPThrottle(Scheduler &scheduler, UserSettings &settings);
     ~MNPThrottle() override = default;
 
     Result send(Event event) override;

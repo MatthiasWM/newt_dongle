@@ -9,12 +9,7 @@
 #ifndef ND_MAIN_H
 #define ND_MAIN_H
 
-#include "common/StatusDisplay.h"
-
 #include <cstdint>
-#include <cstddef>
-#include <string>
-#include <vector>
 
 namespace nd {
 
@@ -24,47 +19,6 @@ public:
     void log(const char *message, int pipe = 0);
     void logf(const char *format, ...) __attribute__((format(printf, 2, 3)));
     void indent(uint32_t depth);
-};
-
-// Stand-in for PicoStatusDisplay. Remembers the last status.
-class TestAppStatus {
-public:
-    AppStatus status = AppStatus::IDLE;
-    void set(AppStatus new_status) { status = new_status; }
-};
-
-// Same values as FatFS and PicoSDCard.h.
-constexpr uint32_t FR_OK = 0;
-constexpr uint32_t FR_IS_DIRECTORY = 20;
-constexpr uint32_t FR_IS_PACKAGE = 21;
-
-// Stand-in for PicoSDCardEndpoint: a card without directory entries. Every
-// file name opens `file`, unless `file` is empty. Reading fails at `readable`.
-class TestSDCard {
-public:
-    std::u16string label = u"TEST";
-    std::vector<uint8_t> file;
-    size_t readable = SIZE_MAX;
-    size_t pos = 0;
-    bool is_open = false;
-    const std::u16string &get_label() { return label; }
-    uint32_t opendir() { return FR_OK; }
-    uint32_t readdir(std::u16string &name) { name.clear(); return FR_OK; }
-    uint32_t closedir() { return FR_OK; }
-    uint32_t openfile(const std::u16string &) {
-        if (file.empty()) return FR_OK + 1;
-        pos = 0;
-        is_open = true;
-        return FR_OK;
-    }
-    uint32_t filesize() { return (uint32_t)file.size(); }
-    uint32_t readfile(uint8_t *buffer, uint32_t size) {
-        uint32_t n = 0;
-        while (n < size && pos < file.size() && pos < readable) buffer[n++] = file[pos++];
-        return n;
-    }
-    uint32_t closefile() { is_open = false; return FR_OK; }
-    uint32_t chdir(const std::u16string &) { return FR_OK; }
 };
 
 // Newton Interconnect Port serial UART, also the bitrate for Dock mode
@@ -87,7 +41,5 @@ constexpr bool kLogNSOF = false;
 } // namespace nd
 
 extern nd::TestLog Log;
-extern nd::TestAppStatus app_status;
-extern nd::TestSDCard sdcard_endpoint;
 
 #endif // ND_MAIN_H

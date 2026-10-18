@@ -28,9 +28,15 @@
 
 namespace nd {
 
+class SDCardEndpoint;
+class StatusDisplay;
+
 class Dock : public Endpoint 
 {
     typedef Endpoint super;
+
+    SDCardEndpoint &sdcard_;    // Card with the packages that the Newton can browse and install
+    StatusDisplay &status_;     // Shows when the Newton is docked
 
     constexpr static int32_t kDesktop = 0; // Desktop type
     constexpr static int32_t kDesktopFile = 1; // Desktop file type
@@ -137,7 +143,8 @@ class Dock : public Endpoint
     void queue_command_(uint32_t command, uint32_t size, const std::vector<uint8_t> &payload, bool end_frame);
 
 public:
-    Dock(Scheduler &scheduler) : Endpoint(scheduler) { 
+    Dock(Scheduler &scheduler, SDCardEndpoint &sdcard, StatusDisplay &status)
+    :   Endpoint(scheduler), sdcard_(sdcard), status_(status) { 
         reset_();
     }
     ~Dock() override = default;

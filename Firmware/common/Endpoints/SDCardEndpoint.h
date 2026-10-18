@@ -15,6 +15,11 @@ namespace nd {
 
 class SDCardEndpoint : public Endpoint {
 public:
+    // Results of the file functions. Any other value is a platform error code.
+    constexpr static uint32_t kOK = 0;              ///< success
+    constexpr static uint32_t kIsDirectory = 20;    ///< readdir(): the entry is a folder
+    constexpr static uint32_t kIsPackage = 21;      ///< readdir(): the entry is a package
+
     SDCardEndpoint(Scheduler &scheduler);
     ~SDCardEndpoint();
 

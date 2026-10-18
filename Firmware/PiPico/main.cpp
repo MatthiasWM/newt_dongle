@@ -94,16 +94,16 @@ PicoStatusDisplay app_status(scheduler);
 PicoUARTEndpoint uart_endpoint { scheduler };
 PicoCDCEndpoint cdc_endpoint { scheduler, 0 };
 PicoSDCardEndpoint sdcard_endpoint { scheduler };
-Dock dock_endpoint(scheduler);
+Dock dock_endpoint(scheduler, sdcard_endpoint, app_status);
 
 // Filters and loggers.
-HayesFilter uart_hayes(scheduler, 0);
-HayesFilter cdc_hayes(scheduler, 1);
+HayesFilter uart_hayes(scheduler, 0, user_settings);
+HayesFilter cdc_hayes(scheduler, 1, user_settings);
 MNPFilter mnp_filter(scheduler);
-DTRSwitch dtr_switch;
+DTRSwitch dtr_switch(app_status);
 
 // Pipes to connect everything.
-MNPThrottle mnp_throttle(scheduler);
+MNPThrottle mnp_throttle(scheduler, user_settings);
 BufferedPipe buffer_to_cdc(scheduler);
 BufferedPipe buffer_to_uart(scheduler);
 

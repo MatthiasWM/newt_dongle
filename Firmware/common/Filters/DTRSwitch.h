@@ -11,6 +11,7 @@
 namespace nd {
 
 class DTRSwitch;
+class StatusDisplay;
 
 /// Pipe between the Dock emulator and the UART, used while DTR is low.
 class ToDockPipe : public Pipe {
@@ -37,6 +38,7 @@ class DTRSwitch: public Pipe {
     friend class ToDockPipe;
     friend class ToCDCPipe;
 
+    StatusDisplay &status_;            // Shows if the USB host is connected
     ToDockPipe dock_;                  // Pipe to the Dock emulator
     ToCDCPipe cdc_;                    // Pipe to the USB CDC port
     uint32_t host_bitrate_ = 0;        // last bitrate set by the USB host, 0 if none yet
@@ -46,7 +48,7 @@ class DTRSwitch: public Pipe {
 public:
     bool dtr_set = false; // If true, route to CDC, else route to Dock.
 
-    DTRSwitch();
+    DTRSwitch(StatusDisplay &status);
     ~DTRSwitch() override = default;
 
     /// Publicly accessible pipe to the Dock emulator.

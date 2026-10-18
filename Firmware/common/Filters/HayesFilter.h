@@ -14,6 +14,7 @@ namespace nd {
 
 class SDCardEndpoint;
 class UARTEndpoint;
+class UserSettings;
 
 class HayesFilter: public Task {
 
@@ -36,6 +37,7 @@ class HayesFilter: public Task {
     };
     
     uint8_t index_ = 0;
+    UserSettings &settings_;
     bool data_mode_ = true;
     uint8_t command_mode_progress_ = 0;
     uint32_t command_mode_timeout_ = 0;
@@ -54,7 +56,7 @@ public:
     UpstreamPipe upstream { *this };
     DownstreamPipe downstream { *this };
     
-    HayesFilter(Scheduler &scheduler, uint8_t ix);
+    HayesFilter(Scheduler &scheduler, uint8_t ix, UserSettings &settings);
     ~HayesFilter() override;
 
     void switch_to_command_mode();

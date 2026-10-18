@@ -18,6 +18,7 @@
 
 #include "captured.h"
 #include "mnp_util.h"
+#include "test_doubles.h"
 
 #include <algorithm>
 #include <string>
@@ -88,7 +89,9 @@ bool decode_frame(const Bytes &bytes, size_t &pos, Frame &frame) {
 struct NewtonSession {
     TestScheduler scheduler;
     MNPFilter mnp { scheduler };
-    Dock dock { scheduler };
+    TestSDCard sdcard { scheduler };
+    TestStatusDisplay status { scheduler };
+    Dock dock { scheduler, sdcard, status };
     Wire wire;
     size_t wire_pos = 0;
     bool wire_ok = true;            // all bytes from the dongle were valid frames
@@ -106,9 +109,6 @@ struct NewtonSession {
         dock >> mnp.dock;
         mnp.dock >> wire;
         scheduler.init();
-    }
-    ~NewtonSession() {
-        sdcard_endpoint.file.clear();
     }
 
     void newton_sends_frame(const Bytes &frame) {
@@ -233,7 +233,7 @@ TEST(session_installs_a_package) {
     NewtonSession s;
     Bytes package;
     for (int i = 0; i < 600; i++) package.push_back((uint8_t)(i * 7));
-    sdcard_endpoint.file = package;
+    s.sdcard.file = package;
 
     dock_and_browse(s);
     s.newton_sends(command("lpfl", nsof_string(u"test.pkg")));
@@ -243,6 +243,7 @@ TEST(session_installs_a_package) {
 
     CHECK(s.wire_ok);
     CHECK(s.dongle_seq_ok);
+    CHECK(s.status.status == AppStatus::IDLE); // the Newton disconnected
     // Every LT from the Newton was acknowledged once, in order.
     std::vector<uint8_t> expected_acks;
     for (uint8_t i = 1; i <= s.newton_seq; i++) expected_acks.push_back(i);
@@ -261,13 +262,13 @@ TEST(session_installs_a_package) {
     }
     // The 600 byte package does not fit into one LT frame.
     CHECK(s.dongle_seq >= 12);
-    CHECK(!sdcard_endpoint.is_open);
+    CHECK(!s.sdcard.is_open);
 }
 
 // The user taps [X] while the package is sent.
 TEST(session_cancels_a_package_install) {
     NewtonSession s;
-    sdcard_endpoint.file = Bytes(20000, 0x55);
+    s.sdcard.file = Bytes(20000, 0x55);
 
     dock_and_browse(s);
     // Send lpfl, but acknowledge only the first few frames of the package.
@@ -275,7 +276,7 @@ TEST(session_cancels_a_package_install) {
     for (auto b : make_frame({ kMNP_Frame_LT, s.newton_seq }, command("lpfl", nsof_string(u"test.pkg"))))
         s.mnp.newt.send(Event(b));
     s.run(3);
-    CHECK(sdcard_endpoint.is_open);
+    CHECK(s.sdcard.is_open);
     s.newton_sends(command("opca"));
 
     CHECK(s.wire_ok);
@@ -287,7 +288,7 @@ TEST(session_cancels_a_package_install) {
         CHECK(commands[commands.size() - 2].truncated);
         CHECK(commands.back().fourcc == "ocaa");
     }
-    CHECK(!sdcard_endpoint.is_open);
+    CHECK(!s.sdcard.is_open);
     // The Dock is ready for the next command.
     s.newton_sends(command("gfil"));
     auto list = s.fourccs();

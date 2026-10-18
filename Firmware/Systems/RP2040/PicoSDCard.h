@@ -21,8 +21,12 @@ extern void test_sd_card();
 
 namespace nd {
 
-constexpr uint32_t FR_IS_DIRECTORY = FR_INVALID_PARAMETER + 1;
-constexpr uint32_t FR_IS_PACKAGE = FR_INVALID_PARAMETER + 2;
+// readdir() results of SDCardEndpoint. They must not collide with FatFS codes.
+constexpr uint32_t FR_IS_DIRECTORY = SDCardEndpoint::kIsDirectory;
+constexpr uint32_t FR_IS_PACKAGE = SDCardEndpoint::kIsPackage;
+static_assert(FR_OK == SDCardEndpoint::kOK, "FatFS and SDCardEndpoint disagree about success");
+static_assert(FR_IS_DIRECTORY > FR_INVALID_PARAMETER && FR_IS_PACKAGE > FR_INVALID_PARAMETER,
+              "SDCardEndpoint results collide with FatFS error codes");
 
 class PicoSDCardEndpoint : public SDCardEndpoint {
     FATFS fat_fs_;

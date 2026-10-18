@@ -11,6 +11,7 @@
 #include "common/version.h"
 #include "common/Endpoints/SDCardEndpoint.h"
 #include "common/Endpoints/UARTEndpoint.h"
+#include "common/UserSettings.h"
 #include "common/Pipes/MNPThrottle.h"
 
 //#include <pico/unique_id.h>
@@ -42,9 +43,10 @@ using namespace nd;
  * 
  * \param scheduler The scheduler to use for this filter.
  */
-HayesFilter::HayesFilter(Scheduler &scheduler, uint8_t ix)
+HayesFilter::HayesFilter(Scheduler &scheduler, uint8_t ix, UserSettings &settings)
 :   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS),
     index_(ix),
+    settings_(settings),
     upstream(*this),
     downstream(*this)
 {
@@ -74,9 +76,9 @@ Result HayesFilter::signal(Event event) {
     switch (event.subtype()) {
         case Event::Subtype::USER_SETTINGS_CHANGED:
             if (index_ == 0) {
-                value = user_settings.data.hayes0_esc_code_guard_time;
+                value = settings_.data.hayes0_esc_code_guard_time;
             } else {
-                value = user_settings.data.hayes1_esc_code_guard_time;
+                value = settings_.data.hayes1_esc_code_guard_time;
             }
             esc_code_guard_timeout_ = value * 20'000; // 20ms
             break;
@@ -466,7 +468,7 @@ const char *HayesFilter::run_ampersand_cmd(const char *cmd) {
         case 0:  // End of command line.
         case 'W': // write current settings to NVRAM
             read_int(&cmd);
-            user_settings.write();
+            settings_.write();
             break;
         default: // Unknown command AT&...
             send_ERROR();
@@ -527,7 +529,7 @@ const char *HayesFilter::run_sdcard_cmd(const char *cmd) {
         uint16_t version = read_int(&cmd);
         if (*cmd != '.') { send_ERROR(); return nullptr; } else cmd++;
         uint16_t revision = read_int(&cmd);
-        Result res = user_settings.write_serial(serial, id, version, revision);
+        Result res = settings_.write_serial(serial, id, version, revision);
         if (res.rejected()) {
             send_string("Rejected\r\n");
             send_ERROR();
@@ -559,16 +561,16 @@ bool HayesFilter::set_register(uint32_t reg, uint32_t value) {
         // S37: Desired DCE Line Speed (http://www.messagestick.net/modem/Hayes_Ch1-3.html)
         case 12: // S12: escape code guard time (1/50th of a second)
             if (index_ == 0) {
-                user_settings.data.hayes0_esc_code_guard_time = value;
+                settings_.data.hayes0_esc_code_guard_time = value;
             } else {
-                user_settings.data.hayes1_esc_code_guard_time = value;
+                settings_.data.hayes1_esc_code_guard_time = value;
             }
             break;
         case 300: // ATS300: absolute throttle delay in microseconds
-            user_settings.data.mnpt_absolute_delay = value;
+            settings_.data.mnpt_absolute_delay = value;
             break;
         case 301: // ATS301: relative MNP throttle delay in characters
-            user_settings.data.mnpt_num_char_delay = value;
+            settings_.data.mnpt_num_char_delay = value;
             break;
         default:
             return false;
@@ -581,16 +583,16 @@ uint32_t HayesFilter::get_register(uint32_t reg) const {
     switch (reg) {
         case 12: // S12: escape code guard time (1/50th of a second)
             if (index_ == 0) {
-                return user_settings.data.hayes0_esc_code_guard_time;
+                return settings_.data.hayes0_esc_code_guard_time;
             } else {
-                return user_settings.data.hayes1_esc_code_guard_time;
+                return settings_.data.hayes1_esc_code_guard_time;
             }
         case 13: // S13: escape code guard time (1/50th of a second)
-            return user_settings.data.hayes0_esc_code_guard_time;
+            return settings_.data.hayes0_esc_code_guard_time;
         case 300: // ATS300: absolute throttle delay in microseconds
-            return user_settings.data.mnpt_absolute_delay;
+            return settings_.data.mnpt_absolute_delay;
         case 301: // ATS301: relative MNP throttle delay in characters
-            return user_settings.data.mnpt_num_char_delay;
+            return settings_.data.mnpt_num_char_delay;
     }
     return 0;
 }
@@ -602,17 +604,17 @@ bool HayesFilter::send_info(uint32_t ix) {
             send_string("NewtDongle V" ND_VERSION_STRING "\r\n");
             break;
         case 1:
-            itoa10(user_settings.serial(), buf);
+            itoa10(settings_.serial(), buf);
             send_string("Serial No.: ");
             send_string(buf);
             send_string("\r\n");
             break;
         case 2:
             send_string("Hardware: V");
-            itoa10(user_settings.hardware_version(), buf);
+            itoa10(settings_.hardware_version(), buf);
             send_string(buf);
             send_string(".");
-            itoa10(user_settings.hardware_revision(), buf);
+            itoa10(settings_.hardware_revision(), buf);
             send_string(buf);
             send_string("\r\n");
             break;

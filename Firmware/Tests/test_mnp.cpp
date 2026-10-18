@@ -14,6 +14,7 @@
 
 #include "captured.h"
 #include "mnp_util.h"
+#include "test_doubles.h"
 
 #include <vector>
 
@@ -278,7 +279,9 @@ TEST(mnp_sends_ld_for_dock) {
 TEST(mnp_and_dock_end_session_on_sd_read_error) {
     TestScheduler scheduler;
     MNPFilter mnp { scheduler };
-    Dock dock { scheduler };
+    TestSDCard sdcard { scheduler };
+    TestStatusDisplay status { scheduler };
+    Dock dock { scheduler, sdcard, status };
     Recorder to_newt;
     mnp.newt >> dock;
     dock >> mnp.dock;
@@ -299,17 +302,14 @@ TEST(mnp_and_dock_end_session_on_sd_read_error) {
     lpfl.insert(lpfl.end(), nsof.data().begin(), nsof.data().end());
     while (lpfl.size() % 4) lpfl.push_back(0);
 
-    sdcard_endpoint.file = Bytes(600, 0x55);
-    sdcard_endpoint.readable = 100;
+    sdcard.file = Bytes(600, 0x55);
+    sdcard.readable = 100;
     newton_sends(make_frame({ 0x04, 0x01 }, lpfl));
     Bytes expected = kDockLA1;
     Bytes ld = make_frame({ 0x02, 0x01, 0x01, 0xFF }, {});
     expected.insert(expected.end(), ld.begin(), ld.end());
     CHECK_BYTES(to_newt.bytes, expected);
-    CHECK(!sdcard_endpoint.is_open);
-
-    sdcard_endpoint.file.clear();
-    sdcard_endpoint.readable = SIZE_MAX;
+    CHECK(!sdcard.is_open);
 }
 
 // The Newton never acknowledges our LT and starts over with a new LR.

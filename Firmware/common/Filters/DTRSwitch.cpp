@@ -5,6 +5,8 @@
 
 #include "DTRSwitch.h"
 
+#include "common/StatusDisplay.h"
+
 #include "main.h"
 
 using namespace nd;
@@ -77,11 +79,11 @@ Result ToCDCPipe::rush(Event event)
         }
         if (event.data() == 0) {
             dtr_switch_.dtr_set = false;
-            app_status.set(AppStatus::IDLE);
+            dtr_switch_.status_.set(AppStatus::IDLE);
             if (kLogDTRSwitch) Log.log("DTRSwitch: DTR set to false\n");
         } else {
             dtr_switch_.dtr_set = true;
-            app_status.set(AppStatus::USB_CONNECTED);
+            dtr_switch_.status_.set(AppStatus::USB_CONNECTED);
             if (kLogDTRSwitch) Log.log("DTRSwitch: DTR set to true\n");
         }
     }
@@ -104,8 +106,9 @@ Result ToCDCPipe::rush_back(Event event)
 }; // namespace nd
 
 
-DTRSwitch::DTRSwitch() 
+DTRSwitch::DTRSwitch(StatusDisplay &status) 
 :   super(),
+	status_(status),
 	dock_(*this),
 	cdc_(*this),
 	dock(dock_),

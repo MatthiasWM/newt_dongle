@@ -11,6 +11,8 @@
 #include "common/Newton/NSOF.h"
 #include "common/Scheduler.h"
 
+#include "test_doubles.h"
+
 #include <cstring>
 #include <string>
 #include <vector>
@@ -107,17 +109,14 @@ Bytes operator+(Bytes a, const Bytes &b) {
 
 struct DockSession {
     TestScheduler scheduler;
-    Dock dock { scheduler };
+    TestSDCard sdcard { scheduler };
+    TestStatusDisplay status { scheduler };
+    Dock dock { scheduler, sdcard, status };
     Recorder to_newt;
 
     DockSession() {
         dock >> to_newt;
         scheduler.init();
-    }
-    ~DockSession() {
-        sdcard_endpoint.file.clear();
-        sdcard_endpoint.readable = SIZE_MAX;
-        sdcard_endpoint.is_open = false;
     }
     // Send the bytes as one MNP frame, as MNPFilter does.
     void newton_sends(const Bytes &bytes) {
@@ -346,7 +345,7 @@ TEST(dock_sends_file) {
 
 TEST(dock_sends_finf) {
     DockSession s;
-    sdcard_endpoint.file = { 1, 2, 3, 4, 5 };
+    s.sdcard.file = { 1, 2, 3, 4, 5 };
     s.newton_sends(command_with_string("gfin", u"test.pkg"));
     CHECK_BYTES(s.to_newt.bytes, kDockFinf);
     CHECK(s.to_newt.frames == "[0 ]108 ");
@@ -355,7 +354,7 @@ TEST(dock_sends_finf) {
 // The header and the package data are queued separately, but in one frame.
 TEST(dock_sends_lpkg) {
     DockSession s;
-    sdcard_endpoint.file = { 1, 2, 3, 4, 5 };
+    s.sdcard.file = { 1, 2, 3, 4, 5 };
     s.newton_sends(command_with_string("lpfl", u"test.pkg"));
     CHECK_BYTES(s.to_newt.bytes, kDockLpkg);
     CHECK(s.to_newt.frames == "[0 ]24 ");
@@ -413,12 +412,12 @@ TEST(dock_reports_file_info_for_missing_file) {
 // the lpkg header as package data.
 TEST(dock_disconnects_on_sd_read_error) {
     DockSession s;
-    sdcard_endpoint.file = Bytes(600, 0x55);
-    sdcard_endpoint.readable = 100;
+    s.sdcard.file = Bytes(600, 0x55);
+    s.sdcard.readable = 100;
     s.newton_sends(command_with_string("lpfl", u"test.pkg"));
     CHECK_BYTES(s.to_newt.bytes, command("lpkg", 600));
     CHECK(s.to_newt.received(Event::Subtype::MNP_SEND_LD));
-    CHECK(!sdcard_endpoint.is_open);
+    CHECK(!s.sdcard.is_open);
 
     s.to_newt.bytes.clear();
     s.newton_sends(command("rtdk", 0));
@@ -427,11 +426,11 @@ TEST(dock_disconnects_on_sd_read_error) {
 
 TEST(dock_closes_package_on_disconnect) {
     DockSession s;
-    sdcard_endpoint.file = Bytes(4000, 0x55);
+    s.sdcard.file = Bytes(4000, 0x55);
     s.newton_sends(command_with_string("lpfl", u"test.pkg"));
-    CHECK(sdcard_endpoint.is_open);
+    CHECK(s.sdcard.is_open);
     s.dock.send(Event(Event::Type::MNP, Event::Subtype::MNP_DISCONNECTED));
-    CHECK(!sdcard_endpoint.is_open);
+    CHECK(!s.sdcard.is_open);
 }
 
 // Dock commands are compared with, and copied to, the bytes on the wire.

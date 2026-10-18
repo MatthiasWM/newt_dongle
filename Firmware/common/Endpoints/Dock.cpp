@@ -55,6 +55,9 @@
 
 #include "common/Endpoints/Dock.h"
 
+#include "common/Endpoints/SDCardEndpoint.h"
+#include "common/StatusDisplay.h"
+
 #include "common/Newton/DESKey.h"
 #include "common/Newton/NSOF.h"
 
@@ -105,7 +108,7 @@ void Dock::reset_()
 {
 	// After SEND_PACKAGE, a package transfer has the package file open.
 	if ((current_task_ != Task::NONE) && (current_task_ != Task::SEND_PACKAGE)) {
-		sdcard_endpoint.closefile();
+		sdcard_.closefile();
 	}
 	clear_data_queue_();
     in_data_.clear();
@@ -197,13 +200,13 @@ Result Dock::send(Event event)
 		switch (event.subtype()) {
 			case Event::Subtype::MNP_CONNECTED: // data() is index in out_pool
 				if (kLogDockProgress) Log.log("Dock::send: MNP_CONNECTED\r\n");
-				app_status.set(AppStatus::DOCK_CONNECTED);
+				status_.set(AppStatus::DOCK_CONNECTED);
 				connected_ = true;
 				break;
 			case Event::Subtype::MNP_DISCONNECTED: // data() is index in out_pool
 				if (kLogDockProgress) Log.log("Dock::send: MNP_DISCONNECTED\r\n");
 				reset_();
-				app_status.set(AppStatus::IDLE);
+				status_.set(AppStatus::IDLE);
 				connected_ = false;
 				break;
 			case Event::Subtype::MNP_FRAME_START: // data() is index in out_pool
@@ -520,7 +523,7 @@ void Dock::send_cmd_path()
 	path.add(Ref(desktop));
 
 	if (!path_is_desktop_) {
-		std::u16string sd_label = sdcard_endpoint.get_label();
+		std::u16string sd_label = sdcard_.get_label();
 		if (sd_label.empty()) {
 			sd_label = u"SD Card"; // Default label if not set
 		}
@@ -559,7 +562,7 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 
 	if (path_is_desktop_) {
 	
-		std::u16string sd_label = sdcard_endpoint.get_label();
+		std::u16string sd_label = sdcard_.get_label();
 		if (sd_label.empty()) {
 			sd_label = u"SD Card"; // Default label if not set
 		}
@@ -570,17 +573,17 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 
 	} else {
 
-		sdcard_endpoint.opendir();
+		sdcard_.opendir();
 		std::u16string name;
 		for (int i=100; i>0; --i) {
 		// for (int i=8; i>0; --i) {
-			uint32_t ret = sdcard_endpoint.readdir(name);
-			if (ret == FR_IS_DIRECTORY) {
+			uint32_t ret = sdcard_.readdir(name);
+			if (ret == SDCardEndpoint::kIsDirectory) {
 				Frame *f = Frame::New();
 				f->add(nd::symName, Ref(String::New(name)));
 				f->add(nd::symType, Ref(kDesktopFolder));
 				file_list.add(Ref(*f));
-			} else if (ret == FR_IS_PACKAGE) {
+			} else if (ret == SDCardEndpoint::kIsPackage) {
 				Frame *f = Frame::New();
 				f->add(nd::symName, Ref(String::New(name)));
 				f->add(nd::symType, Ref(kDesktopFile));
@@ -589,7 +592,7 @@ void Dock::send_cmd_file() { //[{name: "important info", type: kDesktopFile}]
 				break;
 			}
 		}
-		sdcard_endpoint.closedir();
+		sdcard_.closedir();
 
 	}
 
@@ -666,7 +669,7 @@ void Dock::handle_SetPath()
 		}
 	}
 	if (cwd_.empty()) cwd_.push_back('/');
-	sdcard_endpoint.chdir(cwd_);
+	sdcard_.chdir(cwd_);
 
 	send_cmd_file();
 }
@@ -717,13 +720,13 @@ void Dock::handle_GetFileInfo()
 		// <00. <00. <00. // padding
 		// <10. <03. <92. <47G // end, checksum
 
-	if (sdcard_endpoint.openfile(filename->str()) != FR_OK) {
+	if (sdcard_.openfile(filename->str()) != SDCardEndpoint::kOK) {
 		if (kLogDockErrors) Log.log("Dock: handle_GetFileInfo: can't open the file\r\n");
 		send_cmd_dres(kDockErrBrowserFileNotFound);
 		return;
 	}
-	uint32_t file_size = sdcard_endpoint.filesize();
-	sdcard_endpoint.closefile();
+	uint32_t file_size = sdcard_.filesize();
+	sdcard_.closefile();
 
 	Frame info;
 	info.add(nd::symKind, Ref(String::New( { 'P', 'a', 'c', 'k', 'a', 'g', 'e' } ))); // kind
@@ -775,14 +778,14 @@ void Dock::send_package_task()
 {
 	if (current_task_ == Task::SEND_PACKAGE) {
 		if (kLogDockProgress) Log.log("Dock: start SEND_PACKAGE\r\n");
-		uint32_t err = sdcard_endpoint.openfile(pkg_filename_);
-		if (err != FR_OK) {
+		uint32_t err = sdcard_.openfile(pkg_filename_);
+		if (err != SDCardEndpoint::kOK) {
 			if (kLogDockErrors) Log.logf("Dock: send_package_task: openfile error %d\r\n", (int)err);
 			send_cmd_dres(kDockErrBrowserFileNotFound);
 			current_task_ = Task::NONE;
 			return;
 		}
-		pkg_size_ = sdcard_endpoint.filesize();
+		pkg_size_ = sdcard_.filesize();
 		pkg_size_aligned_ = (pkg_size_ + 3) & 0xfffffffc; // align to 4 bytes
 		pkg_crsr_ = 0;
 
@@ -803,7 +806,7 @@ void Dock::send_package_task()
 		if (current_task_ == Task::CANCEL_SEND_PACKAGE) last_package = true; // we want to cancel the package
 		if (kLogDock) Log.logf("Dock: send_package_task: read_size = %u, pkg_crsr_ = %u, pkg_size_ = %u\r\n", (unsigned)read_size, (unsigned)pkg_crsr_, (unsigned)pkg_size_);
 		auto data = new std::vector<uint8_t>(package_size); 
-		uint32_t bytes_read = sdcard_endpoint.readfile(data->data(), read_size);
+		uint32_t bytes_read = sdcard_.readfile(data->data(), read_size);
 		if (bytes_read != read_size) {
 			if (kLogDockErrors) Log.logf("Dock: send_package_task: readfile error %d\r\n", (int)bytes_read);
 			// The Newton reads everything after the lpkg header as package data,
@@ -831,7 +834,7 @@ void Dock::send_package_task()
 	} else if (current_task_ == Task::PACKAGE_SENT || current_task_ == Task::PACKAGE_CANCELED) {
 		// clean up
 		if (kLogDockProgress) Log.log("Dock: PACKAGE_SENT\r\n");
-		sdcard_endpoint.closefile();
+		sdcard_.closefile();
 		if (current_task_ == Task::PACKAGE_CANCELED) {
 			send_cmd_ocaa();
 		}

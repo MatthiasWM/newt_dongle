@@ -10,6 +10,8 @@
 #include "common/Pipes/BufferedPipe.h"
 #include "common/Scheduler.h"
 
+#include "test_doubles.h"
+
 #include <vector>
 
 using namespace nd;
@@ -80,7 +82,8 @@ TEST(endpoint_ignores_extra_high_water_off) {
 TEST(dtr_switch_resets_high_water) {
     TestScheduler scheduler;
     HandshakeEndpoint uart { scheduler };
-    DTRSwitch dtr_switch;
+    TestStatusDisplay status { scheduler };
+    DTRSwitch dtr_switch { status };
     uart >> dtr_switch;
     dtr_switch.cdc.rush(Event(Event::Type::UART, Event::Subtype::UART_DTR, 1));
     uart.rush_back(Event(Event::Type::HIGH_WATER, Event::Subtype::ON));
@@ -111,7 +114,9 @@ public:
 };
 
 struct SwitchSession {
-    DTRSwitch dtr_switch;
+    TestScheduler scheduler;
+    TestStatusDisplay status { scheduler };
+    DTRSwitch dtr_switch { status };
     UARTSide uart;
     SwitchSession() { dtr_switch >> uart; }
     void set_dtr(bool on) {
@@ -131,6 +136,7 @@ TEST(dtr_switch_applies_host_bitrate_when_dtr_rises) {
     CHECK(s.uart.last_bitrate() == 0);
     s.set_dtr(true);
     CHECK(s.uart.last_bitrate() == 115200);
+    CHECK(s.status.status == AppStatus::USB_CONNECTED);
 }
 
 TEST(dtr_switch_forwards_host_bitrate_while_dtr_is_high) {

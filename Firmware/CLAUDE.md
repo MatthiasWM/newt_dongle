@@ -58,7 +58,8 @@ cmake -B build -G Ninja && cmake --build build && ./build/tests
 ```
 
 New `Tests/test_*.cpp` files are picked up automatically. `Tests/main.h`
-stands in for the platform `main.h`. Test data comes from real captures where
+stands in for the platform `main.h` (`Log` and the `kLog*` flags only), and
+`Tests/test_doubles.h` has the SD card and status display that tests inject. Test data comes from real captures where
 possible (`PiPico/unused.cpp` has a full Newton <-> NCU session); the frames in
 use are in `Tests/captured.h`, and `Tests/mnp_util.h` builds new ones.
 `Tests/test_session.cpp` plays the Newton through `MNPFilter` and `Dock` for a
@@ -283,7 +284,7 @@ Line numbers drift, so jobs refer to functions.
   today, if both macros are undefined, `0 == 0` silently picks little endian.
 - [x] **5.4** Replace `new` sub-pipes in `DTRSwitch` / `MNPFilter` with
   members; remove stale comments (e.g. `BufferedPipe` buffer sizes).
-- [ ] **5.5 Dependency injection.** `common/` reaches into the platform's
+- [x] **5.5 Dependency injection.** `common/` reaches into the platform's
   `main.h` for `Log`, `user_settings`, `sdcard_endpoint`, `app_status`. Pass
   an SD card interface into `Dock` (and similar) via the constructor. This is
   the main preparation for a second platform and makes `Dock` host-testable.

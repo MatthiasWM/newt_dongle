@@ -25,9 +25,11 @@ add_executable(tests
         ${ND_TEST_SOURCES}
         ${ND_ROOT}/common/Endpoint.cpp
         ${ND_ROOT}/common/Endpoints/Dock.cpp
+        ${ND_ROOT}/common/Endpoints/SDCardEndpoint.cpp
         ${ND_ROOT}/common/Event.cpp
         ${ND_ROOT}/common/Pipe.cpp
         ${ND_ROOT}/common/Scheduler.cpp
+        ${ND_ROOT}/common/StatusDisplay.cpp
         ${ND_ROOT}/common/Task.cpp
         ${ND_ROOT}/common/Filters/DTRSwitch.cpp
         ${ND_ROOT}/common/Filters/MNPFilter.cpp

@@ -36,14 +36,16 @@ using namespace nd;
  #include "MNPThrottle.h"
 
  #include "main.h"
+ #include "common/UserSettings.h"
 
  #include <stdio.h>
 
 constexpr uint8_t kDLE = 0x10;
 constexpr uint8_t kETX = 0x03;
 
-MNPThrottle::MNPThrottle(Scheduler &scheduler)
-:   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS)
+MNPThrottle::MNPThrottle(Scheduler &scheduler, UserSettings &settings)
+:   Task(scheduler, Scheduler::TASKS | Scheduler::SIGNALS),
+    settings_(settings)
 {
 }
 
@@ -114,8 +116,8 @@ Result MNPThrottle::signal(Event event) {
         return Result::OK;
     switch (event.subtype()) {
         case Event::Subtype::USER_SETTINGS_CHANGED:
-            reg_absolute_delay_ = user_settings.data.mnpt_absolute_delay;
-            reg_num_char_delay_ = user_settings.data.mnpt_num_char_delay;
+            reg_absolute_delay_ = settings_.data.mnpt_absolute_delay;
+            reg_num_char_delay_ = settings_.data.mnpt_num_char_delay;
             break;
         default:
             break;
