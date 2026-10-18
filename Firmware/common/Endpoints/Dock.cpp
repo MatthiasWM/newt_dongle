@@ -544,8 +544,7 @@ void Dock::send_cmd_path()
 	// NSOF path as an array of folder frames:
 
 	Frame desktop;
-	String desktop_name( u"NewtCOM" );
-	desktop.add(nd::symName, Ref(desktop_name));
+	desktop.add(nd::symName, Ref(String::New(u"NewtCOM")));
 	desktop.add(nd::symType, Ref(kDesktop));
 
 	Array path;
