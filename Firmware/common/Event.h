@@ -122,11 +122,12 @@ public:
     constexpr Result(Type type, Subtype subtype, uint32_t data=0) : type_(type), subtype_(subtype), data_(data) {}
     ~Result() = default;
 
-    static Result OK;
-    static Result OK__NOT_HANDLED;
-    static Result OK__NOT_CONNECTED;
-    static Result REJECTED;
-    static Result REJECTED__NOT_CONNECTED;
+    // Defined below the class, where Result is a complete type.
+    static const Result OK;
+    static const Result OK__NOT_HANDLED;
+    static const Result OK__NOT_CONNECTED;
+    static const Result REJECTED;
+    static const Result REJECTED__NOT_CONNECTED;
 
     Type type() const { return type_; }
     void type(Type t) { type_ = t; }
@@ -142,6 +143,12 @@ public:
 };
 
 static_assert(sizeof(Result) == 4, "Result class size must be 4 bytes");
+
+inline constexpr Result Result::OK { Result::Type::OK, 0 };
+inline constexpr Result Result::OK__NOT_HANDLED { Result::Type::OK, Result::Subtype::NOT_HANDLED };
+inline constexpr Result Result::OK__NOT_CONNECTED { Result::Type::OK, Result::Subtype::NOT_CONNECTED };
+inline constexpr Result Result::REJECTED { Result::Type::REJECTED, 0 };
+inline constexpr Result Result::REJECTED__NOT_CONNECTED { Result::Type::REJECTED, Result::Subtype::NOT_CONNECTED };
 
 } // namespace nd
 

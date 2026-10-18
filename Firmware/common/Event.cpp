@@ -85,6 +85,7 @@ Event Event::make_delay_event(uint32_t usec) {
 
 
 /**
+ * @class nd::Result
  * @brief Result class for operation outcome representation
  * 
  * A utility class to represent the result of operations with type information,
@@ -101,8 +102,3 @@ Event Event::make_delay_event(uint32_t usec) {
  * @see Subtype Enumeration of additional context (UNDEFINED, NOT_CONNECTED)
  */
 
-Result Result::OK = { Type::OK, 0 };
-Result Result::OK__NOT_HANDLED = { Type::OK, Subtype::NOT_HANDLED };
-Result Result::OK__NOT_CONNECTED = { Type::OK, Subtype::NOT_CONNECTED };
-Result Result::REJECTED = { Type::REJECTED, 0 };
-Result Result::REJECTED__NOT_CONNECTED = { Type::REJECTED, Subtype::NOT_CONNECTED };
