@@ -26,7 +26,7 @@
  Use this project to create ROM Images for the NewtCOM Dongle.
 
  The version number is defined in common/version.h.
- Version 0.7a: robustness fixes, see Firmware/CLAUDE.md.
+ Version 0.7b: robustness fixes, see Firmware/CLAUDE.md.
  Version 0.6a has the following features:
   - Dock protocol emulation 
     - Connect to emulated NCU via Dock protocol

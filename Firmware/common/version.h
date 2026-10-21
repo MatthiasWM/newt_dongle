@@ -8,6 +8,6 @@
 
 // Single source for the firmware version. The CMake builds in PiPico/ and
 // NewtCOM/ read this line for `pico_set_program_version()`, so keep the format.
-#define ND_VERSION_STRING "0.7a"
+#define ND_VERSION_STRING "0.7b"
 
 #endif // ND_VERSION_H
